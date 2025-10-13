@@ -1,6 +1,20 @@
 import { config } from "dotenv";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import fs from 'fs';
 
-config({ path: `.env.${process.env.NODE_ENV || "development" }.local` });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Try to load from .env file if it exists (for local development)
+// In production (Render), environment variables are already in process.env
+const envPath = `.env.${process.env.NODE_ENV || "development" }.local`;
+if (fs.existsSync(envPath)) {
+  config({ path: envPath });
+} else {
+  // If no .env file, environment variables should already be in process.env (e.g., Render)
+  console.log(`No ${envPath} file found, using environment variables from hosting platform`);
+}
 
 export const { 
     PORT, 
