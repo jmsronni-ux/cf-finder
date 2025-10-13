@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { User, Mail, Wallet, Trophy, DollarSign, Calendar, Loader2, ArrowLeft, Save, Edit2, X, Search, Copy, ExternalLink, UserRoundSearch } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
+import { apiFetch } from '../utils/api';
 
 interface WalletBalances {
   btc?: number;

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { validateWalletAddress } from '../utils/walletValidation';
+import { apiFetch } from '../utils/api';
 
 interface AddWalletPopupProps {
   isOpen: boolean;

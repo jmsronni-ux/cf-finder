@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, DollarSign, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch } from '@/utils/api';
 
 interface TopupRequestPopupProps {
   isOpen: boolean;

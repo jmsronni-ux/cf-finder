@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import InsufficientBalancePopup from './InsufficientBalancePopup';
+import { apiFetch } from '../utils/api';
 
 interface NodeDetailsPanelProps {
   selectedNode: any;

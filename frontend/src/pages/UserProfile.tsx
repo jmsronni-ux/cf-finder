@@ -12,6 +12,7 @@ import UserTransactions from './UserTransactions';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import div from '../components/ui/magic-card';
 import MagicBadge from '../components/ui/magic-badge';
+import { apiFetch } from '../utils/api';
 import LevelProgressBar from '../components/LevelProgressBar';
 import { Link } from 'react-router-dom';
 

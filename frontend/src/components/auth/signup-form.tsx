@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Label } from "../ui/label";
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
+import { apiFetch } from "@/utils/api";
 
 const SignUpForm = () => {
     const router = useNavigate();

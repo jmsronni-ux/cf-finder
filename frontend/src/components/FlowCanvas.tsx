@@ -17,6 +17,7 @@ import FingerprintNode from './nodes/FingerprintNode';
 import DataVisual from './DataVisual';
 import NodeDetailsPanel from './NodeDetailsPanel';
 import NextLevelPopup from './NextLevelPopup';
+import { apiFetch } from '../utils/api';
 import levelOneData from '../data/level-one.json';
 import levelTwoData from '../data/level-two.json';
 import levelThreeData from '../data/level-three.json';

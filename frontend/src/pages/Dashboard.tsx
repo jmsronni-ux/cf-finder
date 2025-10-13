@@ -17,6 +17,7 @@ import levelThreeData from "@/data/level-three.json";
 import levelFourData from "@/data/level-four.json";
 import levelFiveData from "@/data/level-five.json";
 import type { CryptoTransaction } from "@/components/CryptoTransactionTable";
+import { apiFetch } from "@/utils/api";
 
 interface TransactionWithPending extends CryptoTransaction {
   nodeId: string;

@@ -3,6 +3,7 @@ import { X, DollarSign, Wallet, AlertCircle, CheckCircle, Clock, Loader2, XCircl
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { apiFetch } from '../utils/api';
 
 interface WithdrawPopupProps {
   isOpen: boolean;

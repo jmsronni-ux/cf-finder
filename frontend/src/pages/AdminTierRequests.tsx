@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { CheckCircle, XCircle, DollarSign, User, Mail, Trophy, Calendar, Loader2, ArrowLeft, Search, X, UserRoundSearch, Wallet } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
+import { apiFetch } from '../utils/api';
 
 interface TierRequestData {
   _id: string;
