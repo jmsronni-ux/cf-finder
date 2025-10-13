@@ -60,7 +60,7 @@ const AdminTierRequests: React.FC = () => {
         ? '/tier-request/admin/all' 
         : `/tier-request/admin/all?status=${filter}`;
       
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ const AdminTierRequests: React.FC = () => {
   const handleApprove = async (requestId: string) => {
     setProcessingId(requestId);
     try {
-      const response = await fetch(`/tier-request/admin/approve/${requestId}`, {
+      const response = await apiFetch(`/tier-request/admin/approve/${requestId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +120,7 @@ const AdminTierRequests: React.FC = () => {
   const handleReject = async (requestId: string) => {
     setProcessingId(requestId);
     try {
-      const response = await fetch(`/tier-request/admin/reject/${requestId}`, {
+      const response = await apiFetch(`/tier-request/admin/reject/${requestId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

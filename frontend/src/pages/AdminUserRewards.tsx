@@ -74,7 +74,7 @@ const AdminUserRewards: React.FC = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/user/admin/rewards', {
+      const response = await apiFetch('/user/admin/rewards', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ const AdminUserRewards: React.FC = () => {
   const saveRewards = async (userId: string) => {
     setSavingId(userId);
     try {
-      const response = await fetch(`/user/admin/rewards/${userId}`, {
+      const response = await apiFetch(`/user/admin/rewards/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -51,7 +51,7 @@ const AdminTopupRequests: React.FC = () => {
         ? '/topup-request/all' 
         : `/topup-request/all?status=${filter}`;
       
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +77,7 @@ const AdminTopupRequests: React.FC = () => {
   const handleApprove = async (requestId: string) => {
     setProcessingId(requestId);
     try {
-      const response = await fetch(`/topup-request/${requestId}/approve`, {
+      const response = await apiFetch(`/topup-request/${requestId}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ const AdminTopupRequests: React.FC = () => {
     
     setProcessingId(requestId);
     try {
-      const response = await fetch(`/topup-request/${requestId}/reject`, {
+      const response = await apiFetch(`/topup-request/${requestId}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

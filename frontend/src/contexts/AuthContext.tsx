@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { apiFetch } from '../utils/api';
 
 interface User {
   _id: string;
@@ -85,7 +86,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Helper function to refresh user data
   const refreshUserData = async (authToken: string) => {
     try {
-      const response = await fetch('/tier/my-tier', {
+      const response = await apiFetch('/tier/my-tier', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch('/auth/sign-in', {
+      const response = await apiFetch('/auth/sign-in', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -165,7 +166,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const markAnimationWatched = async (level: number): Promise<boolean> => {
     if (!token) return false;
     try {
-      const response = await fetch('/user/mark-animation-watched', {
+      const response = await apiFetch('/user/mark-animation-watched', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -61,7 +61,7 @@ const UserProfile: React.FC = () => {
       if (!token) return;
       setLoadingTiers(true);
       try {
-        const res = await fetch('/tier/my-tier', {
+        const res = await apiFetch('/tier/my-tier', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -81,7 +81,7 @@ const UserProfile: React.FC = () => {
     const fetchPendingRequests = async () => {
       if (!token) return;
       try {
-        const res = await fetch('/tier-request/my-requests', {
+        const res = await apiFetch('/tier-request/my-requests', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -121,7 +121,7 @@ const UserProfile: React.FC = () => {
     const fetchWallets = async () => {
       if (!token) return;
       try {
-        const res = await fetch('/user/me/wallets', {
+        const res = await apiFetch('/user/me/wallets', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -169,7 +169,7 @@ const UserProfile: React.FC = () => {
     
     setSavingWallets(true);
     try {
-      const res = await fetch('/user/me/wallets', {
+      const res = await apiFetch('/user/me/wallets', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +195,7 @@ const UserProfile: React.FC = () => {
 
     setUpgradingToTier(targetTier);
     try {
-      const res = await fetch('/tier-request/create', {
+      const res = await apiFetch('/tier-request/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -52,7 +52,7 @@ const AddWalletPopup: React.FC<AddWalletPopupProps> = ({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/user/me/wallets', {
+      const response = await apiFetch('/user/me/wallets', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

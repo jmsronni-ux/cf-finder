@@ -26,7 +26,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     setIsLoading(true);
 
     try {
-      const response = await fetch('/topup-request/create', {
+      const response = await apiFetch('/topup-request/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

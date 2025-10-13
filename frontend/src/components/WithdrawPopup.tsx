@@ -50,7 +50,7 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
     
     try {
       // Fetch next tier info
-      const tierInfoRes = await fetch('/tier/my-tier', {
+      const tierInfoRes = await apiFetch('/tier/my-tier', {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -62,7 +62,7 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
         const nextTier = tierInfoJson.data.upgradeOptions[0];
         
         // Submit tier upgrade request automatically
-        const res = await fetch('/tier-request/create', {
+        const res = await apiFetch('/tier-request/create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
       const checkStatus = async () => {
         try {
           const token = localStorage.getItem('token');
-          const response = await fetch('/withdraw-request/my-requests', {
+          const response = await apiFetch('/withdraw-request/my-requests', {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`,
@@ -145,7 +145,7 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
       setIsCheckingPending(true);
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/withdraw-request/my-requests', {
+        const response = await apiFetch('/withdraw-request/my-requests', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
@@ -238,7 +238,7 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/withdraw-request/create', {
+      const response = await apiFetch('/withdraw-request/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -34,7 +34,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
     const fetchPendingRequests = async () => {
       if (!token) return;
       try {
-        const res = await fetch('/tier-request/my-requests', {
+        const res = await apiFetch('/tier-request/my-requests', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -60,7 +60,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
       }
       
       try {
-        const res = await fetch('/tier/my-tier', {
+        const res = await apiFetch('/tier/my-tier', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -118,7 +118,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
     // Proceed with upgrade
     setIsUpgrading(true);
     try {
-      const res = await fetch('/tier/upgrade', {
+      const res = await apiFetch('/tier/upgrade', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

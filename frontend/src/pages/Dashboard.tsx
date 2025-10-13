@@ -78,7 +78,7 @@ const Dashboard = () => {
     const fetchPendingRequests = async () => {
       if (!token) return;
       try {
-        const res = await fetch('/tier-request/my-requests', {
+        const res = await apiFetch('/tier-request/my-requests', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -164,7 +164,7 @@ const Dashboard = () => {
       if (!token) return;
       
       try {
-        const res = await fetch('/user/me/wallets', {
+        const res = await apiFetch('/user/me/wallets', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`

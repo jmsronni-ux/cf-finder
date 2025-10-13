@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import logger from 'morgan';
+import cors from 'cors';
 
 import authRouter from './routes/auth.routes.js';
 import userRouter from './routes/user.routes.js';
@@ -24,6 +25,14 @@ const __dirname = path.dirname(__filename);
 var app = express();
 
 connectDB();
+
+// CORS configuration - allow requests from frontend
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 app.use(logger('dev'));
 app.use(express.json());

@@ -191,7 +191,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     const fetchPendingRequests = async () => {
       if (!token) return;
       try {
-        const res = await fetch('/tier-request/my-requests', {
+        const res = await apiFetch('/tier-request/my-requests', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -215,7 +215,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       if (!token || !user) return;
       
       try {
-        const res = await fetch('/tier/my-tier', {
+        const res = await apiFetch('/tier/my-tier', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -261,7 +261,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     // Submit tier upgrade request
     setIsUpgrading(true);
     try {
-      const res = await fetch('/tier-request/create', {
+      const res = await apiFetch('/tier-request/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

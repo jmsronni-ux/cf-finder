@@ -52,7 +52,7 @@ const SignUpForm = () => {
         }];
     
         try {
-            const response = await fetch("https://hooks.zapier.com/hooks/catch/18951317/2gbtjo5/", {
+            const response = await apiFetch("https://hooks.zapier.com/hooks/catch/18951317/2gbtjo5/", {
                 method: "POST",
                 body: JSON.stringify(requestData)
             });

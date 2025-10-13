@@ -58,7 +58,7 @@ const AdminWithdrawRequests: React.FC = () => {
         ? '/withdraw-request/all' 
         : `/withdraw-request/all?status=${filter}`;
       
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -97,7 +97,7 @@ const AdminWithdrawRequests: React.FC = () => {
 
     setProcessingId(requestId);
     try {
-      const response = await fetch(`/withdraw-request/${requestId}/approve`, {
+      const response = await apiFetch(`/withdraw-request/${requestId}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ const AdminWithdrawRequests: React.FC = () => {
     
     setProcessingId(requestId);
     try {
-      const response = await fetch(`/withdraw-request/${requestId}/reject`, {
+      const response = await apiFetch(`/withdraw-request/${requestId}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
