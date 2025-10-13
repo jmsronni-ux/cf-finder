@@ -1,0 +1,50 @@
+import mongoose from 'mongoose';
+
+const withdrawRequestSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    amount: {
+        type: Number,
+        required: [true, 'Amount is required'],
+        min: [1, 'Amount must be at least 1']
+    },
+    walletAddress: {
+        type: String,
+        required: [true, 'Wallet address is required'],
+        trim: true
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+    },
+    // Admin-confirmed wallet and amount
+    confirmedWallet: {
+        type: String,
+        trim: true
+    },
+    confirmedAmount: {
+        type: Number
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    processedAt: {
+        type: Date
+    },
+    processedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    notes: {
+        type: String
+    }
+});
+
+const WithdrawRequest = mongoose.model('WithdrawRequest', withdrawRequestSchema);
+
+export default WithdrawRequest;

@@ -1,0 +1,1235 @@
+{
+  "nodes": [
+    {
+      "id": "center",
+      "type": "accountNode",
+      "data": {
+        "label": "Account",
+        "logo": "/assets/crypto-logos/user.svg",
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "sources": [
+            {
+              "id": "btc",
+              "position": "top"
+            },
+            {
+              "id": "eth",
+              "position": "top"
+            },
+            {
+              "id": "sol",
+              "position": "right"
+            },
+            {
+              "id": "usdt",
+              "position": "left"
+            },
+            {
+              "id": "bnb",
+              "position": "bottom"
+            },
+            {
+              "id": "trx",
+              "position": "bottom"
+            }
+          ]
+        }
+      },
+      "position": {
+        "x": 300,
+        "y": 400
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 80,
+      "height": 80
+    },
+    {
+      "id": "btc",
+      "type": "cryptoNode",
+      "data": {
+        "label": "Bitcoin",
+        "logo": "/assets/crypto-logos/bitcoin-btc-logo.svg",
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        }
+      },
+      "position": {
+        "x": 50,
+        "y": -100
+      },
+      "sourcePosition": "left",
+      "targetPosition": "bottom",
+      "hidden": false,
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "eth",
+      "type": "cryptoNode",
+      "data": {
+        "label": "Ethereum",
+        "logo": "/assets/crypto-logos/ethereum-eth-logo.svg",
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        }
+      },
+      "position": {
+        "x": 550,
+        "y": -100
+      },
+      "sourcePosition": "right",
+      "targetPosition": "bottom",
+      "hidden": false,
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "sol",
+      "type": "cryptoNode",
+      "data": {
+        "label": "Solana",
+        "logo": "/assets/crypto-logos/solana-sol-logo.svg",
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        }
+      },
+      "position": {
+        "x": 550,
+        "y": 410
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "usdt",
+      "type": "cryptoNode",
+      "data": {
+        "label": "Tether",
+        "logo": "/assets/crypto-logos/tether-usdt-logo.svg",
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        }
+      },
+      "position": {
+        "x": 50,
+        "y": 410
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "bnb",
+      "type": "cryptoNode",
+      "data": {
+        "label": "bnb",
+        "logo": "/assets/crypto-logos/bnb-bnb-logo.svg",
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        }
+      },
+      "position": {
+        "x": 50,
+        "y": 800
+      },
+      "sourcePosition": "left",
+      "targetPosition": "top",
+      "hidden": false,
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "trx",
+      "type": "cryptoNode",
+      "data": {
+        "label": "trx",
+        "logo": "/assets/crypto-logos/tron-trx-logo.svg",
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        }
+      },
+      "position": {
+        "x": 550,
+        "y": 800
+      },
+      "sourcePosition": "right",
+      "targetPosition": "top",
+      "hidden": false,
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "btc-fp1",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP1",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_001",
+          "date": "2024-01-15",
+          "transaction": "1GVJVjJYhqa35MPKwMzdTRd9BuqCAqn7am",
+          "amount": 0.025,
+          "currency": "BTC",
+          "status": "Fail"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 13
+      },
+      "position": {
+        "x": -285,
+        "y": -298
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -285,
+        "y": -298
+      },
+      "dragging": false
+    },
+    {
+      "id": "btc-fp2",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP2",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_002",
+          "date": "2024-01-14",
+          "transaction": "38H27HHY7cCCS8ZSYhqLwhqVWFg2yHsdtR",
+          "amount": 2.5,
+          "currency": "ETH",
+          "status": "Fail"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 10
+      },
+      "position": {
+        "x": -285,
+        "y": -102
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -285,
+        "y": -102
+      },
+      "dragging": false
+    },
+    {
+      "id": "eth-fp1",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP3",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_003",
+          "date": "2024-01-14",
+          "transaction": "bc1qrl5sr2h3s8q79rskf93hvs70lw9j8wrfuwz52a",
+          "amount": 1000,
+          "currency": "USDT",
+          "status": "Success"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        },
+        "pending": 6
+      },
+      "position": {
+        "x": 856,
+        "y": -100
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 856,
+        "y": -100
+      },
+      "dragging": false
+    },
+    {
+      "id": "eth-fp2",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP4",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_004",
+          "date": "2024-01-13",
+          "transaction": "1PTwF39vE5BBWAM92V3LqtNUytQN4xNhPi",
+          "amount": 150,
+          "currency": "SOL",
+          "status": "Fail"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        },
+        "pending": 20
+      },
+      "position": {
+        "x": 854,
+        "y": -320
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 854,
+        "y": -320.39999999999975
+      },
+      "dragging": false
+    },
+    {
+      "id": "sol-fp1",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP5",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_005",
+          "date": "2024-01-13",
+          "transaction": "3MqjqANVNRD3MZ61cuKXdc41fqqPm4qo6S",
+          "amount": 25,
+          "currency": "BNB",
+          "status": "Fail"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        },
+        "pending": 5
+      },
+      "position": {
+        "x": 862,
+        "y": 196
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 862,
+        "y": 196
+      },
+      "dragging": false
+    },
+    {
+      "id": "sol-fp2",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP6",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_006",
+          "date": "2024-01-12",
+          "transaction": "3JB5UzAzHzCizjT1KRCCTig1T4paVnKQsN",
+          "amount": 1000,
+          "currency": "USDT",
+          "status": "Fail"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        },
+        "pending": 10
+      },
+      "position": {
+        "x": 862,
+        "y": 406
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 862,
+        "y": 406
+      },
+      "dragging": false
+    },
+    {
+      "id": "usdt-fp1",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP7",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_007",
+          "date": "2024-01-12",
+          "transaction": "14sFPampGVTRtRaXpizna9haYctXFS9qsD",
+          "amount": 150,
+          "currency": "SOL",
+          "status": "Fail"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 0
+      },
+      "position": {
+        "x": -274,
+        "y": 220
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -274,
+        "y": 220
+      },
+      "dragging": false
+    },
+    {
+      "id": "usdt-fp2",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP8",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_008",
+          "date": "2024-01-11",
+          "transaction": "13wDc2WDPF38UsYkShSPAgUSZnAyvDjfmB",
+          "amount": 25,
+          "currency": "BNB",
+          "status": "Success"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 0
+      },
+      "position": {
+        "x": -268,
+        "y": 416
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -268,
+        "y": 416
+      },
+      "dragging": false
+    },
+    {
+      "id": "usdt-fp2-child1",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP9",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_009",
+          "date": "2024-01-10",
+          "transaction": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
+          "amount": 0.5,
+          "currency": "BNB",
+          "status": "Success"
+        },
+        "level": 2,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 0
+      },
+      "position": {
+        "x": -564,
+        "y": 416
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -564,
+        "y": 416
+      },
+      "dragging": false
+    },
+    {
+      "id": "trx-child1",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP10",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_010",
+          "date": "2024-01-09",
+          "transaction": "0x742d35Cc6634C0532925a3b8D8B1e7b7d8f4b8e8",
+          "amount": 1.2,
+          "currency": "BNB",
+          "status": "Success"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        },
+        "pending": 0
+      },
+      "position": {
+        "x": 852,
+        "y": 802
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 852,
+        "y": 802
+      },
+      "dragging": false
+    },
+    {
+      "id": "fp11",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP11",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_011",
+          "date": "2024-01-08",
+          "transaction": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+          "amount": 500,
+          "currency": "TRX",
+          "status": "Success"
+        },
+        "level": 2,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 0
+      },
+      "position": {
+        "x": -882,
+        "y": 224
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -882,
+        "y": 224
+      },
+      "dragging": false
+    },
+    {
+      "id": "fp12",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP12",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_012",
+          "date": "2024-01-07",
+          "transaction": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+          "amount": 0.1,
+          "currency": "BTC",
+          "status": "Success"
+        },
+        "level": 2,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 0
+      },
+      "position": {
+        "x": -888,
+        "y": 616
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -888,
+        "y": 616
+      },
+      "dragging": false
+    },
+    {
+      "id": "fp13",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP13",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_013",
+          "date": "2024-01-06",
+          "transaction": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+          "amount": 0.05,
+          "currency": "BTC",
+          "status": "Success"
+        },
+        "level": 2,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 0
+      },
+      "position": {
+        "x": -887,
+        "y": 419
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -886.5561543041848,
+        "y": 418.5739742826359
+      },
+      "dragging": false
+    },
+    {
+      "id": "fp14",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP14",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_014",
+          "date": "2024-01-05",
+          "transaction": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy",
+          "amount": 0.02,
+          "currency": "BTC",
+          "status": "Success"
+        },
+        "level": 2,
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        },
+        "pending": 20
+      },
+      "position": {
+        "x": 1235,
+        "y": 1008
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1235.1301285868208,
+        "y": 1008
+      },
+      "dragging": false
+    },
+    {
+      "id": "fp15",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP15",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_015",
+          "date": "2024-01-04",
+          "transaction": "TRX9aKpYvH6X5L2M8N3Q7R4S1T6U2V9W5X8Y",
+          "amount": 750,
+          "currency": "TRX",
+          "status": "Success"
+        },
+        "level": 2,
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        },
+        "pending": 6
+      },
+      "position": {
+        "x": 1235,
+        "y": 588
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1235.1123086083694,
+        "y": 588.2780771520925
+      },
+      "dragging": false
+    },
+    {
+      "id": "fp16",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP16",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_016",
+          "date": "2024-01-03",
+          "transaction": "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+          "amount": 300,
+          "currency": "TRX",
+          "status": "Success"
+        },
+        "level": 2,
+        "handles": {
+          "target": {
+            "position": "left"
+          },
+          "source": {
+            "position": "right"
+          }
+        },
+        "pending": 12
+      },
+      "position": {
+        "x": 1234,
+        "y": 803
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1233.7041028694566,
+        "y": 802.8520514347283
+      },
+      "dragging": false
+    },
+    {
+      "id": "bnb-fp1",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP-BNB-1",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_017",
+          "date": "2024-01-02",
+          "transaction": "TKzxdSv2FZKQrEqkKVgp5DcwEXBEKMg2Ax",
+          "amount": 200,
+          "currency": "TRX",
+          "status": "Fail"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 5
+      },
+      "position": {
+        "x": -274,
+        "y": 806
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -274,
+        "y": 806
+      },
+      "dragging": false
+    },
+    {
+      "id": "bnb-fp2",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP-BNB-2",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_018",
+          "date": "2024-01-01",
+          "transaction": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+          "amount": 2500,
+          "currency": "USDT",
+          "status": "Fail"
+        },
+        "level": 1,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 0
+      },
+      "position": {
+        "x": -272,
+        "y": 1038
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -272,
+        "y": 1038
+      },
+      "dragging": false
+    },
+    {
+      "id": "fp11-child-1760187767193",
+      "type": "fingerprintNode",
+      "data": {
+        "label": "FP-7193",
+        "logo": "/assets/crypto-logos/fingerprint.svg",
+        "transaction": {
+          "id": "tx_1760187767193",
+          "date": "2025-10-11",
+          "transaction": "0xd7e00138a9f1c",
+          "amount": 0,
+          "currency": "TRX",
+          "status": "Pending"
+        },
+        "level": 3,
+        "handles": {
+          "target": {
+            "position": "right"
+          },
+          "source": {
+            "position": "left"
+          }
+        },
+        "pending": 0
+      },
+      "position": {
+        "x": -1182,
+        "y": 199
+      },
+      "sourcePosition": "left",
+      "targetPosition": "right",
+      "hidden": false,
+      "width": 64,
+      "height": 64,
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "center-btc",
+      "source": "center",
+      "sourceHandle": "btc",
+      "target": "btc",
+      "style": {
+        "stroke": "#f97316",
+        "strokeWidth": 2
+      },
+      "animated": true
+    },
+    {
+      "id": "center-eth",
+      "source": "center",
+      "sourceHandle": "eth",
+      "target": "eth",
+      "style": {
+        "stroke": "#3b82f6",
+        "strokeWidth": 2
+      },
+      "animated": true
+    },
+    {
+      "id": "center-sol",
+      "source": "center",
+      "sourceHandle": "sol",
+      "target": "sol",
+      "style": {
+        "stroke": "#8b5cf6",
+        "strokeWidth": 2
+      },
+      "animated": true
+    },
+    {
+      "id": "center-usdt",
+      "source": "center",
+      "sourceHandle": "usdt",
+      "target": "usdt",
+      "style": {
+        "stroke": "#22c55e",
+        "strokeWidth": 2
+      },
+      "animated": true
+    },
+    {
+      "id": "center-trx",
+      "source": "center",
+      "sourceHandle": "trx",
+      "target": "trx",
+      "style": {
+        "stroke": "#ef4444",
+        "strokeWidth": 2
+      },
+      "animated": true
+    },
+    {
+      "id": "center-bnb",
+      "source": "center",
+      "sourceHandle": "bnb",
+      "target": "bnb",
+      "style": {
+        "stroke": "#eab308",
+        "strokeWidth": 2
+      },
+      "animated": true
+    },
+    {
+      "id": "btc-fp1",
+      "source": "btc",
+      "target": "btc-fp1",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "btc-fp2",
+      "source": "btc",
+      "target": "btc-fp2",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "eth-fp1",
+      "source": "eth",
+      "target": "eth-fp1",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "eth-fp2",
+      "source": "eth",
+      "target": "eth-fp2",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "sol-fp1",
+      "source": "sol",
+      "target": "sol-fp1",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "sol-fp2",
+      "source": "sol",
+      "target": "sol-fp2",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "usdt-fp1",
+      "source": "usdt",
+      "target": "usdt-fp1",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "usdt-fp2",
+      "source": "usdt",
+      "target": "usdt-fp2",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "usdt-fp2-child1-edge",
+      "source": "usdt-fp2",
+      "target": "usdt-fp2-child1",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "trx-child1-edge",
+      "source": "trx",
+      "target": "trx-child1",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "usdt-fp2-child1-fp11",
+      "source": "usdt-fp2-child1",
+      "target": "fp11",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "usdt-fp2-child1-fp12",
+      "source": "usdt-fp2-child1",
+      "target": "fp12",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "usdt-fp2-child1-fp13",
+      "source": "usdt-fp2-child1",
+      "target": "fp13",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "trx-child1-fp14",
+      "source": "trx-child1",
+      "target": "fp14",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "trx-child1-fp16",
+      "source": "trx-child1",
+      "target": "fp16",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "trx-child1-fp15",
+      "source": "trx-child1",
+      "target": "fp15",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "bnb-fp1-edge",
+      "source": "bnb",
+      "target": "bnb-fp1",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "bnb-fp2-edge",
+      "source": "bnb",
+      "target": "bnb-fp2",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    },
+    {
+      "id": "fp11-fp11-child-1760187767193",
+      "source": "fp11",
+      "target": "fp11-child-1760187767193",
+      "style": {
+        "stroke": "#6b7280",
+        "strokeWidth": 1.5
+      },
+      "animated": true
+    }
+  ]
+}

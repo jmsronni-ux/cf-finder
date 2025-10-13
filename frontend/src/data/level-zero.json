@@ -1,0 +1,27 @@
+{
+  "nodes": [
+    {
+      "id": "center",
+      "type": "accountNode",
+      "data": {
+        "label": "Account",
+        "logo": "/assets/crypto-logos/user.svg",
+        "handles": {
+          "target": {
+            "position": "bottom"
+          },
+          "sources": []
+        }
+      },
+      "position": {
+        "x": 300,
+        "y": 400
+      },
+      "hidden": false,
+      "width": 80,
+      "height": 80
+    }
+  ],
+  "edges": []
+}
+

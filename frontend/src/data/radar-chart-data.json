@@ -1,0 +1,38 @@
+[
+  {
+    "metric": "Scam",
+    "Binance": 6.65,
+    "Crypto.com": 5.52,
+    "Bybit": 2.26
+  },
+  {
+    "metric": "Adult",
+    "Binance": 2.76,
+    "Crypto.com": 5.5,
+    "Bybit": 0.29
+  },
+  {
+    "metric": "Laundering",
+    "Binance": 5.15,
+    "Crypto.com": 3.19,
+    "Bybit": 2.03
+  },
+  {
+    "metric": "Fraud",
+    "Binance": 0.19,
+    "Crypto.com": 0.51,
+    "Bybit": 0.05
+  },
+  {
+    "metric": "Phishing",
+    "Binance": 0.07,
+    "Crypto.com": 0.15,
+    "Bybit": 0.04
+  },
+  {
+    "metric": "Ransomware",
+    "Binance": 0.12,
+    "Crypto.com": 0.11,
+    "Bybit": 0.06
+  }
+]

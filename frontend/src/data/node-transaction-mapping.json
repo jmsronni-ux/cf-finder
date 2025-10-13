@@ -1,0 +1,20 @@
+{
+  "btc-fp1": "tx_001",
+  "btc-fp2": "tx_002", 
+  "eth-fp1": "tx_003",
+  "eth-fp2": "tx_004",
+  "sol-fp1": "tx_005",
+  "sol-fp2": "tx_006",
+  "usdt-fp1": "tx_007",
+  "usdt-fp2": "tx_008",
+  "bnb-fp1": "tx_009",
+  "bnb-fp2": "tx_010",
+  "trx-child1": "tx_011",
+  "fp11": "tx_012",
+  "fp12": "tx_013",
+  "fp13": "tx_014",
+  "fp14": "tx_015",
+  "fp15": "tx_016",
+  "fp16": "tx_017",
+  "usdt-fp2-child1": "tx_018"
+}
