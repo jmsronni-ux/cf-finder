@@ -250,28 +250,28 @@ const AdminTierRequests: React.FC = () => {
                 <div className="flex gap-2">
                   <Button
                     onClick={() => setFilter('all')}
-                    variant={filter === 'all' ? 'default' : 'outline'}
+                    variant={filter === 'all' ? 'primary' : 'outline'}
                     className={filter === 'all' ? 'bg-purple-600 hover:bg-purple-700' : ''}
                   >
                     All ({requests.length})
                   </Button>
                   <Button
                     onClick={() => setFilter('pending')}
-                    variant={filter === 'pending' ? 'default' : 'outline'}
+                    variant={filter === 'pending' ? 'primary' : 'outline'}
                     className={filter === 'pending' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
                   >
                     Pending
                   </Button>
                   <Button
                     onClick={() => setFilter('approved')}
-                    variant={filter === 'approved' ? 'default' : 'outline'}
+                    variant={filter === 'approved' ? 'primary' : 'outline'}
                     className={filter === 'approved' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     Approved
                   </Button>
                   <Button
                     onClick={() => setFilter('rejected')}
-                    variant={filter === 'rejected' ? 'default' : 'outline'}
+                    variant={filter === 'rejected' ? 'primary' : 'outline'}
                     className={filter === 'rejected' ? 'bg-red-600 hover:bg-red-700' : ''}
                   >
                     Rejected

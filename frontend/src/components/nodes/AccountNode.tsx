@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Handle } from 'reactflow';
+import { Handle, Position } from 'reactflow';
 import { gsap } from 'gsap';
 
 interface AccountNodeProps {
@@ -22,18 +22,18 @@ interface AccountNodeProps {
 }
 
 const AccountNode: React.FC<AccountNodeProps> = ({ data }) => {
-  const getPosition = (position: string) => {
+  const getPosition = (position: string): Position => {
     switch (position.toLowerCase()) {
       case 'top':
-        return 'top' as const;
+        return Position.Top;
       case 'right':
-        return 'right' as const;
+        return Position.Right;
       case 'bottom':
-        return 'bottom' as const;
+        return Position.Bottom;
       case 'left':
-        return 'left' as const;
+        return Position.Left;
       default:
-        return 'left' as const;
+        return Position.Left;
     }
   };
 

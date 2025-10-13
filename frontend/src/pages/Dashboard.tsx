@@ -305,7 +305,7 @@ const Dashboard = () => {
                     {/* top bar */}
                     <div className="p-4 border-b border-gray-500/20 w-full flex flex-row justify-between items-center">
                         <div className="flex items-center w-full gap-4">
-                          <Progress value={progress.toFixed(0)} />
+                          <Progress value={Number(progress.toFixed(0))} />
                           
                           {/* Pending Tier Request Indicator */}
                           {pendingTierRequest && (
