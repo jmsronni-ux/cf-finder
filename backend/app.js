@@ -36,6 +36,12 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
+    // If FRONTEND_URL is not set in production, allow all origins (for initial deployment)
+    if (!process.env.FRONTEND_URL && process.env.NODE_ENV === 'production') {
+      console.log('⚠️  FRONTEND_URL not set, allowing all origins. Set FRONTEND_URL for better security.');
+      return callback(null, true);
+    }
+    
     if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
