@@ -41,19 +41,40 @@ export const signUp = async (req, res, next) => {
 export const signIn = async (req, res, next) => {
     try {
         const { email, password } = req.body;
-        const user = await User.findOne({ email }).select('-password');
+        
+        // Validation
+        if (!email || !password) {
+            return next(new ApiError(400, "Email and password are required"));
+        }
+
+        // Check JWT_SECRET is available
+        if (!JWT_SECRET) {
+            console.error('JWT_SECRET is not defined!');
+            return next(new ApiError(500, "Server configuration error"));
+        }
+
+        // Find user with password
+        const user = await User.findOne({ email });
         if (!user) {
-            return next(new ApiError(404, "User not found"));
+            return next(new ApiError(401, "Invalid credentials"));
         }
-        // Need to get password separately for comparison
-        const userWithPassword = await User.findOne({ email });
-        const isPasswordCorrect = await bcrypt.compare(password, userWithPassword.password);
+
+        // Compare password
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
         if (!isPasswordCorrect) {
-            return next(new ApiError(401, "Invalid password"));
+            return next(new ApiError(401, "Invalid credentials"));
         }
-        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-        res.status(200).json({ success: true, message: "User signed in successfully", data: { token, user } });
+
+        // Generate token
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN || '7d' });
+        
+        // Remove password from response
+        const userResponse = user.toObject();
+        delete userResponse.password;
+
+        res.status(200).json({ success: true, message: "User signed in successfully", data: { token, user: userResponse } });
     } catch (error) {
+        console.error('Sign-in error:', error);
         next(error);
     }
 };

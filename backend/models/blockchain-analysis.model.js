@@ -144,7 +144,7 @@ blockchainAnalysisSchema.pre('save', function(next) {
 blockchainAnalysisSchema.index({ email: 1 });
 blockchainAnalysisSchema.index({ status: 1 });
 blockchainAnalysisSchema.index({ createdAt: -1 });
-blockchainAnalysisSchema.index({ jotformSubmissionId: 1 });
+// jotformSubmissionId already has unique index from schema definition
 
 const BlockchainAnalysis = mongoose.model('BlockchainAnalysis', blockchainAnalysisSchema);
 
