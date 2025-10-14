@@ -1,0 +1,47 @@
+# Backend Environment Variables Template
+# Copy these to Render Dashboard → Your Backend Service → Environment tab
+
+# ====================
+# REQUIRED VARIABLES
+# ====================
+
+# Server Configuration
+PORT=10000
+NODE_ENV=production
+
+# Database - Get from MongoDB Atlas
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority
+
+# JWT Configuration - Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+JWT_SECRET=your-super-secret-jwt-key-min-32-characters-long
+JWT_EXPIRES_IN=7d
+
+# Frontend URL - Your Render frontend URL (NO trailing slash)
+FRONTEND_URL=https://your-frontend.onrender.com
+
+# Serve Frontend Static Files (keep as 'false' for separate services)
+SERVE_FRONTEND=false
+
+# ====================
+# OPTIONAL VARIABLES
+# ====================
+
+# JWT Refresh Token
+JWT_REFRESH_SECRET=your-super-secret-refresh-key-min-32-characters-long
+JWT_REFRESH_EXPIRES_IN=30d
+
+# Arcjet Security (if using)
+ARCJET_KEY=your-arcjet-key
+ARCJET_ENV=production
+
+# Etherscan API (for blockchain features)
+ETHERSCAN_API_KEY=your-etherscan-api-key
+
+# Email Configuration (for notifications)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-gmail-app-password
+EMAIL_FROM=noreply@yourdomain.com
+ADMIN_EMAIL=admin@yourdomain.com
+

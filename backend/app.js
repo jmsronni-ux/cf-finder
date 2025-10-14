@@ -27,8 +27,21 @@ var app = express();
 connectDB();
 
 // CORS configuration - allow requests from frontend
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -39,8 +52,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-// Serve frontend static files in production (when built)
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+// Only serve frontend static files if they exist (monorepo deployment)
+// For separate services deployment, comment this out or remove
+if (process.env.SERVE_FRONTEND === 'true') {
+  const frontendPath = path.join(__dirname, '../frontend/dist');
+  app.use(express.static(frontendPath));
+  console.log('Serving frontend from:', frontendPath);
+}
 
 app.use('/auth', authRouter);
 app.use('/user', userRouter);

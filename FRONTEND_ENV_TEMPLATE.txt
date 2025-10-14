@@ -1,0 +1,6 @@
+# Frontend Environment Variables Template
+# Copy these to Render Dashboard → Your Frontend Static Site → Environment tab
+
+# Backend API URL - Your Render backend URL (NO trailing slash)
+VITE_API_URL=https://your-backend.onrender.com
+
