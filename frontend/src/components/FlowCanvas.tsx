@@ -18,11 +18,7 @@ import DataVisual from './DataVisual';
 import NodeDetailsPanel from './NodeDetailsPanel';
 import NextLevelPopup from './NextLevelPopup';
 import { apiFetch } from '../utils/api';
-import levelOneData from '../data/level-one.json';
-import levelTwoData from '../data/level-two.json';
-import levelThreeData from '../data/level-three.json';
-import levelFourData from '../data/level-four.json';
-import levelFiveData from '../data/level-five.json';
+import { useLevelData } from '../hooks/useLevelData';
 import { PulsatingButton } from './ui/pulsating-button';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
@@ -40,26 +36,10 @@ interface FlowCanvasProps {
 }
 
 // Helper function to get level data based on level number
-const getLevelData = (level: number): typeof levelOneData => {
-  switch (level) {
-    case 0:
-    case 1:
-      return levelOneData;
-    case 2:
-      return levelTwoData as typeof levelOneData;
-    case 3:
-      return levelThreeData as typeof levelOneData;
-    case 4:
-      return levelFourData as typeof levelOneData;
-    case 5:
-      return levelFiveData as typeof levelOneData;
-    default:
-      return levelOneData;
-  }
+const getLevelData = (level: number, levels: any[]): any => {
+  const levelData = levels.find(l => l.level === level);
+  return levelData || { nodes: [], edges: [] };
 };
-
-const initialNodes = levelOneData.nodes as any[];
-const initialEdges = levelOneData.edges as any[];
 
 const nodeTypes = {
   cryptoNode: CryptoNode,
@@ -68,11 +48,12 @@ const nodeTypes = {
 };
 
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const { levels, loading: levelsLoading } = useLevelData();
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [currentLevel, setCurrentLevel] = useState(1);
   const [selectedNode, setSelectedNode] = useState<any>(null);
-  const [levelData, setLevelData] = useState(levelOneData);
+  const [levelData, setLevelData] = useState({ nodes: [], edges: [] });
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<Set<number>>(new Set());
   const [downloadLevel, setDownloadLevel] = useState(1);
@@ -130,7 +111,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   }, [initializePendingStatus, onNodeAppear]);
   
   // Animation hook - use current level's nodes
-  const currentLevelNodes = useMemo(() => getLevelData(currentLevel).nodes as any[], [currentLevel]);
+  const currentLevelNodes = useMemo(() => getLevelData(currentLevel, levels).nodes as any[], [currentLevel, levels]);
   const { startAnimation, isNodeVisible, hasStarted, isCompleted, resetAnimation } = useNodeAnimation(
     currentLevelNodes, 
     handleNodeAppear, 

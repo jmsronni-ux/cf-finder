@@ -11,11 +11,7 @@ import AddWalletPopup from "@/components/AddWalletPopup";
 import InsufficientBalancePopup from "@/components/InsufficientBalancePopup";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import { useAuth } from "@/contexts/AuthContext";
-import levelOneData from "@/data/level-one.json";
-import levelTwoData from "@/data/level-two.json";
-import levelThreeData from "@/data/level-three.json";
-import levelFourData from "@/data/level-four.json";
-import levelFiveData from "@/data/level-five.json";
+import { useLevelData } from "@/hooks/useLevelData";
 import type { CryptoTransaction } from "@/components/CryptoTransactionTable";
 import { apiFetch } from "@/utils/api";
 
@@ -26,25 +22,14 @@ interface TransactionWithPending extends CryptoTransaction {
 }
 
 // Helper function to get level data based on level number
-const getLevelData = (level: number): typeof levelOneData => {
-  switch (level) {
-    case 1:
-      return levelOneData;
-    case 2:
-      return levelTwoData as typeof levelOneData;
-    case 3:
-      return levelThreeData as typeof levelOneData;
-    case 4:
-      return levelFourData as typeof levelOneData;
-    case 5:
-      return levelFiveData as typeof levelOneData;
-    default:
-      return levelOneData;
-  }
+const getLevelData = (level: number, levels: any[]): any => {
+  const levelData = levels.find(l => l.level === level);
+  return levelData || { nodes: [], edges: [] };
 };
 
 const Dashboard = () => {
   const { user, token } = useAuth();
+  const { levels, loading: levelsLoading, error: levelsError } = useLevelData();
   const [progress, setProgress] = useState<number>(0);
   const [showWalletPopup, setShowWalletPopup] = useState<boolean>(false);
   const [showInsufficientBalancePopup, setShowInsufficientBalancePopup] = useState<boolean>(false);
@@ -55,8 +40,8 @@ const Dashboard = () => {
   // Get the current level from user's tier (treat tier 0 as tier 1)
   const currentLevel = user?.tier === 0 ? 1 : (user?.tier || 1);
   
-  // Get current level data
-  const currentLevelData = useMemo(() => getLevelData(currentLevel), [currentLevel]);
+  // Get current level data from MongoDB
+  const currentLevelData = useMemo(() => getLevelData(currentLevel, levels), [currentLevel, levels]);
   
   // Get fingerprint nodes that have transaction data AND match the current level
   // This needs to be calculated with useMemo so it updates when currentLevel changes
@@ -114,7 +99,7 @@ const Dashboard = () => {
 
   // Pre-populate transactions for watched levels on page load
   useEffect(() => {
-    if (!user) return;
+    if (!user || levelsLoading || !levels.length) return;
     
     // Check if user has watched the current level
     const hasWatchedCurrentLevel = user?.[`lvl${currentLevel}anim` as keyof typeof user] === 1;
@@ -122,7 +107,7 @@ const Dashboard = () => {
     if (hasWatchedCurrentLevel) {
       // Load all transactions for the current level from current level data
       const levelTransactions: TransactionWithPending[] = [];
-      const currentData = getLevelData(currentLevel);
+      const currentData = getLevelData(currentLevel, levels);
       
       currentData.nodes.forEach((node: any) => {
         if (
@@ -157,7 +142,7 @@ const Dashboard = () => {
       setProgress(0);
       setCompletedPendingNodes(new Set());
     }
-  }, [user, currentLevel]);
+  }, [user, currentLevel, levels, levelsLoading]);
 
   // Check if user has any wallets and show popup if not
   useEffect(() => {
@@ -200,7 +185,7 @@ const Dashboard = () => {
   // Handle when a node appears - add its corresponding transaction to the table
   const handleNodeAppear = useCallback((nodeId: string) => {
     // Find the node in current level data
-    const currentData = getLevelData(currentLevel);
+    const currentData = getLevelData(currentLevel, levels);
     const node = currentData.nodes.find((n: any) => n.id === nodeId);
     
     if (node && node.data && node.data.transaction) {
@@ -259,7 +244,7 @@ const Dashboard = () => {
         }, pendingSeconds * 1000);
       }
     }
-  }, [totalTransactions, currentLevel]);
+  }, [totalTransactions, currentLevel, levels]);
 
   const handleWalletSuccess = () => {
     // Refetch wallets after adding one

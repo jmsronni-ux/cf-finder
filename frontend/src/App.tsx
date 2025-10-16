@@ -8,6 +8,7 @@ import AdminTopupRequests from "./pages/AdminTopupRequests";
 import AdminUserRewards from "./pages/AdminUserRewards";
 import AdminWithdrawRequests from "./pages/AdminWithdrawRequests";
 import AdminTierRequests from "./pages/AdminTierRequests";
+import AdminLevelManagement from "./pages/AdminLevelManagement";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -52,6 +53,11 @@ function App() {
         <Route path="/admin/tier-requests" element={
           <ProtectedRoute>
             <AdminTierRequests />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/level-management" element={
+          <ProtectedRoute>
+            <AdminLevelManagement />
           </ProtectedRoute>
         } />
       </Routes>
