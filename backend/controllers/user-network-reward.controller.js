@@ -66,6 +66,16 @@ export const getUserNetworkRewards = async (req, res, next) => {
       }
     }
     
+    console.log(`[getUserNetworkRewards] User ${userId} network rewards:`, {
+      lvl1NetworkRewards: user.lvl1NetworkRewards,
+      lvl2NetworkRewards: user.lvl2NetworkRewards,
+      lvl3NetworkRewards: user.lvl3NetworkRewards,
+      lvl4NetworkRewards: user.lvl4NetworkRewards,
+      lvl5NetworkRewards: user.lvl5NetworkRewards
+    });
+    
+    console.log(`[getUserNetworkRewards] Combined rewards for user ${userId}:`, combinedRewards);
+    
     res.status(200).json({
       success: true,
       message: 'User network rewards retrieved successfully',

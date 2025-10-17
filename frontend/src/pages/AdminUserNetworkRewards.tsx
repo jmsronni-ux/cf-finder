@@ -122,12 +122,17 @@ const AdminUserNetworkRewards: React.FC = () => {
 
   const fetchUserRewards = async (userId: string) => {
     try {
+      console.log('Fetching user rewards for userId:', userId);
       const response = await apiFetch(`/user-network-reward/user/${userId}`);
       const data = await response.json();
 
+      console.log('User rewards response:', { status: response.status, data });
+
       if (response.ok && data.success) {
+        console.log('Setting user rewards:', data.data.rewards);
         setUserRewards(data.data.rewards || {});
       } else {
+        console.error('API Error:', data);
         toast.error(data.message || 'Failed to fetch user rewards');
       }
     } catch (error) {
