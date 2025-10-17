@@ -84,9 +84,15 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
             
             // Convert all rewards to USDT equivalent
             console.log(`[Animation] Calling convertRewardsToUSDT with:`, userNetworkRewards);
-            conversionResult = convertRewardsToUSDT(userNetworkRewards);
-            totalRewardUSDT = conversionResult.totalUSDT;
-            console.log(`[Animation] Conversion function result:`, conversionResult);
+            try {
+                conversionResult = convertRewardsToUSDT(userNetworkRewards);
+                totalRewardUSDT = conversionResult.totalUSDT;
+                console.log(`[Animation] Conversion function result:`, conversionResult);
+            } catch (conversionError) {
+                console.error(`[Animation] Error in conversion function:`, conversionError);
+                conversionResult = { totalUSDT: 0, breakdown: {} };
+                totalRewardUSDT = 0;
+            }
             
             console.log(`[Animation] Conversion result:`, conversionResult);
             console.log(`[Animation] Total reward USDT:`, totalRewardUSDT);
