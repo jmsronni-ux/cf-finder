@@ -19,6 +19,7 @@ import NodeDetailsPanel from './NodeDetailsPanel';
 import NextLevelPopup from './NextLevelPopup';
 import { apiFetch } from '../utils/api';
 import { useLevelData } from '../hooks/useLevelData';
+import { useNetworkRewards } from '../hooks/useNetworkRewards';
 import { PulsatingButton } from './ui/pulsating-button';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
@@ -49,6 +50,7 @@ const nodeTypes = {
 
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId }) => {
   const { levels, loading: levelsLoading } = useLevelData();
+  const { getTotalRewardForLevel } = useNetworkRewards();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [currentLevel, setCurrentLevel] = useState(1);
@@ -140,9 +142,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       (async () => {
         const rewardAdded = await markAnimationWatched(currentLevel);
         if (rewardAdded) {
-          const levelReward = user?.[`lvl${currentLevel}reward` as keyof typeof user] as number;
-          if (levelReward) {
-            toast.success(`🎉 Level ${currentLevel} reward of $${levelReward.toLocaleString()} added to your balance!`, {
+          const totalReward = getTotalRewardForLevel(currentLevel);
+          if (totalReward > 0) {
+            toast.success(`🎉 Level ${currentLevel} completed! Network rewards totaling $${totalReward.toLocaleString()} added to your balance!`, {
               duration: 5000
             });
           }

@@ -2,6 +2,7 @@ import express from "express";
 import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards } from "../controllers/user.controller.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
+import NetworkReward from "../models/network-reward.model.js";
 
 const userRouter = express.Router();
 
@@ -45,9 +46,8 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         }
         
         // Check if animation was already watched to avoid duplicate rewards
-        const currentUser = await User.findById(userId).select(`lvl${level}anim lvl${level}reward balance`);
+        const currentUser = await User.findById(userId).select(`lvl${level}anim balance`);
         const animField = `lvl${level}anim`;
-        const rewardField = `lvl${level}reward`;
         const alreadyWatched = currentUser[animField] === 1;
         
         console.log(`[Animation] Setting ${animField} to 1`);
@@ -56,12 +56,18 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         const updateObj = {};
         updateObj[animField] = 1;
         
-        // Add level reward to balance if animation not already watched
+        // Add network rewards to balance if animation not already watched
         if (!alreadyWatched) {
-            const levelReward = currentUser[rewardField] || 0;
-            const newBalance = currentUser.balance + levelReward;
-            updateObj.balance = newBalance;
-            console.log(`[Animation] Adding level ${level} reward: $${levelReward}. New balance: $${newBalance}`);
+            // Get network rewards for this level
+            const networkRewards = await NetworkReward.find({ level, isActive: true });
+            const totalReward = networkRewards.reduce((sum, reward) => sum + reward.rewardAmount, 0);
+            
+            if (totalReward > 0) {
+                const newBalance = currentUser.balance + totalReward;
+                updateObj.balance = newBalance;
+                console.log(`[Animation] Adding level ${level} network rewards: $${totalReward}. New balance: $${newBalance}`);
+                console.log(`[Animation] Network breakdown:`, networkRewards.map(r => `${r.network}: ${r.rewardAmount}`).join(', '));
+            }
         } else {
             console.log(`[Animation] Animation already watched, no reward added`);
         }

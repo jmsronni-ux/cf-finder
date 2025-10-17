@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, DollarSign, User, Mail, Wallet, Trophy, Calendar, Loader2, ArrowLeft, Search, X, UserRoundSearch } from 'lucide-react';
+import { CheckCircle, XCircle, DollarSign, User, Mail, Wallet, Trophy, Calendar, Loader2, ArrowLeft, Search, X, UserRoundSearch, Coins } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
 import { apiFetch } from '../utils/api';
@@ -212,6 +212,10 @@ const AdminTopupRequests: React.FC = () => {
                 <Button onClick={() => navigate('/admin/user-rewards')} className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600">
                   <UserRoundSearch size={16} />
                   User Management
+                </Button>
+                <Button onClick={() => navigate('/admin/network-rewards')} className="bg-orange-600/50 hover:bg-orange-700 text-white flex items-center gap-2 border border-orange-600">
+                  <Coins size={16} />
+                  Network Rewards
                 </Button>
               </div>
             </div>
