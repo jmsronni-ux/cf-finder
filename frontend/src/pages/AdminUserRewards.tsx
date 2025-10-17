@@ -129,7 +129,8 @@ const AdminUserRewards: React.FC = () => {
       const data = await response.json();
       
       if (response.ok && data.success) {
-        setUserRewards(data.data);
+        console.log('User rewards response:', data);
+        setUserRewards(data.data.rewards || {});
       } else {
         console.error('Failed to fetch user rewards:', data.message);
         setUserRewards({});
