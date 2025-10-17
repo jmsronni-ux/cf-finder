@@ -251,8 +251,17 @@ export const adminChangeUserTier = async (req, res, next) => {
         const { newTier, reason, skipWithdrawalCheck = false } = req.body;
         const adminId = req.user._id;
 
+        console.log('[Admin Tier Change] Request received:', {
+            userId,
+            newTier,
+            reason,
+            adminId,
+            body: req.body
+        });
+
         // Validate new tier
         if (!newTier || newTier < 0 || newTier > 5) {
+            console.log('[Admin Tier Change] Validation failed - invalid tier:', newTier);
             throw new ApiError(400, 'Invalid tier. Must be between 0 and 5.');
         }
 

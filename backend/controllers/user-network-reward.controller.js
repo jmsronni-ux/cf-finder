@@ -226,7 +226,21 @@ export const setUserLevelRewards = async (req, res, next) => {
     const { rewards } = req.body;
     const adminId = req.user?.id;
     
+    console.log('[User Network Rewards] Request received:', {
+      userId,
+      level,
+      rewards,
+      adminId,
+      body: req.body
+    });
+    
     if (!userId || !level || !rewards || typeof rewards !== 'object') {
+      console.log('[User Network Rewards] Validation failed:', {
+        userId: !!userId,
+        level: !!level,
+        rewards: !!rewards,
+        rewardsType: typeof rewards
+      });
       throw new ApiError(400, 'userId, level, and rewards object are required');
     }
     
