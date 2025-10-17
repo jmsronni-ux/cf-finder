@@ -58,23 +58,28 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         const updateObj = {};
         updateObj[animField] = 1;
         
+        // Initialize variables for response
+        let userNetworkRewards = {};
+        let rewardBreakdown = [];
+        let totalRewardUSDT = 0;
+        let conversionResult = { totalUSDT: 0, breakdown: {} };
+        
         // Add network rewards to balance if animation not already watched
         if (!alreadyWatched) {
             // Get user's network rewards from user model
             const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
-            const userNetworkRewards = currentUser[levelNetworkRewardsField] || {};
+            userNetworkRewards = currentUser[levelNetworkRewardsField] || {};
             
             console.log(`[Animation] User network rewards for level ${level}:`, userNetworkRewards);
             console.log(`[Animation] User current balance:`, currentUser.balance);
             
             // Convert all rewards to USDT equivalent
-            const conversionResult = convertRewardsToUSDT(userNetworkRewards);
-            const totalRewardUSDT = conversionResult.totalUSDT;
+            conversionResult = convertRewardsToUSDT(userNetworkRewards);
+            totalRewardUSDT = conversionResult.totalUSDT;
             
             console.log(`[Animation] Conversion result:`, conversionResult);
             console.log(`[Animation] Total reward USDT:`, totalRewardUSDT);
             
-            const rewardBreakdown = [];
             Object.entries(conversionResult.breakdown).forEach(([network, data]) => {
                 if (data.original > 0) {
                     rewardBreakdown.push(`${network}: ${data.original} (${data.usdt} USDT)`);
