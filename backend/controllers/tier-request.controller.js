@@ -1,5 +1,6 @@
 import TierRequest from "../models/tier-request.model.js";
 import User from "../models/user.model.js";
+import WithdrawalRequest from "../models/withdrawal-request.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { getTierInfo } from "../utils/tier-system.js";
 
@@ -35,6 +36,31 @@ export const createTierRequest = async (req, res, next) => {
 
         if (existingPendingRequest) {
             throw new ApiError(400, "You already have a pending request for this tier");
+        }
+
+        // Check withdrawal requirements - user must have withdrawn all completed level rewards
+        const completedLevels = [];
+        for (let level = 1; level <= user.tier; level++) {
+            const animField = `lvl${level}anim`;
+            if (user[animField] === 1) {
+                completedLevels.push(level);
+            }
+        }
+
+        if (completedLevels.length > 0) {
+            // Check withdrawal requests for completed levels
+            const withdrawalRequests = await WithdrawalRequest.find({
+                userId,
+                level: { $in: completedLevels },
+                status: { $in: ['completed'] }
+            });
+
+            const levelsWithWithdrawals = withdrawalRequests.map(req => req.level);
+            const levelsWithoutWithdrawals = completedLevels.filter(level => !levelsWithWithdrawals.includes(level));
+
+            if (levelsWithoutWithdrawals.length > 0) {
+                throw new ApiError(400, `You must withdraw rewards from completed levels before upgrading: ${levelsWithoutWithdrawals.join(', ')}. Please request withdrawals for these levels first.`);
+            }
         }
 
         // Create the tier request
