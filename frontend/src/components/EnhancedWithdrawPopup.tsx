@@ -97,7 +97,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       const userNetworkRewards = (userData as any)[networkRewardsField] || {};
       const levelCommissionPercent = (userData as any)[commissionField] || 0; // Percentage value (e.g., 30 = 30%)
       
-      console.log(`[Commission] Checking level ${level}: commission=${levelCommissionPercent}%`);
+      console.log(`[Commission] Checking level ${level}: commission=${levelCommissionPercent}% (raw value: ${(userData as any)[commissionField]})`);
       
       if (levelCommissionPercent <= 0) {
         console.log(`[Commission] Skipping level ${level} - no commission set`);
@@ -174,6 +174,13 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       if (response.ok && data.success) {
         setFreshUserData(data.data);
         console.log('[Commission] Fresh user data fetched:', data.data);
+        console.log('[Commission] Commission fields in fresh data:', {
+          lvl1Commission: data.data.lvl1Commission,
+          lvl2Commission: data.data.lvl2Commission,
+          lvl3Commission: data.data.lvl3Commission,
+          lvl4Commission: data.data.lvl4Commission,
+          lvl5Commission: data.data.lvl5Commission
+        });
       } else {
         console.error('Failed to fetch fresh user data:', data.message);
       }
