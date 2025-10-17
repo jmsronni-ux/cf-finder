@@ -24,6 +24,8 @@ export const useNodeAnimation = (
 
   const startAnimation = useCallback(() => {
     console.log(`[useNodeAnimation] startAnimation called for level ${currentLevel}`);
+    console.log(`[useNodeAnimation] Total nodes received:`, nodes.length);
+    console.log(`[useNodeAnimation] All nodes:`, nodes.map(n => ({ id: n.id, type: n.type, level: n.data?.level })));
     if (animationState.hasStarted) {
       console.log(`[useNodeAnimation] Animation already started, returning`);
       return;
