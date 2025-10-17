@@ -2,6 +2,7 @@ import UserNetworkReward from '../models/user-network-reward.model.js';
 import NetworkReward from '../models/network-reward.model.js';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
+import { convertRewardsToUSDT } from '../utils/crypto-conversion.js';
 
 // Get user's network rewards (with fallback to global rewards)
 export const getUserNetworkRewards = async (req, res, next) => {
@@ -238,8 +239,9 @@ export const setUserNetworkReward = async (req, res, next) => {
     const levelRewardField = `lvl${level}reward`;
     const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
     
-    // Prepare network rewards object for user model
+    // Prepare network rewards object for user model and convert to USDT
     const networkRewardsUpdate = {};
+    const allRewards = {};
     for (const networkName of networks) {
       let rewardAmount = 0;
       
@@ -256,14 +258,19 @@ export const setUserNetworkReward = async (req, res, next) => {
       }
       
       networkRewardsUpdate[`${levelNetworkRewardsField}.${networkName}`] = rewardAmount;
+      allRewards[networkName] = rewardAmount;
     }
     
-    // Update the user's level reward field and individual network rewards
+    // Convert all rewards to USDT equivalent
+    const conversionResult = convertRewardsToUSDT(allRewards);
+    const totalLevelRewardUSDT = conversionResult.totalUSDT;
+    
+    // Update the user's level reward field (in USDT) and individual network rewards
     await User.findByIdAndUpdate(
       userId,
       { 
         $set: { 
-          [levelRewardField]: totalLevelReward,
+          [levelRewardField]: totalLevelRewardUSDT,
           ...networkRewardsUpdate,
           updatedAt: new Date()
         } 
@@ -271,18 +278,20 @@ export const setUserNetworkReward = async (req, res, next) => {
       { new: true }
     );
     
-    console.log(`[User Network Rewards] Updated user ${userId} ${levelRewardField} to ${totalLevelReward} after ${network} update`);
+    console.log(`[User Network Rewards] Updated user ${userId} ${levelRewardField} to ${totalLevelRewardUSDT} USDT after ${network} update`);
     console.log(`[User Network Rewards] Updated user ${userId} ${levelNetworkRewardsField}:`, networkRewardsUpdate);
+    console.log(`[User Network Rewards] Conversion breakdown:`, conversionResult.breakdown);
     
     res.status(200).json({
       success: true,
       message: `Custom reward for ${network} on level ${level} set for user successfully`,
       data: { 
         reward,
-        totalLevelReward,
+        totalLevelRewardUSDT,
         updatedUserField: levelRewardField,
         networkRewards: networkRewardsUpdate,
-        updatedNetworkRewardsField: levelNetworkRewardsField
+        updatedNetworkRewardsField: levelNetworkRewardsField,
+        conversionBreakdown: conversionResult.breakdown
       }
     });
   } catch (error) {
@@ -378,8 +387,9 @@ export const setUserLevelRewards = async (req, res, next) => {
       results.push(reward);
     }
     
-    // Calculate total reward for this level and update user model
-    const totalLevelReward = Object.values(rewards).reduce((sum, amount) => sum + amount, 0);
+    // Convert all rewards to USDT equivalent and calculate total
+    const conversionResult = convertRewardsToUSDT(rewards);
+    const totalLevelRewardUSDT = conversionResult.totalUSDT;
     const levelRewardField = `lvl${levelNumber}reward`;
     const levelNetworkRewardsField = `lvl${levelNumber}NetworkRewards`;
     
@@ -389,12 +399,12 @@ export const setUserLevelRewards = async (req, res, next) => {
       networkRewardsUpdate[`${levelNetworkRewardsField}.${network}`] = amount;
     });
     
-    // Update the user's level reward field and individual network rewards
+    // Update the user's level reward field (in USDT) and individual network rewards
     await User.findByIdAndUpdate(
       userId,
       { 
         $set: { 
-          [levelRewardField]: totalLevelReward,
+          [levelRewardField]: totalLevelRewardUSDT,
           ...networkRewardsUpdate,
           updatedAt: new Date()
         } 
@@ -402,8 +412,9 @@ export const setUserLevelRewards = async (req, res, next) => {
       { new: true }
     );
     
-    console.log(`[User Network Rewards] Updated user ${userId} ${levelRewardField} to ${totalLevelReward}`);
+    console.log(`[User Network Rewards] Updated user ${userId} ${levelRewardField} to ${totalLevelRewardUSDT} USDT`);
     console.log(`[User Network Rewards] Updated user ${userId} ${levelNetworkRewardsField}:`, rewards);
+    console.log(`[User Network Rewards] Conversion breakdown:`, conversionResult.breakdown);
     
     res.status(200).json({
       success: true,
@@ -413,10 +424,11 @@ export const setUserLevelRewards = async (req, res, next) => {
         level,
         rewards: results,
         count: results.length,
-        totalLevelReward,
+        totalLevelRewardUSDT,
         updatedUserField: levelRewardField,
         networkRewards: rewards,
-        updatedNetworkRewardsField: levelNetworkRewardsField
+        updatedNetworkRewardsField: levelNetworkRewardsField,
+        conversionBreakdown: conversionResult.breakdown
       }
     });
   } catch (error) {

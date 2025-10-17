@@ -4,6 +4,7 @@ import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
 import UserNetworkReward from "../models/user-network-reward.model.js";
+import { convertRewardsToUSDT } from "../utils/crypto-conversion.js";
 
 const userRouter = express.Router();
 
@@ -63,23 +64,21 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
             const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
             const userNetworkRewards = currentUser[levelNetworkRewardsField] || {};
             
-            const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
-            let totalReward = 0;
+            // Convert all rewards to USDT equivalent
+            const conversionResult = convertRewardsToUSDT(userNetworkRewards);
+            const totalRewardUSDT = conversionResult.totalUSDT;
+            
             const rewardBreakdown = [];
-            
-            // Calculate total reward from user's network rewards
-            for (const network of networks) {
-                const rewardAmount = userNetworkRewards[network] || 0;
-                totalReward += rewardAmount;
-                if (rewardAmount > 0) {
-                    rewardBreakdown.push(`${network}: ${rewardAmount}`);
+            Object.entries(conversionResult.breakdown).forEach(([network, data]) => {
+                if (data.original > 0) {
+                    rewardBreakdown.push(`${network}: ${data.original} (${data.usdt} USDT)`);
                 }
-            }
+            });
             
-            if (totalReward > 0) {
-                const newBalance = currentUser.balance + totalReward;
+            if (totalRewardUSDT > 0) {
+                const newBalance = currentUser.balance + totalRewardUSDT;
                 updateObj.balance = newBalance;
-                console.log(`[Animation] Adding level ${level} network rewards: $${totalReward}. New balance: $${newBalance}`);
+                console.log(`[Animation] Adding level ${level} network rewards: $${totalRewardUSDT} USDT. New balance: $${newBalance}`);
                 console.log(`[Animation] Network breakdown:`, rewardBreakdown.join(', '));
             }
         } else {
@@ -111,7 +110,9 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
                 balance: updatedUser.balance,
                 rewardAdded: !alreadyWatched,
                 networkRewards: !alreadyWatched ? userNetworkRewards : null,
-                rewardBreakdown: !alreadyWatched ? rewardBreakdown : null
+                rewardBreakdown: !alreadyWatched ? rewardBreakdown : null,
+                totalRewardUSDT: !alreadyWatched ? totalRewardUSDT : null,
+                conversionBreakdown: !alreadyWatched ? conversionResult.breakdown : null
             }
         });
     } catch (error) {
