@@ -121,6 +121,11 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         }
       }
       
+      // Only calculate commission if user is actually withdrawing from this level
+      if (levelWithdrawalValueUSDT > 0) {
+        console.log(`[Commission] User is withdrawing from Level ${level}: $${levelWithdrawalValueUSDT} USDT`);
+      }
+      
       // Calculate commission as percentage of withdrawal value
       if (levelWithdrawalValueUSDT > 0) {
         const levelCommission = (levelWithdrawalValueUSDT * levelCommissionPercent) / 100;
@@ -132,7 +137,11 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       }
     }
     
+    console.log(`[Commission] ===== COMMISSION SUMMARY =====`);
     console.log(`[Commission] Total commission: $${totalCommission}`);
+    console.log(`[Commission] This commission is calculated as percentage of withdrawal amount`);
+    console.log(`[Commission] Only levels with commission set AND rewards being withdrawn are charged`);
+    console.log(`[Commission] ================================`);
     return totalCommission;
   };
 
