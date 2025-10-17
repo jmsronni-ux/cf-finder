@@ -57,16 +57,21 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      // Fetch various admin statistics
-      const [usersRes, topupRes, withdrawRes, tierRes] = await Promise.all([
-        apiFetch('/user', { headers: { 'Authorization': `Bearer ${token}` } }),
+      // Fetch users first to debug
+      console.log('Fetching users...');
+      const usersRes = await apiFetch('/user', { headers: { 'Authorization': `Bearer ${token}` } });
+      console.log('Users response status:', usersRes.status);
+      const usersData = await usersRes.json();
+      console.log('Users data:', usersData);
+      
+      // Fetch other statistics
+      const [topupRes, withdrawRes, tierRes] = await Promise.all([
         apiFetch('/topup-request/all', { headers: { 'Authorization': `Bearer ${token}` } }),
         apiFetch('/withdraw-request/all', { headers: { 'Authorization': `Bearer ${token}` } }),
         apiFetch('/tier-request/admin/all', { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
-      const [usersData, topupData, withdrawData, tierData] = await Promise.all([
-        usersRes.json(),
+      const [topupData, withdrawData, tierData] = await Promise.all([
         topupRes.json(),
         withdrawRes.json(),
         tierRes.json()
@@ -117,14 +122,6 @@ const AdminDashboard: React.FC = () => {
       color: 'bg-indigo-600/50 hover:bg-indigo-700 border-indigo-600',
       route: '/admin/user-network-rewards',
       stats: 'Custom Rewards'
-    },
-    {
-      title: 'Global Network Rewards',
-      description: 'Set base rewards for all networks per level',
-      icon: <Coins className="w-6 h-6" />,
-      color: 'bg-orange-600/50 hover:bg-orange-700 border-orange-600',
-      route: '/admin/network-rewards',
-      stats: 'Global Settings'
     },
     {
       title: 'Top-Up Requests',
@@ -319,16 +316,6 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 </Button>
                 
-                <Button 
-                  onClick={() => navigate('/admin/network-rewards')}
-                  className="bg-orange-600/50 hover:bg-orange-700 text-white flex items-center gap-2 border border-orange-600 h-16"
-                >
-                  <Coins size={20} />
-                  <div className="text-left">
-                    <div className="font-semibold">Global Rewards</div>
-                    <div className="text-xs opacity-80">Base reward settings</div>
-                  </div>
-                </Button>
               </div>
             </div>
           </div>
