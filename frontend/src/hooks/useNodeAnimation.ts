@@ -23,7 +23,11 @@ export const useNodeAnimation = (
   });
 
   const startAnimation = useCallback(() => {
-    if (animationState.hasStarted) return;
+    console.log(`[useNodeAnimation] startAnimation called for level ${currentLevel}`);
+    if (animationState.hasStarted) {
+      console.log(`[useNodeAnimation] Animation already started, returning`);
+      return;
+    }
 
     setAnimationState(prev => ({ ...prev, isAnimating: true, hasStarted: true }));
 
@@ -60,6 +64,9 @@ export const useNodeAnimation = (
         node.type === 'fingerprintNode' && (node.data?.level ?? 1) === currentLevel
       );
     }
+
+    console.log(`[useNodeAnimation] Initial visible nodes:`, initialVisibleNodes);
+    console.log(`[useNodeAnimation] Nodes to animate:`, nodesToAnimate.map(n => n.id));
 
     // Phase 1: Set initial visible nodes
     setAnimationState(prev => ({
@@ -116,17 +123,26 @@ export const useNodeAnimation = (
 
     // Check if all visible fingerprint nodes have completed their pending timers
     const checkPendingComplete = () => {
+      console.log(`[useNodeAnimation] Checking pending completion for level ${currentLevel}`);
+      console.log(`[useNodeAnimation] Current level fingerprint nodes:`, currentLevelFingerprintNodes.map(n => n.id));
+      console.log(`[useNodeAnimation] Visible nodes:`, Array.from(animationState.visibleNodes));
+      
       const allComplete = currentLevelFingerprintNodes.every((node: any) => {
         // If node is not visible yet, don't count it
         if (!animationState.visibleNodes.has(node.id)) {
+          console.log(`[useNodeAnimation] Node ${node.id} not visible yet, skipping`);
           return true;
         }
         // Check if this node is still pending
         const isPending = getPendingStatus(node.id);
+        console.log(`[useNodeAnimation] Node ${node.id} pending status: ${isPending}`);
         return !isPending;
       });
 
+      console.log(`[useNodeAnimation] All nodes complete: ${allComplete}, isCompleted: ${animationState.isCompleted}`);
+
       if (allComplete && !animationState.isCompleted) {
+        console.log(`[useNodeAnimation] Marking animation as completed for level ${currentLevel}`);
         setAnimationState(prev => ({
           ...prev,
           isCompleted: true,
