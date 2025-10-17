@@ -76,11 +76,13 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       ? Object.keys(networkRewards)
       : Array.from(selectedNetworks);
     
+    console.log('[Commission] Calculating commission for networks:', networksToWithdraw);
+    
     for (const level of levels) {
       const networkRewardsField = `lvl${level}NetworkRewards`;
       const commissionField = `lvl${level}Commission`;
       const userNetworkRewards = (user as any)[networkRewardsField] || {};
-      const levelCommissionPercent = (user as any)[commissionField] || 0; // Percentage value (e.g., 10 = 10%)
+      const levelCommissionPercent = (user as any)[commissionField] || 0; // Percentage value (e.g., 30 = 30%)
       
       if (levelCommissionPercent <= 0) continue;
       
@@ -90,11 +92,14 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       for (const network of networksToWithdraw) {
         // Check if this network has rewards in this level
         if (userNetworkRewards[network] && userNetworkRewards[network] > 0) {
-          // Get the USDT value of this network
-          const breakdown = conversionBreakdown[network];
-          if (breakdown) {
-            levelWithdrawalValueUSDT += breakdown.usdt;
-          }
+          // Get the actual amount being withdrawn for this network
+          const withdrawalAmount = networkRewards[network] || 0;
+          
+          // Convert this specific amount to USDT using conversion rates
+          const usdtValue = convertAmountToUSDT(withdrawalAmount, network);
+          levelWithdrawalValueUSDT += usdtValue;
+          
+          console.log(`[Commission] Level ${level} ${network}: ${withdrawalAmount} = ${usdtValue} USDT`);
         }
       }
       
@@ -102,10 +107,26 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       if (levelWithdrawalValueUSDT > 0) {
         const levelCommission = (levelWithdrawalValueUSDT * levelCommissionPercent) / 100;
         totalCommission += levelCommission;
+        console.log(`[Commission] Level ${level} commission: ${levelCommissionPercent}% of $${levelWithdrawalValueUSDT} = $${levelCommission}`);
       }
     }
     
+    console.log(`[Commission] Total commission: $${totalCommission}`);
     return totalCommission;
+  };
+
+  // Helper function to convert amount to USDT
+  const convertAmountToUSDT = (amount: number, network: string): number => {
+    const rates: { [key: string]: number } = {
+      BTC: 45000,
+      ETH: 3000,
+      TRON: 0.1,
+      USDT: 1,
+      BNB: 300,
+      SOL: 100
+    };
+    
+    return amount * (rates[network] || 0);
   };
 
   // Fetch user's total network rewards
