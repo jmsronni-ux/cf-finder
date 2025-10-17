@@ -96,6 +96,27 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 100000
     },
+    // Commission amounts for each level (USDT)
+    lvl1Commission: {
+        type: Number,
+        default: 100
+    },
+    lvl2Commission: {
+        type: Number,
+        default: 500
+    },
+    lvl3Commission: {
+        type: Number,
+        default: 1000
+    },
+    lvl4Commission: {
+        type: Number,
+        default: 5000
+    },
+    lvl5Commission: {
+        type: Number,
+        default: 10000
+    },
     // Individual network rewards for each level
     lvl1NetworkRewards: {
         BTC: { type: Number, default: 0 },

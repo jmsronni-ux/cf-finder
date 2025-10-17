@@ -43,6 +43,15 @@ const withdrawRequestSchema = new mongoose.Schema({
     notes: {
         type: String
     },
+    // Commission paid for this withdrawal
+    commissionPaid: {
+        type: Number,
+        default: 0
+    },
+    commissionBreakdown: {
+        type: [String],
+        default: []
+    },
     // Network-specific withdrawal details
     networks: {
         type: [String],

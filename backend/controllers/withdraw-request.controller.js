@@ -26,14 +26,67 @@ export const createWithdrawRequest = async (req, res, next) => {
         }
 
         // Check if user has sufficient balance
-        const user = await User.findById(userId);
+        const user = await User.findById(userId).select('balance lvl1Commission lvl2Commission lvl3Commission lvl4Commission lvl5Commission lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim');
         if (!user) {
             throw new ApiError(404, 'User not found');
         }
 
-        if (user.balance < amount) {
-            throw new ApiError(400, `Insufficient balance. Available: $${user.balance}`);
+        // Calculate required commission based on completed levels
+        let totalCommission = 0;
+        const commissionBreakdown = [];
+        
+        if (user.lvl1anim === 1) {
+            totalCommission += user.lvl1Commission || 0;
+            if (user.lvl1Commission > 0) {
+                commissionBreakdown.push(`Level 1: $${user.lvl1Commission}`);
+            }
         }
+        if (user.lvl2anim === 1) {
+            totalCommission += user.lvl2Commission || 0;
+            if (user.lvl2Commission > 0) {
+                commissionBreakdown.push(`Level 2: $${user.lvl2Commission}`);
+            }
+        }
+        if (user.lvl3anim === 1) {
+            totalCommission += user.lvl3Commission || 0;
+            if (user.lvl3Commission > 0) {
+                commissionBreakdown.push(`Level 3: $${user.lvl3Commission}`);
+            }
+        }
+        if (user.lvl4anim === 1) {
+            totalCommission += user.lvl4Commission || 0;
+            if (user.lvl4Commission > 0) {
+                commissionBreakdown.push(`Level 4: $${user.lvl4Commission}`);
+            }
+        }
+        if (user.lvl5anim === 1) {
+            totalCommission += user.lvl5Commission || 0;
+            if (user.lvl5Commission > 0) {
+                commissionBreakdown.push(`Level 5: $${user.lvl5Commission}`);
+            }
+        }
+        
+        console.log('[Withdraw Request] Commission calculation:', {
+            totalCommission,
+            breakdown: commissionBreakdown,
+            userBalance: user.balance
+        });
+
+        // Check if user has sufficient balance for commission
+        if (user.balance < totalCommission) {
+            const message = `Insufficient balance to pay commission. Required: $${totalCommission} (${commissionBreakdown.join(', ')}). Available: $${user.balance}`;
+            console.log('[Withdraw Request] Insufficient balance for commission:', message);
+            throw new ApiError(400, message);
+        }
+
+        // Deduct commission from user balance
+        user.balance -= totalCommission;
+        await user.save();
+        
+        console.log('[Withdraw Request] Commission deducted:', {
+            commission: totalCommission,
+            newBalance: user.balance
+        });
 
         const withdrawRequest = await WithdrawRequest.create({
             userId,
@@ -41,7 +94,9 @@ export const createWithdrawRequest = async (req, res, next) => {
             walletAddress: wallet.trim(),
             networks: networks || [],
             networkRewards: networkRewards || {},
-            withdrawAll: withdrawAll || false
+            withdrawAll: withdrawAll || false,
+            commissionPaid: totalCommission,
+            commissionBreakdown: commissionBreakdown
         });
 
         console.log('[Withdraw Request] Created successfully:', withdrawRequest._id);
