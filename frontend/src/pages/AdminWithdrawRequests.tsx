@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, DollarSign, User, Mail, Wallet, Trophy, Calendar, Loader2, ArrowLeft, Search, X, UserRoundSearch } from 'lucide-react';
+import { CheckCircle, XCircle, DollarSign, User, Mail, Wallet, Trophy, Calendar, Loader2, ArrowLeft, Search, X, UserRoundSearch, Coins } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
 import { apiFetch } from '../utils/api';
@@ -33,7 +33,20 @@ interface WithdrawRequestData {
     email: string;
   };
   notes?: string;
+  // Network-specific withdrawal details
+  networks?: string[];
+  networkRewards?: { [network: string]: number };
+  withdrawAll?: boolean;
 }
+
+const NETWORKS = [
+  { key: 'BTC', name: 'Bitcoin', icon: '₿', color: 'text-orange-500' },
+  { key: 'ETH', name: 'Ethereum', icon: 'Ξ', color: 'text-blue-500' },
+  { key: 'TRON', name: 'TRON', icon: 'T', color: 'text-red-500' },
+  { key: 'USDT', name: 'Tether', icon: '$', color: 'text-green-500' },
+  { key: 'BNB', name: 'Binance Coin', icon: 'B', color: 'text-yellow-500' },
+  { key: 'SOL', name: 'Solana', icon: '◎', color: 'text-purple-500' }
+];
 
 const AdminWithdrawRequests: React.FC = () => {
   const { user, token } = useAuth();
@@ -415,6 +428,68 @@ const AdminWithdrawRequests: React.FC = () => {
                         <p className="text-xs text-muted-foreground mb-1">Wallet Address:</p>
                         <p className="text-sm font-mono text-foreground break-all">{request.walletAddress}</p>
                       </div>
+
+                      {/* Network Information */}
+                      {(request.networks && request.networks.length > 0) || request.withdrawAll ? (
+                        <div className="bg-background/50 border border-border rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Coins className="w-4 h-4 text-purple-400" />
+                            <p className="text-xs text-muted-foreground font-medium">Network Withdrawal Details:</p>
+                          </div>
+                          
+                          {request.withdrawAll ? (
+                            <div className="flex items-center gap-2 p-2 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                              <Coins className="w-4 h-4 text-purple-400" />
+                              <span className="text-sm text-purple-400 font-medium">Withdraw All Networks</span>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                              {request.networks?.map(networkKey => {
+                                const network = NETWORKS.find(n => n.key === networkKey);
+                                const amount = request.networkRewards?.[networkKey] || 0;
+                                
+                                if (!network || amount === 0) return null;
+                                
+                                return (
+                                  <div key={networkKey} className="flex items-center justify-between bg-white/5 rounded-lg p-2 border border-white/10">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-sm ${network.color}`}>{network.icon}</span>
+                                      <span className="text-xs text-gray-300">{network.name}</span>
+                                    </div>
+                                    <span className="text-sm font-semibold text-white">
+                                      {amount.toLocaleString()}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          
+                          {request.networkRewards && Object.keys(request.networkRewards).length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-border">
+                              <p className="text-xs text-gray-400 mb-2">Network Rewards Breakdown:</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {Object.entries(request.networkRewards).map(([networkKey, amount]) => {
+                                  const network = NETWORKS.find(n => n.key === networkKey);
+                                  if (!network || amount === 0) return null;
+                                  
+                                  return (
+                                    <div key={networkKey} className="flex items-center justify-between bg-black/20 rounded p-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className={`text-xs ${network.color}`}>{network.icon}</span>
+                                        <span className="text-xs text-gray-300">{network.name}</span>
+                                      </div>
+                                      <span className="text-xs font-semibold text-white">
+                                        {amount.toLocaleString()}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
 
                       {request.processedAt && (
                         <div className="text-xs text-gray-500 pt-2">
