@@ -187,6 +187,13 @@ const AdminUserRewards: React.FC = () => {
         rewardsPayload[network] = rewardData.amount;
       });
 
+      console.log('[Admin] Saving rewards payload:', {
+        userId: selectedUser._id,
+        level: selectedLevel,
+        rewardsPayload,
+        editingRewards
+      });
+
       // First, save rewards
       const response = await apiFetch(`/user-network-reward/user/${selectedUser._id}/level/${selectedLevel}`, {
         method: 'PUT',
@@ -200,6 +207,17 @@ const AdminUserRewards: React.FC = () => {
       });
 
       const data = await response.json();
+      
+      console.log('[Admin] Rewards API response:', {
+        status: response.status,
+        ok: response.ok,
+        data
+      });
+
+      if (!response.ok) {
+        console.error('[Admin] Rewards API error:', data);
+        throw new Error(data.message || 'Failed to update rewards');
+      }
 
       // Then, save commission
       const commissionField = `lvl${selectedLevel}Commission`;
