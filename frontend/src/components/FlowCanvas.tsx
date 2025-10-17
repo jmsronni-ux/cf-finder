@@ -150,9 +150,18 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   useEffect(() => {
     console.log(`[FlowCanvas] ===== ANIMATION COMPLETION CHECK =====`);
     console.log(`[FlowCanvas] Animation completion check: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}, completedLevels=${Array.from(completedLevels)}`);
+    console.log(`[FlowCanvas] User animation status: lvl1anim=${user?.lvl1anim}, lvl2anim=${user?.lvl2anim}, lvl3anim=${user?.lvl3anim}`);
+    console.log(`[FlowCanvas] Condition check: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}, !completedLevels.has(currentLevel)=${!completedLevels.has(currentLevel)}`);
+    console.log(`[FlowCanvas] User balance: ${user?.balance}`);
     
     // Only show popup if animation was started for this specific level and hasn't been completed yet
-    if (isCompleted && animationStartedForLevel === currentLevel && !completedLevels.has(currentLevel)) {
+    // OR if the level is completed but user has 0 balance (recovery case)
+    const shouldTriggerCompletion = isCompleted && animationStartedForLevel === currentLevel && 
+      (!completedLevels.has(currentLevel) || (completedLevels.has(currentLevel) && user?.balance === 0));
+    
+    console.log(`[FlowCanvas] Should trigger completion: ${shouldTriggerCompletion}`);
+    
+    if (shouldTriggerCompletion) {
       console.log(`[FlowCanvas] ===== ANIMATION COMPLETED - TRIGGERING COMPLETION FLOW =====`);
       console.log(`[FlowCanvas] Animation completed for level ${currentLevel}, showing popup and marking as watched`);
       setShowCompletionPopup(true);
