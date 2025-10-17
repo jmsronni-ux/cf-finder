@@ -5,7 +5,7 @@ import { ApiError } from '../middlewares/error.middleware.js';
 // User creates a withdraw request
 export const createWithdrawRequest = async (req, res, next) => {
     try {
-        const { amount, wallet } = req.body;
+        const { amount, wallet, networks, networkRewards, withdrawAll } = req.body;
         const userId = req.user._id;
 
         if (!amount || amount <= 0) {
@@ -29,7 +29,10 @@ export const createWithdrawRequest = async (req, res, next) => {
         const withdrawRequest = await WithdrawRequest.create({
             userId,
             amount,
-            walletAddress: wallet.trim()
+            walletAddress: wallet.trim(),
+            networks: networks || [],
+            networkRewards: networkRewards || {},
+            withdrawAll: withdrawAll || false
         });
 
         res.status(201).json({

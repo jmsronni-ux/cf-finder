@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/badge';
 import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
-import WithdrawPopup from '../components/WithdrawPopup';
+import EnhancedWithdrawPopup from '../components/EnhancedWithdrawPopup';
 import TopupRequestPopup from '../components/TopupRequestPopup';
 import UserTransactions from './UserTransactions';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
@@ -430,8 +430,8 @@ const UserProfile: React.FC = () => {
           </div>
         </MaxWidthWrapper>
 
-        {/* Withdraw Popup */}
-        <WithdrawPopup 
+        {/* Enhanced Withdraw Popup */}
+        <EnhancedWithdrawPopup 
           isOpen={showWithdrawPopup}
           onClose={() => setShowWithdrawPopup(false)}
           currentBalance={user.balance}

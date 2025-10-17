@@ -5,7 +5,8 @@ import {
   setUserNetworkReward,
   setUserLevelRewards,
   deleteUserNetworkReward,
-  getAllUsersNetworkRewards
+  getAllUsersNetworkRewards,
+  getUserTotalNetworkRewards
 } from '../controllers/user-network-reward.controller.js';
 import authMiddleware, { adminMiddleware } from '../middlewares/auth.middleware.js';
 
@@ -13,6 +14,9 @@ const router = express.Router();
 
 // Get user's network rewards (with fallback to global)
 router.get('/user/:userId', authMiddleware, getUserNetworkRewards);
+
+// Get user's total network rewards across all levels
+router.get('/user/:userId/total', authMiddleware, getUserTotalNetworkRewards);
 
 // Get user's rewards for specific level
 router.get('/user/:userId/level/:level', authMiddleware, getUserLevelRewards);

@@ -42,6 +42,21 @@ const withdrawRequestSchema = new mongoose.Schema({
     },
     notes: {
         type: String
+    },
+    // Network-specific withdrawal details
+    networks: {
+        type: [String],
+        enum: ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'],
+        default: []
+    },
+    networkRewards: {
+        type: Map,
+        of: Number,
+        default: {}
+    },
+    withdrawAll: {
+        type: Boolean,
+        default: false
     }
 });
 

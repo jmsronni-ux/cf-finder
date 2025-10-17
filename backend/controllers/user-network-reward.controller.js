@@ -575,3 +575,55 @@ export const getAllUsersNetworkRewards = async (req, res, next) => {
     next(error);
   }
 };
+
+// Get user's total network rewards across all levels
+export const getUserTotalNetworkRewards = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+    
+    const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+    const totalRewards = {};
+    
+    // Initialize total rewards for each network
+    networks.forEach(network => {
+      totalRewards[network] = 0;
+    });
+    
+    // Sum up rewards from all levels
+    for (let level = 1; level <= 5; level++) {
+      const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
+      const userNetworkRewards = user[levelNetworkRewardsField] || {};
+      
+      // Check if user has watched this level
+      const hasWatchedLevel = user[`lvl${level}anim`] === 1;
+      
+      if (hasWatchedLevel) {
+        networks.forEach(network => {
+          const rewardAmount = userNetworkRewards[network] || 0;
+          totalRewards[network] += rewardAmount;
+        });
+      }
+    }
+    
+    // Convert to USDT equivalent
+    const conversionResult = convertRewardsToUSDT(totalRewards);
+    
+    res.status(200).json({
+      success: true,
+      message: 'User total network rewards retrieved successfully',
+      data: {
+        userId,
+        totalRewards,
+        totalUSDT: conversionResult.totalUSDT,
+        conversionBreakdown: conversionResult.breakdown
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
