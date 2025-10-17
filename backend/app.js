@@ -29,6 +29,13 @@ const __dirname = path.dirname(__filename);
 
 var app = express();
 
+// Debug environment variables
+console.log('Environment check:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+console.log('MONGO_URI exists:', !!process.env.MONGO_URI);
+console.log('PORT:', process.env.PORT);
+
 connectDB();
 
 // Run migrations on startup (only in production or when MIGRATE_ON_STARTUP is true)
@@ -94,6 +101,15 @@ app.use('/topup-request', topupRequestRouter);
 app.use('/withdraw-request', withdrawRequestRouter);
 app.use('/tier-request', tierRequestRouter);
 app.use(arcjetMiddleware);
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'CF Finder API is running!', 
+    status: 'success',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // 404 handler
 app.use(notFound);

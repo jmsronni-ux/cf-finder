@@ -10,18 +10,27 @@ export const authMiddleware = async (req, res, next) => {
             token = req.headers.authorization.split(" ")[1];
         }
         if (!token) {
-            throw new ApiError(401, "Unauthorized");
+            console.log('No token provided for:', req.path);
+            throw new ApiError(401, "Unauthorized - No token provided");
         }
+        
+        if (!JWT_SECRET) {
+            console.error('JWT_SECRET is not defined');
+            throw new ApiError(500, "Server configuration error");
+        }
+        
         const decoded = jwt.verify(token, JWT_SECRET);
         
         const user = await User.findById(decoded.userId).select("-password");
         if (!user) {
-            throw new ApiError(401, "Unauthorized");
+            console.log('User not found for token:', decoded.userId);
+            throw new ApiError(401, "Unauthorized - User not found");
         }
         req.user = user;
 
         next();
     } catch (error) {
+        console.log('Auth error for:', req.path, error.message);
         res.status(401).json({ success: false, message: "Unauthorized", error: error.message });
     }
 };
