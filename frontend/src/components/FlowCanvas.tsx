@@ -135,13 +135,18 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Show completion popup when animation finishes and save to DB
   useEffect(() => {
+    console.log(`[FlowCanvas] Animation completion check: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}, completedLevels=${Array.from(completedLevels)}`);
+    
     // Only show popup if animation was started for this specific level and hasn't been completed yet
     if (isCompleted && animationStartedForLevel === currentLevel && !completedLevels.has(currentLevel)) {
+      console.log(`[FlowCanvas] Animation completed for level ${currentLevel}, showing popup and marking as watched`);
       setShowCompletionPopup(true);
       
       // Mark animation as watched in DB and add reward to balance
       (async () => {
+        console.log(`[FlowCanvas] Calling markAnimationWatched for level ${currentLevel}`);
         const rewardAdded = await markAnimationWatched(currentLevel);
+        console.log(`[FlowCanvas] markAnimationWatched result: ${rewardAdded}`);
         if (rewardAdded && user?._id) {
           // Fetch user's specific network rewards for this level
           const userRewards = await getUserLevelRewards(user._id, currentLevel);

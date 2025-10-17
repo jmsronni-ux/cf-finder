@@ -164,8 +164,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [token]);
 
   const markAnimationWatched = async (level: number): Promise<boolean> => {
-    if (!token) return false;
+    console.log(`[Frontend] markAnimationWatched called for level ${level}`);
+    if (!token) {
+      console.error('[Frontend] No token available');
+      return false;
+    }
     try {
+      console.log(`[Frontend] Sending POST request to /user/mark-animation-watched with level ${level}`);
       const response = await apiFetch('/user/mark-animation-watched', {
         method: 'POST',
         headers: {
@@ -174,7 +179,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
         body: JSON.stringify({ level }),
       });
+      console.log(`[Frontend] Response status: ${response.status}`);
       const responseData = await response.json();
+      console.log(`[Frontend] Response data:`, responseData);
       if (response.ok && responseData.success) {
         // Update user in context with new animation flags
         if (user) {
@@ -182,11 +189,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(updatedUser);
           localStorage.setItem('user', JSON.stringify(updatedUser));
         }
+        console.log(`[Frontend] Animation marked as watched successfully for level ${level}`);
         return true;
       }
+      console.error(`[Frontend] Failed to mark animation as watched:`, responseData);
       return false;
     } catch (error) {
-      console.error('Failed to mark animation as watched', error);
+      console.error('[Frontend] Failed to mark animation as watched', error);
       return false;
     }
   };
