@@ -65,10 +65,14 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
             const userNetworkRewards = currentUser[levelNetworkRewardsField] || {};
             
             console.log(`[Animation] User network rewards for level ${level}:`, userNetworkRewards);
+            console.log(`[Animation] User current balance:`, currentUser.balance);
             
             // Convert all rewards to USDT equivalent
             const conversionResult = convertRewardsToUSDT(userNetworkRewards);
             const totalRewardUSDT = conversionResult.totalUSDT;
+            
+            console.log(`[Animation] Conversion result:`, conversionResult);
+            console.log(`[Animation] Total reward USDT:`, totalRewardUSDT);
             
             const rewardBreakdown = [];
             Object.entries(conversionResult.breakdown).forEach(([network, data]) => {
@@ -82,10 +86,14 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
                 updateObj.balance = newBalance;
                 console.log(`[Animation] Adding level ${level} network rewards: $${totalRewardUSDT} USDT. New balance: $${newBalance}`);
                 console.log(`[Animation] Network breakdown:`, rewardBreakdown.join(', '));
+            } else {
+                console.log(`[Animation] No rewards to add - totalRewardUSDT is ${totalRewardUSDT}`);
             }
         } else {
             console.log(`[Animation] Animation already watched, no reward added`);
         }
+        
+        console.log(`[Animation] Update object:`, updateObj);
         
         const updatedUser = await User.findByIdAndUpdate(
             userId,
