@@ -28,10 +28,27 @@ export const getApiUrl = (endpoint: string): string => {
 
 /**
  * Fetch wrapper that automatically uses the correct API base URL
+ * and handles authentication errors
  */
-export const apiFetch = (endpoint: string, options?: RequestInit): Promise<Response> => {
+export const apiFetch = async (endpoint: string, options?: RequestInit): Promise<Response> => {
   const url = getApiUrl(endpoint);
-  return fetch(url, options);
+  const response = await fetch(url, options);
+  
+  // Handle 401 Unauthorized responses
+  if (response.status === 401) {
+    console.warn('Authentication failed - token may be expired');
+    
+    // Clear stored authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
+    // Redirect to login page if we're not already there
+    if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+      window.location.href = '/login';
+    }
+  }
+  
+  return response;
 };
 
 export default apiFetch;
