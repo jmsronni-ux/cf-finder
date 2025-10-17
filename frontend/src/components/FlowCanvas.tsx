@@ -156,7 +156,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     console.log(`[FlowCanvas] Animation state: hasStarted=${hasStarted}, isCompleted=${isCompleted}`);
     
     // Always show popup and add rewards when animation is completed
-    const shouldTriggerCompletion = isCompleted && animationStartedForLevel === currentLevel;
+    // Allow completion even if animationStartedForLevel is null (for already completed levels)
+    const shouldTriggerCompletion = isCompleted && (animationStartedForLevel === currentLevel || animationStartedForLevel === null);
     
     console.log(`[FlowCanvas] Should trigger completion: ${shouldTriggerCompletion}`);
     console.log(`[FlowCanvas] Breakdown: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}`);
@@ -539,7 +540,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             }
             isLoading={isUpgrading}
             className="absolute top-6 right-24 w-fit min-w-[10rem]"
-            onClick={pendingTierRequest ? undefined : (!hasPaidForCurrentLevel ? () => {
+            onClick={pendingTierRequest ? undefined : ((hasWatchedCurrentLevel || !hasPaidForCurrentLevel) ? () => {
               // Navigate to profile with state to open withdraw popup
               navigate('/profile', { state: { openWithdrawPopup: true } });
             } : (hasStarted ? undefined : () => {
@@ -551,7 +552,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         >
             {pendingTierRequest ? 'Upgrade Pending' : 
              (isUpgrading ? 'Upgrading...' : 
-             (!hasPaidForCurrentLevel) ? 'Withdraw' : 
+             (hasWatchedCurrentLevel || !hasPaidForCurrentLevel) ? 'Withdraw' : 
              hasStarted ? 'Running...' : 'Start Animation')}
         </PulsatingButton>
         
@@ -593,7 +594,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             selectedNode={selectedNode}
             onClose={() => setSelectedNode(null)}
             hasStarted={hasStarted}
-            hasWatchedCurrentLevel={!hasPaidForCurrentLevel}
+            hasWatchedCurrentLevel={hasWatchedCurrentLevel || !hasPaidForCurrentLevel}
             onStartAnimation={() => {
               if (!hasPaidForCurrentLevel) {
                 handleUpgradeClick();
