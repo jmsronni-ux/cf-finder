@@ -64,29 +64,48 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token } = useAuth();
 
-  // Calculate total commission from user data
-  const calculateTotalCommission = () => {
+  // Calculate commission based on selected networks being withdrawn
+  const calculateCommissionForSelectedNetworks = () => {
     if (!user) return 0;
     
-    let commission = 0;
+    let totalCommission = 0;
     const levels = [1, 2, 3, 4, 5];
+    
+    // Get the selected networks to withdraw
+    const networksToWithdraw = withdrawAll 
+      ? Object.keys(networkRewards)
+      : Array.from(selectedNetworks);
     
     for (const level of levels) {
       const networkRewardsField = `lvl${level}NetworkRewards`;
       const commissionField = `lvl${level}Commission`;
       const userNetworkRewards = (user as any)[networkRewardsField] || {};
-      const levelCommission = (user as any)[commissionField] || 0;
+      const levelCommissionPercent = (user as any)[commissionField] || 0; // Percentage value (e.g., 10 = 10%)
       
-      // Check if user has rewards for this level
-      const hasRewards = Object.values(userNetworkRewards).some((val: any) => val > 0);
+      if (levelCommissionPercent <= 0) continue;
       
-      // If user has rewards for this level, add commission
-      if (hasRewards && levelCommission > 0) {
-        commission += levelCommission;
+      // Calculate the USDT value of selected networks for this level
+      let levelWithdrawalValueUSDT = 0;
+      
+      for (const network of networksToWithdraw) {
+        // Check if this network has rewards in this level
+        if (userNetworkRewards[network] && userNetworkRewards[network] > 0) {
+          // Get the USDT value of this network
+          const breakdown = conversionBreakdown[network];
+          if (breakdown) {
+            levelWithdrawalValueUSDT += breakdown.usdt;
+          }
+        }
+      }
+      
+      // Calculate commission as percentage of withdrawal value
+      if (levelWithdrawalValueUSDT > 0) {
+        const levelCommission = (levelWithdrawalValueUSDT * levelCommissionPercent) / 100;
+        totalCommission += levelCommission;
       }
     }
     
-    return commission;
+    return totalCommission;
   };
 
   // Fetch user's total network rewards
@@ -107,9 +126,9 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         setConversionBreakdown(data.data.conversionBreakdown);
         setTotalUSDT(data.data.totalUSDT);
         
-        // Calculate commission
-        const commission = calculateTotalCommission();
-        setTotalCommission(commission);
+        // Commission will be calculated when networks are selected
+        // Initial commission is 0 until user selects networks
+        setTotalCommission(0);
       } else {
         console.error('Failed to fetch network rewards:', data.message);
       }
@@ -209,6 +228,14 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       }, 300);
     }
   }, [isOpen, requestStatus]);
+
+  // Recalculate commission when selected networks change
+  useEffect(() => {
+    if (Object.keys(conversionBreakdown).length > 0) {
+      const commission = calculateCommissionForSelectedNetworks();
+      setTotalCommission(commission);
+    }
+  }, [selectedNetworks, withdrawAll, conversionBreakdown]);
 
   if (!isOpen) return null;
 
@@ -349,7 +376,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                   {totalCommission > 0 && (
                     <p className="text-orange-400 text-sm mt-1">
                       <AlertCircle className="w-3 h-3 inline mr-1" />
-                      Commission Required: <span className="font-semibold">${totalCommission.toLocaleString()} USDT</span>
+                      Commission (percentage of withdrawal): <span className="font-semibold">${totalCommission.toLocaleString()} USDT</span>
                     </p>
                   )}
                   {totalCommission > currentBalance && (
@@ -464,7 +491,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                       <div className="flex-1">
                         <h4 className="text-orange-400 font-semibold mb-1">Commission Required</h4>
                         <p className="text-orange-300/80 text-sm">
-                          A commission fee of <span className="font-semibold">${totalCommission.toLocaleString()} USDT</span> will be deducted from your balance to process this withdrawal.
+                          A commission of <span className="font-semibold">${totalCommission.toLocaleString()} USDT</span> (calculated as percentage of withdrawal amount) will be deducted from your balance to process this withdrawal.
                         </p>
                         {totalCommission > currentBalance && (
                           <p className="text-red-400 text-sm mt-2 font-semibold">

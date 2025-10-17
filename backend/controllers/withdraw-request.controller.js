@@ -31,27 +31,62 @@ export const createWithdrawRequest = async (req, res, next) => {
             throw new ApiError(404, 'User not found');
         }
 
-        // Calculate total commission required for all levels being withdrawn
-        let totalCommission = 0;
-        const levelsToWithdraw = [1, 2, 3, 4, 5]; // Check all levels
+        // Import conversion utility to calculate USDT value of selected networks
+        const { convertToUSDT } = await import('../utils/crypto-conversion.js');
         
+        // Calculate total commission based on selected networks being withdrawn
+        let totalCommission = 0;
+        let withdrawalValueUSDT = 0;
+        const levelsToWithdraw = [1, 2, 3, 4, 5];
+        
+        console.log(`[Withdraw Request] Networks being withdrawn:`, networks);
+        console.log(`[Withdraw Request] Network rewards being withdrawn:`, networkRewards);
+        console.log(`[Withdraw Request] Withdraw all:`, withdrawAll);
+        
+        // Calculate the total USDT value of networks being withdrawn
+        if (networkRewards && Object.keys(networkRewards).length > 0) {
+            for (const [network, amount] of Object.entries(networkRewards)) {
+                const usdtValue = convertToUSDT(amount, network);
+                withdrawalValueUSDT += usdtValue;
+                console.log(`[Withdraw Request] ${network}: ${amount} = ${usdtValue} USDT`);
+            }
+        }
+        
+        console.log(`[Withdraw Request] Total withdrawal value: $${withdrawalValueUSDT} USDT`);
+        
+        // Calculate commission as percentage of withdrawal value
+        // Find which levels are being withdrawn from
         for (const level of levelsToWithdraw) {
             const networkRewardsField = `lvl${level}NetworkRewards`;
             const commissionField = `lvl${level}Commission`;
             const userNetworkRewards = user[networkRewardsField] || {};
-            const levelCommission = user[commissionField] || 0;
+            const levelCommissionPercent = user[commissionField] || 0; // This is now a percentage (e.g., 10 = 10%)
             
-            // Check if user has rewards for this level
-            const hasRewards = Object.values(userNetworkRewards).some(val => val > 0);
+            // Check if user is withdrawing from this level
+            let isWithdrawingFromThisLevel = false;
+            let levelWithdrawalValueUSDT = 0;
             
-            // If user is withdrawing from this level (has rewards), add commission
-            if (hasRewards && levelCommission > 0) {
+            if (networkRewards && Object.keys(networkRewards).length > 0) {
+                // Check each network being withdrawn
+                for (const [network, amount] of Object.entries(networkRewards)) {
+                    // Check if this network has rewards in this level
+                    if (userNetworkRewards[network] && userNetworkRewards[network] > 0) {
+                        isWithdrawingFromThisLevel = true;
+                        const usdtValue = convertToUSDT(amount, network);
+                        levelWithdrawalValueUSDT += usdtValue;
+                    }
+                }
+            }
+            
+            // Calculate commission for this level as percentage of withdrawal value
+            if (isWithdrawingFromThisLevel && levelCommissionPercent > 0) {
+                const levelCommission = (levelWithdrawalValueUSDT * levelCommissionPercent) / 100;
                 totalCommission += levelCommission;
-                console.log(`[Withdraw Request] Level ${level} commission: $${levelCommission}`);
+                console.log(`[Withdraw Request] Level ${level} commission: ${levelCommissionPercent}% of $${levelWithdrawalValueUSDT} = $${levelCommission}`);
             }
         }
         
-        console.log(`[Withdraw Request] Total commission required: $${totalCommission}`);
+        console.log(`[Withdraw Request] Total commission (percentage-based): $${totalCommission}`);
         console.log(`[Withdraw Request] User balance: $${user.balance}`);
 
         // Check if user has enough balance to pay commission

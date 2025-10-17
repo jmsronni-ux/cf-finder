@@ -448,7 +448,7 @@ const AdminUserRewards: React.FC = () => {
                     <div className="mt-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
                       <Label className="flex items-center gap-2 text-sm font-medium mb-2">
                         <DollarSign className="text-orange-400" size={16} />
-                        <span className="text-orange-400">Commission Fee (USDT)</span>
+                        <span className="text-orange-400">Commission Percentage (%)</span>
                       </Label>
                       <Input
                         type="number"
@@ -460,7 +460,7 @@ const AdminUserRewards: React.FC = () => {
                         placeholder="0.00"
                       />
                       <p className="text-xs text-orange-300/80 mt-2">
-                        User must pay this commission from their balance before withdrawing Level {selectedLevel} rewards
+                        Commission percentage of withdrawal amount for Level {selectedLevel} rewards (e.g., 10 = 10%)
                       </p>
                     </div>
                     
