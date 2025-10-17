@@ -231,7 +231,9 @@ export const setUserLevelRewards = async (req, res, next) => {
       level,
       rewards,
       adminId,
-      body: req.body
+      body: req.body,
+      params: req.params,
+      headers: req.headers
     });
     
     if (!userId || !level || !rewards || typeof rewards !== 'object') {
