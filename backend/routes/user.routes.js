@@ -64,6 +64,8 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
             const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
             const userNetworkRewards = currentUser[levelNetworkRewardsField] || {};
             
+            console.log(`[Animation] User network rewards for level ${level}:`, userNetworkRewards);
+            
             // Convert all rewards to USDT equivalent
             const conversionResult = convertRewardsToUSDT(userNetworkRewards);
             const totalRewardUSDT = conversionResult.totalUSDT;
