@@ -236,13 +236,35 @@ export const setUserNetworkReward = async (req, res, next) => {
     }
     
     const levelRewardField = `lvl${level}reward`;
+    const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
     
-    // Update the user's level reward field
+    // Prepare network rewards object for user model
+    const networkRewardsUpdate = {};
+    for (const networkName of networks) {
+      let rewardAmount = 0;
+      
+      // Check if user has custom reward for this network
+      const userReward = userRewards.find(r => r.network === networkName);
+      if (userReward) {
+        rewardAmount = userReward.rewardAmount;
+      } else {
+        // Fall back to global reward
+        const globalReward = globalRewards.find(r => r.network === networkName);
+        if (globalReward) {
+          rewardAmount = globalReward.rewardAmount;
+        }
+      }
+      
+      networkRewardsUpdate[`${levelNetworkRewardsField}.${networkName}`] = rewardAmount;
+    }
+    
+    // Update the user's level reward field and individual network rewards
     await User.findByIdAndUpdate(
       userId,
       { 
         $set: { 
           [levelRewardField]: totalLevelReward,
+          ...networkRewardsUpdate,
           updatedAt: new Date()
         } 
       },
@@ -250,6 +272,7 @@ export const setUserNetworkReward = async (req, res, next) => {
     );
     
     console.log(`[User Network Rewards] Updated user ${userId} ${levelRewardField} to ${totalLevelReward} after ${network} update`);
+    console.log(`[User Network Rewards] Updated user ${userId} ${levelNetworkRewardsField}:`, networkRewardsUpdate);
     
     res.status(200).json({
       success: true,
@@ -257,7 +280,9 @@ export const setUserNetworkReward = async (req, res, next) => {
       data: { 
         reward,
         totalLevelReward,
-        updatedUserField: levelRewardField
+        updatedUserField: levelRewardField,
+        networkRewards: networkRewardsUpdate,
+        updatedNetworkRewardsField: levelNetworkRewardsField
       }
     });
   } catch (error) {
@@ -356,13 +381,21 @@ export const setUserLevelRewards = async (req, res, next) => {
     // Calculate total reward for this level and update user model
     const totalLevelReward = Object.values(rewards).reduce((sum, amount) => sum + amount, 0);
     const levelRewardField = `lvl${levelNumber}reward`;
+    const levelNetworkRewardsField = `lvl${levelNumber}NetworkRewards`;
     
-    // Update the user's level reward field
+    // Prepare network rewards object for user model
+    const networkRewardsUpdate = {};
+    Object.entries(rewards).forEach(([network, amount]) => {
+      networkRewardsUpdate[`${levelNetworkRewardsField}.${network}`] = amount;
+    });
+    
+    // Update the user's level reward field and individual network rewards
     await User.findByIdAndUpdate(
       userId,
       { 
         $set: { 
           [levelRewardField]: totalLevelReward,
+          ...networkRewardsUpdate,
           updatedAt: new Date()
         } 
       },
@@ -370,6 +403,7 @@ export const setUserLevelRewards = async (req, res, next) => {
     );
     
     console.log(`[User Network Rewards] Updated user ${userId} ${levelRewardField} to ${totalLevelReward}`);
+    console.log(`[User Network Rewards] Updated user ${userId} ${levelNetworkRewardsField}:`, rewards);
     
     res.status(200).json({
       success: true,
@@ -380,7 +414,9 @@ export const setUserLevelRewards = async (req, res, next) => {
         rewards: results,
         count: results.length,
         totalLevelReward,
-        updatedUserField: levelRewardField
+        updatedUserField: levelRewardField,
+        networkRewards: rewards,
+        updatedNetworkRewardsField: levelNetworkRewardsField
       }
     });
   } catch (error) {

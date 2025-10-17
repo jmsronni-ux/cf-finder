@@ -59,36 +59,20 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         
         // Add network rewards to balance if animation not already watched
         if (!alreadyWatched) {
-            // Get user's custom network rewards first, fallback to global rewards
-            const userRewards = await UserNetworkReward.find({ userId, level, isActive: true });
-            const globalRewards = await NetworkReward.find({ level, isActive: true });
+            // Get user's network rewards from user model
+            const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
+            const userNetworkRewards = currentUser[levelNetworkRewardsField] || {};
             
             const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
             let totalReward = 0;
             const rewardBreakdown = [];
             
-            // Calculate total reward using user-specific rewards with global fallback
+            // Calculate total reward from user's network rewards
             for (const network of networks) {
-                let rewardAmount = 0;
-                let source = 'none';
-                
-                // Check if user has custom reward for this network
-                const userReward = userRewards.find(r => r.network === network);
-                if (userReward) {
-                    rewardAmount = userReward.rewardAmount;
-                    source = 'custom';
-                } else {
-                    // Fall back to global reward
-                    const globalReward = globalRewards.find(r => r.network === network);
-                    if (globalReward) {
-                        rewardAmount = globalReward.rewardAmount;
-                        source = 'global';
-                    }
-                }
-                
+                const rewardAmount = userNetworkRewards[network] || 0;
                 totalReward += rewardAmount;
                 if (rewardAmount > 0) {
-                    rewardBreakdown.push(`${network}: ${rewardAmount} (${source})`);
+                    rewardBreakdown.push(`${network}: ${rewardAmount}`);
                 }
             }
             
@@ -125,7 +109,9 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
                 lvl4anim: updatedUser.lvl4anim,
                 lvl5anim: updatedUser.lvl5anim,
                 balance: updatedUser.balance,
-                rewardAdded: !alreadyWatched
+                rewardAdded: !alreadyWatched,
+                networkRewards: !alreadyWatched ? userNetworkRewards : null,
+                rewardBreakdown: !alreadyWatched ? rewardBreakdown : null
             }
         });
     } catch (error) {
