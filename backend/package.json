@@ -7,7 +7,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "echo 'Building...' && node --version && echo 'Build complete'",
+    "build": "echo 'Building...' && npm install && node --version && echo 'Build complete'",
     "start": "node ./bin/www",
     "dev": "nodemon ./bin/www",
     "test:create-user": "node test/create-test-user.js",

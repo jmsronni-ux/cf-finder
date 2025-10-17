@@ -5,10 +5,10 @@
  */
 
 import app from '../app.js';
-import createDebug from 'debug';
+import debug from 'debug';
 import http from 'http';
 
-const debug = createDebug('cfinder-react:server');
+const debugLog = debug('cfinder-react:server');
 
 /**
  * Get port from environment and store in Express.
@@ -88,5 +88,5 @@ function onListening() {
   var bind = typeof addr === 'string'
     ? 'pipe ' + addr
     : 'port ' + addr.port;
-  debug('Listening on ' + bind);
+  debugLog('Listening on ' + bind);
 }
