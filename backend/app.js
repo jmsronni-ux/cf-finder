@@ -125,6 +125,18 @@ app.get('/', (req, res) => {
   });
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: NODE_ENV,
+    frontendUrl: FRONTEND_URL,
+    mongoUri: MONGO_URI ? 'Set' : 'Not Set',
+    jwtSecret: JWT_SECRET ? 'Set' : 'Not Set'
+  });
+});
+
 // 404 handler
 app.use(notFound);
 
