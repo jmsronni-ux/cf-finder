@@ -16,14 +16,6 @@ export const getUserNetworkRewards = async (req, res, next) => {
       throw new ApiError(404, 'User not found');
     }
     
-    let query = { userId };
-    if (level) {
-      query.level = parseInt(level);
-    }
-    
-    // Get user's custom rewards
-    const userRewards = await UserNetworkReward.find(query).sort({ level: 1, network: 1 });
-    
     // Get global rewards for fallback
     let globalQuery = {};
     if (level) {
@@ -39,14 +31,18 @@ export const getUserNetworkRewards = async (req, res, next) => {
     for (const levelNum of levels) {
       combinedRewards[levelNum] = {};
       
+      // Get user's network rewards from user model
+      const levelNetworkRewardsField = `lvl${levelNum}NetworkRewards`;
+      const userNetworkRewards = user[levelNetworkRewardsField] || {};
+      
       for (const network of networks) {
-        // Check if user has custom reward for this level/network
-        const userReward = userRewards.find(r => r.level === levelNum && r.network === network);
+        // Check if user has network reward in user model
+        const userRewardAmount = userNetworkRewards[network];
         
-        if (userReward && userReward.isActive) {
-          // Use user's custom reward
+        if (userRewardAmount !== undefined && userRewardAmount > 0) {
+          // Use user's network reward from user model
           combinedRewards[levelNum][network] = {
-            amount: userReward.rewardAmount,
+            amount: userRewardAmount,
             isCustom: true,
             source: 'user'
           };
@@ -76,7 +72,13 @@ export const getUserNetworkRewards = async (req, res, next) => {
       data: {
         userId,
         rewards: combinedRewards,
-        rawUserRewards: userRewards,
+        userNetworkRewards: {
+          lvl1NetworkRewards: user.lvl1NetworkRewards,
+          lvl2NetworkRewards: user.lvl2NetworkRewards,
+          lvl3NetworkRewards: user.lvl3NetworkRewards,
+          lvl4NetworkRewards: user.lvl4NetworkRewards,
+          lvl5NetworkRewards: user.lvl5NetworkRewards
+        },
         rawGlobalRewards: globalRewards
       }
     });
