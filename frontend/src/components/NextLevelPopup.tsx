@@ -1,10 +1,14 @@
 import React, { useEffect } from 'react';
-import { CheckCircle, X, TrendingUp, DollarSign, Wallet } from 'lucide-react';
+import { CheckCircle, X, TrendingUp, DollarSign, Wallet, Coins } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { NumberTicker } from './ui/number-ticker';
 import { AnimatedGradientText } from './ui/animated-gradient-text';
 import { BorderBeam } from './ui/border-beam';
 import { useNavigate } from 'react-router-dom';
+
+interface NetworkRewards {
+  [network: string]: number;
+}
 
 interface NextLevelPopupProps {
   isOpen: boolean;
@@ -17,7 +21,17 @@ interface NextLevelPopupProps {
     tier: number;
     name: string;
   } | null;
+  networkRewards?: NetworkRewards;
 }
+
+const NETWORKS = [
+  { key: 'BTC', name: 'Bitcoin', icon: '₿', color: 'text-orange-500' },
+  { key: 'ETH', name: 'Ethereum', icon: 'Ξ', color: 'text-blue-500' },
+  { key: 'TRON', name: 'TRON', icon: 'T', color: 'text-red-500' },
+  { key: 'USDT', name: 'Tether', icon: '$', color: 'text-green-500' },
+  { key: 'BNB', name: 'Binance Coin', icon: 'B', color: 'text-yellow-500' },
+  { key: 'SOL', name: 'Solana', icon: '◎', color: 'text-purple-500' }
+];
 
 const NextLevelPopup: React.FC<NextLevelPopupProps> = ({ 
   isOpen, 
@@ -26,7 +40,8 @@ const NextLevelPopup: React.FC<NextLevelPopupProps> = ({
   currentLevel = 1,
   currentReward = 1000,
   nextReward = 5000,
-  nextTierInfo = null
+  nextTierInfo = null,
+  networkRewards = {}
 }) => {
   const navigate = useNavigate();
   
@@ -115,37 +130,96 @@ const NextLevelPopup: React.FC<NextLevelPopupProps> = ({
             You have successfully completed Level {currentLevel}
           </p>
 
-          {/* Refunded Amount Card */}
-          <div className="relative mb-4 bg-white/5 border border-green-500/30 rounded-lg p-6 overflow-hidden">
-            <BorderBeam 
-              size={80} 
-              duration={8} 
-              colorFrom="#10b981" 
-              colorTo="#34d399"
-              borderWidth={2}
-            />
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500/20 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-green-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm text-green-500 font-medium mb-1">
-                    Refunded to Your Account
+          {/* Network Rewards Card */}
+          {Object.keys(networkRewards || {}).length > 0 ? (
+            <div className="relative mb-4 bg-white/5 border border-green-500/30 rounded-lg p-6 overflow-hidden">
+              <BorderBeam 
+                size={80} 
+                duration={8} 
+                colorFrom="#10b981" 
+                colorTo="#34d399"
+                borderWidth={2}
+              />
+              <div className="relative z-10">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <div className="p-2 bg-green-500/20 rounded-lg">
+                    <Coins className="w-5 h-5 text-green-400" />
+                  </div>
+                  <p className="text-sm text-green-500 font-medium">
+                    Level {currentLevel} Network Rewards
                   </p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold text-green-400">$</span>
-                    <NumberTicker 
-                      value={currentReward} 
-                      className="text-3xl font-bold text-green-400"
-                      decimalPlaces={0}
-                      delay={0.3}
-                    />
+                </div>
+                
+                {/* Network breakdown */}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {NETWORKS.map(network => {
+                    const amount = networkRewards?.[network.key] || 0;
+                    if (amount === 0) return null;
+                    
+                    return (
+                      <div key={network.key} className="flex items-center justify-between bg-black/20 rounded-lg p-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm ${network.color}`}>{network.icon}</span>
+                          <span className="text-xs text-gray-300">{network.name}</span>
+                        </div>
+                        <span className="text-sm font-semibold text-white">
+                          {amount.toLocaleString()}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Total */}
+                <div className="border-t border-green-500/30 pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-green-400">Total Value:</span>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-lg font-bold text-green-400">$</span>
+                      <NumberTicker 
+                        value={Object.values(networkRewards || {}).reduce((sum, amount) => sum + amount, 0)} 
+                        className="text-lg font-bold text-green-400"
+                        decimalPlaces={0}
+                        delay={0.3}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* Legacy reward card (fallback) */
+            <div className="relative mb-4 bg-white/5 border border-green-500/30 rounded-lg p-6 overflow-hidden">
+              <BorderBeam 
+                size={80} 
+                duration={8} 
+                colorFrom="#10b981" 
+                colorTo="#34d399"
+                borderWidth={2}
+              />
+              <div className="relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/20 rounded-lg">
+                    <DollarSign className="w-6 h-6 text-green-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm text-green-500 font-medium mb-1">
+                      Refunded to Your Account
+                    </p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-bold text-green-400">$</span>
+                      <NumberTicker 
+                        value={currentReward} 
+                        className="text-3xl font-bold text-green-400"
+                        decimalPlaces={0}
+                        delay={0.3}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Potential Funds Card */}
           {currentLevel < 5 && nextReward > 0 && (

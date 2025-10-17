@@ -14,6 +14,7 @@ interface UseNetworkRewardsReturn {
   getLevelRewards: (level: number) => NetworkRewards;
   getTotalRewardForLevel: (level: number) => number;
   getNetworkReward: (level: number, network: string) => number;
+  getUserLevelRewards: (userId: string, level: number) => Promise<NetworkRewards>;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -59,6 +60,26 @@ export const useNetworkRewards = (): UseNetworkRewardsReturn => {
     return levelRewards[network] || 0;
   };
 
+  const getUserLevelRewards = async (userId: string, level: number): Promise<NetworkRewards> => {
+    try {
+      const response = await apiFetch(`/user-network-reward/user/${userId}/level/${level}`);
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Convert the response to our NetworkRewards format
+        const userRewards: NetworkRewards = {};
+        Object.entries(data.data.rewards).forEach(([network, rewardData]: [string, any]) => {
+          userRewards[network] = rewardData.amount;
+        });
+        return userRewards;
+      }
+      return {};
+    } catch (error) {
+      console.error('Error fetching user level rewards:', error);
+      return {};
+    }
+  };
+
   useEffect(() => {
     fetchRewards();
   }, []);
@@ -68,6 +89,7 @@ export const useNetworkRewards = (): UseNetworkRewardsReturn => {
     getLevelRewards,
     getTotalRewardForLevel,
     getNetworkReward,
+    getUserLevelRewards,
     loading,
     error,
     refetch: fetchRewards
