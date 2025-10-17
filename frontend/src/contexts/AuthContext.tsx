@@ -185,7 +185,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.ok && responseData.success) {
         // Update user in context with new animation flags
         if (user) {
+          console.log(`[Frontend] Current user balance: ${user.balance}`);
+          console.log(`[Frontend] Response data:`, responseData.data);
           const updatedUser = { ...user, ...responseData.data };
+          console.log(`[Frontend] Updated user balance: ${updatedUser.balance}`);
           setUser(updatedUser);
           localStorage.setItem('user', JSON.stringify(updatedUser));
         }
