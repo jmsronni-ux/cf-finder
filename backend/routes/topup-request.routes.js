@@ -1,5 +1,5 @@
 import express from 'express';
-import { authMiddleware, adminMiddleware } from '../middlewares/auth.middleware.js';
+import authMiddleware, { adminMiddleware } from '../middlewares/auth.middleware.js';
 import topupRequestController from '../controllers/topup-request.controller.js';
 
 const router = express.Router();

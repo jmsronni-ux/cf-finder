@@ -1,11 +1,10 @@
 import express from 'express';
-import { authenticate } from '../middlewares/auth.middleware.js';
-import { isAdmin } from '../middlewares/auth.middleware.js';
+import authMiddleware, { adminMiddleware } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
 // Migration endpoint (Admin only)
-router.post('/run-reward-migrations', authenticate, isAdmin, async (req, res) => {
+router.post('/run-reward-migrations', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     console.log('🚀 Manual migration triggered by admin');
     
