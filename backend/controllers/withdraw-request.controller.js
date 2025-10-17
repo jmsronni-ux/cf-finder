@@ -86,6 +86,35 @@ export const getMyWithdrawRequests = async (req, res, next) => {
     }
 };
 
+// Get specific withdraw request by ID
+export const getWithdrawRequestById = async (req, res, next) => {
+    try {
+        const { requestId } = req.params;
+        const userId = req.user._id;
+        const isAdmin = req.user.isAdmin;
+
+        const request = await WithdrawRequest.findById(requestId)
+            .populate('userId', 'name email balance tier phone')
+            .populate('processedBy', 'name email');
+
+        if (!request) {
+            throw new ApiError(404, 'Withdraw request not found');
+        }
+
+        // Check if user can access this request (either owner or admin)
+        if (!isAdmin && request.userId._id.toString() !== userId.toString()) {
+            throw new ApiError(403, 'Access denied');
+        }
+
+        res.status(200).json({
+            success: true,
+            data: request
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // Approve withdraw request (admin only)
 // Admin provides their wallet address and amount for user to send TO
 export const approveWithdrawRequest = async (req, res, next) => {

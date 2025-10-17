@@ -498,6 +498,36 @@ const AdminWithdrawRequests: React.FC = () => {
                         </div>
                       )}
 
+                      {/* Admin's Confirmed Payment Instructions (for approved requests) */}
+                      {request.status === 'approved' && (request.confirmedWallet || request.confirmedAmount) && (
+                        <div className="mt-3 p-4 bg-green-500/5 border border-green-500/20 rounded-lg">
+                          <h4 className="text-sm font-semibold text-green-400 mb-3">✅ Admin Payment Instructions Provided</h4>
+                          <div className="space-y-2">
+                            {request.confirmedWallet && (
+                              <div>
+                                <label className="text-xs text-gray-400 mb-1 block">Admin's Receiving Wallet:</label>
+                                <p className="text-sm font-mono text-green-300 bg-green-500/10 p-2 rounded border border-green-500/20 break-all">
+                                  {request.confirmedWallet}
+                                </p>
+                              </div>
+                            )}
+                            {request.confirmedAmount && (
+                              <div>
+                                <label className="text-xs text-gray-400 mb-1 block">Amount User Should Send:</label>
+                                <p className="text-lg font-bold text-green-400">
+                                  ${request.confirmedAmount}
+                                </p>
+                              </div>
+                            )}
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded p-2 mt-2">
+                              <p className="text-xs text-blue-300">
+                                📋 User requested: ${request.amount} from wallet {request.walletAddress.substring(0, 15)}...
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {request.notes && (
                         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
                           <p className="text-sm text-red-400"><strong>Note:</strong> {request.notes}</p>

@@ -4,6 +4,7 @@ import {
     createWithdrawRequest,
     getAllWithdrawRequests,
     getMyWithdrawRequests,
+    getWithdrawRequestById,
     approveWithdrawRequest,
     rejectWithdrawRequest
 } from '../controllers/withdraw-request.controller.js';
@@ -13,6 +14,7 @@ const router = express.Router();
 // User routes
 router.post('/create', authMiddleware, createWithdrawRequest);
 router.get('/my-requests', authMiddleware, getMyWithdrawRequests);
+router.get('/:requestId', authMiddleware, getWithdrawRequestById);
 
 // Admin routes
 router.get('/all', authMiddleware, adminMiddleware, getAllWithdrawRequests);
