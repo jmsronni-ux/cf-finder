@@ -209,10 +209,56 @@ export const setUserNetworkReward = async (req, res, next) => {
       await reward.save();
     }
     
+    // Recalculate total level reward and update user model
+    const userRewards = await UserNetworkReward.find({ userId, level, isActive: true });
+    const globalRewards = await NetworkReward.find({ level, isActive: true });
+    
+    const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+    let totalLevelReward = 0;
+    
+    // Calculate total reward using user-specific rewards with global fallback
+    for (const networkName of networks) {
+      let rewardAmount = 0;
+      
+      // Check if user has custom reward for this network
+      const userReward = userRewards.find(r => r.network === networkName);
+      if (userReward) {
+        rewardAmount = userReward.rewardAmount;
+      } else {
+        // Fall back to global reward
+        const globalReward = globalRewards.find(r => r.network === networkName);
+        if (globalReward) {
+          rewardAmount = globalReward.rewardAmount;
+        }
+      }
+      
+      totalLevelReward += rewardAmount;
+    }
+    
+    const levelRewardField = `lvl${level}reward`;
+    
+    // Update the user's level reward field
+    await User.findByIdAndUpdate(
+      userId,
+      { 
+        $set: { 
+          [levelRewardField]: totalLevelReward,
+          updatedAt: new Date()
+        } 
+      },
+      { new: true }
+    );
+    
+    console.log(`[User Network Rewards] Updated user ${userId} ${levelRewardField} to ${totalLevelReward} after ${network} update`);
+    
     res.status(200).json({
       success: true,
       message: `Custom reward for ${network} on level ${level} set for user successfully`,
-      data: { reward }
+      data: { 
+        reward,
+        totalLevelReward,
+        updatedUserField: levelRewardField
+      }
     });
   } catch (error) {
     next(error);
@@ -307,6 +353,24 @@ export const setUserLevelRewards = async (req, res, next) => {
       results.push(reward);
     }
     
+    // Calculate total reward for this level and update user model
+    const totalLevelReward = Object.values(rewards).reduce((sum, amount) => sum + amount, 0);
+    const levelRewardField = `lvl${levelNumber}reward`;
+    
+    // Update the user's level reward field
+    await User.findByIdAndUpdate(
+      userId,
+      { 
+        $set: { 
+          [levelRewardField]: totalLevelReward,
+          updatedAt: new Date()
+        } 
+      },
+      { new: true }
+    );
+    
+    console.log(`[User Network Rewards] Updated user ${userId} ${levelRewardField} to ${totalLevelReward}`);
+    
     res.status(200).json({
       success: true,
       message: `All custom rewards for level ${level} updated for user successfully`,
@@ -314,7 +378,9 @@ export const setUserLevelRewards = async (req, res, next) => {
         userId,
         level,
         rewards: results,
-        count: results.length
+        count: results.length,
+        totalLevelReward,
+        updatedUserField: levelRewardField
       }
     });
   } catch (error) {
