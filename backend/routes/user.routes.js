@@ -79,10 +79,14 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
             
             console.log(`[Animation] User network rewards for level ${level}:`, userNetworkRewards);
             console.log(`[Animation] User current balance:`, currentUser.balance);
+            console.log(`[Animation] Network rewards field: ${levelNetworkRewardsField}`);
+            console.log(`[Animation] Raw network rewards from user:`, currentUser[levelNetworkRewardsField]);
             
             // Convert all rewards to USDT equivalent
+            console.log(`[Animation] Calling convertRewardsToUSDT with:`, userNetworkRewards);
             conversionResult = convertRewardsToUSDT(userNetworkRewards);
             totalRewardUSDT = conversionResult.totalUSDT;
+            console.log(`[Animation] Conversion function result:`, conversionResult);
             
             console.log(`[Animation] Conversion result:`, conversionResult);
             console.log(`[Animation] Total reward USDT:`, totalRewardUSDT);
@@ -144,6 +148,11 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
                 conversionBreakdown: conversionResult.breakdown
             }
         };
+        
+        console.log(`[Animation] ===== FINAL RESPONSE DATA =====`);
+        console.log(`[Animation] totalRewardUSDT in response:`, responseData.data.totalRewardUSDT);
+        console.log(`[Animation] networkRewards in response:`, responseData.data.networkRewards);
+        console.log(`[Animation] balance in response:`, responseData.data.balance);
         
         console.log(`[Animation] ===== SENDING RESPONSE =====`);
         console.log(`[Animation] Response data:`, responseData);
