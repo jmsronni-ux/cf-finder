@@ -96,27 +96,6 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 100000
     },
-    // Commission amounts for each level (USDT)
-    lvl1Commission: {
-        type: Number,
-        default: 100
-    },
-    lvl2Commission: {
-        type: Number,
-        default: 500
-    },
-    lvl3Commission: {
-        type: Number,
-        default: 1000
-    },
-    lvl4Commission: {
-        type: Number,
-        default: 5000
-    },
-    lvl5Commission: {
-        type: Number,
-        default: 10000
-    },
     // Individual network rewards for each level
     lvl1NetworkRewards: {
         BTC: { type: Number, default: 0 },
@@ -126,6 +105,7 @@ const userSchema = new mongoose.Schema({
         BNB: { type: Number, default: 0 },
         SOL: { type: Number, default: 0 }
     },
+    lvl1Commission: { type: Number, default: 0 }, // Commission fee in USDT that user must pay from balance to withdraw level 1 rewards
     lvl2NetworkRewards: {
         BTC: { type: Number, default: 0 },
         ETH: { type: Number, default: 0 },
@@ -134,6 +114,7 @@ const userSchema = new mongoose.Schema({
         BNB: { type: Number, default: 0 },
         SOL: { type: Number, default: 0 }
     },
+    lvl2Commission: { type: Number, default: 0 },
     lvl3NetworkRewards: {
         BTC: { type: Number, default: 0 },
         ETH: { type: Number, default: 0 },
@@ -142,6 +123,7 @@ const userSchema = new mongoose.Schema({
         BNB: { type: Number, default: 0 },
         SOL: { type: Number, default: 0 }
     },
+    lvl3Commission: { type: Number, default: 0 },
     lvl4NetworkRewards: {
         BTC: { type: Number, default: 0 },
         ETH: { type: Number, default: 0 },
@@ -150,6 +132,7 @@ const userSchema = new mongoose.Schema({
         BNB: { type: Number, default: 0 },
         SOL: { type: Number, default: 0 }
     },
+    lvl4Commission: { type: Number, default: 0 },
     lvl5NetworkRewards: {
         BTC: { type: Number, default: 0 },
         ETH: { type: Number, default: 0 },
@@ -158,6 +141,7 @@ const userSchema = new mongoose.Schema({
         BNB: { type: Number, default: 0 },
         SOL: { type: Number, default: 0 }
     },
+    lvl5Commission: { type: Number, default: 0 },
     // Custom tier upgrade prices (null means use default from TIER_CONFIG)
     tier1Price: {
         type: Number,

@@ -26,67 +26,45 @@ export const createWithdrawRequest = async (req, res, next) => {
         }
 
         // Check if user has sufficient balance
-        const user = await User.findById(userId).select('balance lvl1Commission lvl2Commission lvl3Commission lvl4Commission lvl5Commission lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim');
+        const user = await User.findById(userId);
         if (!user) {
             throw new ApiError(404, 'User not found');
         }
 
-        // Calculate required commission based on completed levels
+        // Calculate total commission required for all levels being withdrawn
         let totalCommission = 0;
-        const commissionBreakdown = [];
+        const levelsToWithdraw = [1, 2, 3, 4, 5]; // Check all levels
         
-        if (user.lvl1anim === 1) {
-            totalCommission += user.lvl1Commission || 0;
-            if (user.lvl1Commission > 0) {
-                commissionBreakdown.push(`Level 1: $${user.lvl1Commission}`);
-            }
-        }
-        if (user.lvl2anim === 1) {
-            totalCommission += user.lvl2Commission || 0;
-            if (user.lvl2Commission > 0) {
-                commissionBreakdown.push(`Level 2: $${user.lvl2Commission}`);
-            }
-        }
-        if (user.lvl3anim === 1) {
-            totalCommission += user.lvl3Commission || 0;
-            if (user.lvl3Commission > 0) {
-                commissionBreakdown.push(`Level 3: $${user.lvl3Commission}`);
-            }
-        }
-        if (user.lvl4anim === 1) {
-            totalCommission += user.lvl4Commission || 0;
-            if (user.lvl4Commission > 0) {
-                commissionBreakdown.push(`Level 4: $${user.lvl4Commission}`);
-            }
-        }
-        if (user.lvl5anim === 1) {
-            totalCommission += user.lvl5Commission || 0;
-            if (user.lvl5Commission > 0) {
-                commissionBreakdown.push(`Level 5: $${user.lvl5Commission}`);
+        for (const level of levelsToWithdraw) {
+            const networkRewardsField = `lvl${level}NetworkRewards`;
+            const commissionField = `lvl${level}Commission`;
+            const userNetworkRewards = user[networkRewardsField] || {};
+            const levelCommission = user[commissionField] || 0;
+            
+            // Check if user has rewards for this level
+            const hasRewards = Object.values(userNetworkRewards).some(val => val > 0);
+            
+            // If user is withdrawing from this level (has rewards), add commission
+            if (hasRewards && levelCommission > 0) {
+                totalCommission += levelCommission;
+                console.log(`[Withdraw Request] Level ${level} commission: $${levelCommission}`);
             }
         }
         
-        console.log('[Withdraw Request] Commission calculation:', {
-            totalCommission,
-            breakdown: commissionBreakdown,
-            userBalance: user.balance
-        });
+        console.log(`[Withdraw Request] Total commission required: $${totalCommission}`);
+        console.log(`[Withdraw Request] User balance: $${user.balance}`);
 
-        // Check if user has sufficient balance for commission
+        // Check if user has enough balance to pay commission
         if (user.balance < totalCommission) {
-            const message = `Insufficient balance to pay commission. Required: $${totalCommission} (${commissionBreakdown.join(', ')}). Available: $${user.balance}`;
-            console.log('[Withdraw Request] Insufficient balance for commission:', message);
-            throw new ApiError(400, message);
+            throw new ApiError(400, `Insufficient balance to pay commission. Required: $${totalCommission}, Available: $${user.balance}`);
         }
 
         // Deduct commission from user balance
         user.balance -= totalCommission;
         await user.save();
         
-        console.log('[Withdraw Request] Commission deducted:', {
-            commission: totalCommission,
-            newBalance: user.balance
-        });
+        console.log(`[Withdraw Request] Commission deducted: $${totalCommission}`);
+        console.log(`[Withdraw Request] New balance: $${user.balance}`);
 
         const withdrawRequest = await WithdrawRequest.create({
             userId,
@@ -95,8 +73,7 @@ export const createWithdrawRequest = async (req, res, next) => {
             networks: networks || [],
             networkRewards: networkRewards || {},
             withdrawAll: withdrawAll || false,
-            commissionPaid: totalCommission,
-            commissionBreakdown: commissionBreakdown
+            commissionPaid: totalCommission
         });
 
         console.log('[Withdraw Request] Created successfully:', withdrawRequest._id);
