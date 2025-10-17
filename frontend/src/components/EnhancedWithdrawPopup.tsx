@@ -61,12 +61,25 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [isCheckingPending, setIsCheckingPending] = useState(false);
   const [isLoadingRewards, setIsLoadingRewards] = useState(false);
   const [totalCommission, setTotalCommission] = useState<number>(0);
+  const [freshUserData, setFreshUserData] = useState<any>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token } = useAuth();
 
   // Calculate commission based on selected networks being withdrawn
   const calculateCommissionForSelectedNetworks = () => {
     if (!user) return 0;
+    
+    // Use fresh user data if available, otherwise fall back to AuthContext user
+    const userData = freshUserData || user;
+    
+    console.log('[Commission] Using user data:', userData);
+    console.log('[Commission] User commission fields:', {
+      lvl1Commission: (userData as any).lvl1Commission,
+      lvl2Commission: (userData as any).lvl2Commission,
+      lvl3Commission: (userData as any).lvl3Commission,
+      lvl4Commission: (userData as any).lvl4Commission,
+      lvl5Commission: (userData as any).lvl5Commission
+    });
     
     let totalCommission = 0;
     const levels = [1, 2, 3, 4, 5];
@@ -81,8 +94,8 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     for (const level of levels) {
       const networkRewardsField = `lvl${level}NetworkRewards`;
       const commissionField = `lvl${level}Commission`;
-      const userNetworkRewards = (user as any)[networkRewardsField] || {};
-      const levelCommissionPercent = (user as any)[commissionField] || 0; // Percentage value (e.g., 30 = 30%)
+      const userNetworkRewards = (userData as any)[networkRewardsField] || {};
+      const levelCommissionPercent = (userData as any)[commissionField] || 0; // Percentage value (e.g., 30 = 30%)
       
       console.log(`[Commission] Checking level ${level}: commission=${levelCommissionPercent}%`);
       
@@ -137,13 +150,12 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     return amount * (rates[network] || 0);
   };
 
-  // Fetch user's total network rewards
-  const fetchNetworkRewards = async () => {
+  // Fetch fresh user data to get latest commission values
+  const fetchFreshUserData = async () => {
     if (!user?._id) return;
     
     try {
-      setIsLoadingRewards(true);
-      const response = await apiFetch(`/user-network-reward/user/${user._id}/total`, {
+      const response = await apiFetch(`/user/${user._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -151,16 +163,47 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       const data = await response.json();
       
       if (response.ok && data.success) {
-        setNetworkRewards(data.data.totalRewards);
-        setConversionBreakdown(data.data.conversionBreakdown);
-        setTotalUSDT(data.data.totalUSDT);
-        
-        // Commission will be calculated when networks are selected
-        // Initial commission is 0 until user selects networks
-        setTotalCommission(0);
+        setFreshUserData(data.data);
+        console.log('[Commission] Fresh user data fetched:', data.data);
       } else {
-        console.error('Failed to fetch network rewards:', data.message);
+        console.error('Failed to fetch fresh user data:', data.message);
       }
+    } catch (error) {
+      console.error('Error fetching fresh user data:', error);
+    }
+  };
+
+  // Fetch user's total network rewards
+  const fetchNetworkRewards = async () => {
+    if (!user?._id) return;
+    
+    try {
+      setIsLoadingRewards(true);
+      
+      // Fetch both network rewards and fresh user data
+      await Promise.all([
+        fetchFreshUserData(),
+        (async () => {
+          const response = await apiFetch(`/user-network-reward/user/${user._id}/total`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          const data = await response.json();
+          
+          if (response.ok && data.success) {
+            setNetworkRewards(data.data.totalRewards);
+            setConversionBreakdown(data.data.conversionBreakdown);
+            setTotalUSDT(data.data.totalUSDT);
+            
+            // Commission will be calculated when networks are selected
+            // Initial commission is 0 until user selects networks
+            setTotalCommission(0);
+          } else {
+            console.error('Failed to fetch network rewards:', data.message);
+          }
+        })()
+      ]);
     } catch (error) {
       console.error('Error fetching network rewards:', error);
     } finally {
