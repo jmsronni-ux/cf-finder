@@ -64,8 +64,12 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         let totalRewardUSDT = 0;
         let conversionResult = { totalUSDT: 0, breakdown: {} };
         
-        // Add network rewards to balance if animation not already watched
-        if (!alreadyWatched) {
+        // Add network rewards to balance if animation not already watched OR if user has 0 balance
+        if (!alreadyWatched || (alreadyWatched && currentUser.balance === 0)) {
+            if (alreadyWatched && currentUser.balance === 0) {
+                console.log(`[Animation] Animation already watched but balance is 0, adding rewards anyway`);
+            }
+            
             // Get user's network rewards from user model
             const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
             userNetworkRewards = currentUser[levelNetworkRewardsField] || {};
