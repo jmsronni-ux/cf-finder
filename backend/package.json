@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "echo 'Backend build complete - no compilation needed'",
     "start": "node ./bin/www",
     "dev": "nodemon ./bin/www",
     "test:create-user": "node test/create-test-user.js",

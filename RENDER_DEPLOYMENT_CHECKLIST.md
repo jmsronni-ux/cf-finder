@@ -33,7 +33,7 @@ MIGRATE_ON_STARTUP=true (for initial deployment)
 
 ### **Build & Start Commands:**
 ```bash
-Build Command: (leave empty)
+Build Command: npm run build
 Start Command: npm start
 ```
 
@@ -134,7 +134,7 @@ Publish Directory: dist
 2. Connect your GitHub repository
 3. Set root directory to `backend`
 4. Add all required environment variables
-5. Set build command: (empty)
+5. Set build command: `npm run build`
 6. Set start command: `npm start`
 7. Deploy and test health
 
