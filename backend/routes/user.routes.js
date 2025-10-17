@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards } from "../controllers/user.controller.js";
+import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo } from "../controllers/user.controller.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
@@ -141,6 +141,10 @@ userRouter.put("/me/wallets", authMiddleware, updateMyWallets);
 // Admin routes for managing user level rewards
 userRouter.get("/admin/rewards", authMiddleware, getAllUsersWithRewards);
 userRouter.put("/admin/rewards/:userId", authMiddleware, updateUserLevelRewards);
+
+// Admin tier management routes
+userRouter.get("/:userId/tier-management", authMiddleware, getUserTierManagementInfo);
+userRouter.put("/:userId/tier", authMiddleware, adminChangeUserTier);
 
 // Tier price routes removed - use /tier-request endpoints for tier upgrade requests
 

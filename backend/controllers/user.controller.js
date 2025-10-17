@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
+import { getTierInfo } from "../utils/tier-system.js";
 import mongoose from "mongoose";
 
 export const getAllUsers = async (req, res, next) => {
@@ -242,3 +243,139 @@ export const updateUserLevelRewards = async (req, res, next) => {
 
 // Tier prices functionality has been removed - users now request tier upgrades from admin
 // See tier-request.controller.js for the new tier upgrade request system
+
+// Admin function to directly change any user's tier
+export const adminChangeUserTier = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const { newTier, reason, skipWithdrawalCheck = false } = req.body;
+        const adminId = req.user._id;
+
+        // Validate new tier
+        if (!newTier || newTier < 0 || newTier > 5) {
+            throw new ApiError(400, 'Invalid tier. Must be between 0 and 5.');
+        }
+
+        // Find the user
+        const user = await User.findById(userId);
+        if (!user) {
+            throw new ApiError(404, 'User not found.');
+        }
+
+        const oldTier = user.tier || 0;
+        const tierInfo = getTierInfo(newTier);
+
+        // Log the tier change
+        console.log(`[Admin Tier Change] Admin ${adminId} changing user ${userId} from tier ${oldTier} to tier ${newTier}. Reason: ${reason || 'No reason provided'}`);
+
+        // Update user's tier
+        user.tier = newTier;
+        user.updatedAt = new Date();
+        await user.save();
+
+        // Create audit log entry (optional - you can add this to a separate audit model)
+        const auditLog = {
+            action: 'tier_change',
+            adminId,
+            userId,
+            oldTier,
+            newTier,
+            reason: reason || 'Direct admin tier change',
+            timestamp: new Date(),
+            skipWithdrawalCheck
+        };
+
+        console.log('[Audit Log]', auditLog);
+
+        res.status(200).json({
+            success: true,
+            message: `User tier changed from ${oldTier} to ${newTier} successfully`,
+            data: {
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    oldTier,
+                    newTier,
+                    tierName: tierInfo.name,
+                    updatedAt: user.updatedAt
+                },
+                auditLog: {
+                    action: auditLog.action,
+                    oldTier: auditLog.oldTier,
+                    newTier: auditLog.newTier,
+                    reason: auditLog.reason,
+                    timestamp: auditLog.timestamp
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error changing user tier:', error);
+        next(error);
+    }
+};
+
+// Admin function to get user tier management info
+export const getUserTierManagementInfo = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await User.findById(userId).select('-password');
+        if (!user) {
+            throw new ApiError(404, 'User not found.');
+        }
+
+        const currentTier = user.tier || 0;
+        const tierInfo = getTierInfo(currentTier);
+
+        // Get completed levels
+        const completedLevels = [];
+        for (let level = 1; level <= 5; level++) {
+            const animField = `lvl${level}anim`;
+            if (user[animField] === 1) {
+                completedLevels.push(level);
+            }
+        }
+
+        // Get tier history (if you have a tier history model)
+        const tierHistory = [
+            {
+                tier: currentTier,
+                name: tierInfo.name,
+                changedAt: user.updatedAt,
+                reason: 'Current tier'
+            }
+        ];
+
+        res.status(200).json({
+            success: true,
+            message: 'User tier management info retrieved successfully',
+            data: {
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    currentTier,
+                    tierName: tierInfo.name,
+                    balance: user.balance,
+                    completedLevels,
+                    joinedAt: user.createdAt
+                },
+                tierHistory,
+                availableTiers: [
+                    { tier: 0, name: 'Basic (No Tier)', description: 'Starting tier' },
+                    { tier: 1, name: 'Standard', description: 'Basic access level' },
+                    { tier: 2, name: 'Professional', description: 'Enhanced features' },
+                    { tier: 3, name: 'Enterprise', description: 'Advanced features' },
+                    { tier: 4, name: 'Premium', description: 'Premium features' },
+                    { tier: 5, name: 'VIP', description: 'Highest tier with all features' }
+                ]
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting user tier management info:', error);
+        next(error);
+    }
+};

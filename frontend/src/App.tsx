@@ -12,6 +12,7 @@ import AdminLevelManagement from "./pages/AdminLevelManagement";
 import AdminNetworkRewards from "./pages/AdminNetworkRewards";
 import AdminUserNetworkRewards from "./pages/AdminUserNetworkRewards";
 import AdminRewardAnalytics from "./pages/AdminRewardAnalytics";
+import AdminTierManagement from "./pages/AdminTierManagement";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -73,11 +74,16 @@ function App() {
             <AdminUserNetworkRewards />
           </ProtectedRoute>
         } />
-        <Route path="/admin/reward-analytics" element={
-          <ProtectedRoute>
-            <AdminRewardAnalytics />
-          </ProtectedRoute>
-        } />
+            <Route path="/admin/reward-analytics" element={
+              <ProtectedRoute>
+                <AdminRewardAnalytics />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/tier-management" element={
+              <ProtectedRoute>
+                <AdminTierManagement />
+              </ProtectedRoute>
+            } />
       </Routes>
     </AuthProvider>
   )
