@@ -86,6 +86,7 @@ const AdminUserRewards: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRewards, setEditingRewards] = useState<NetworkRewards>({});
+  const [editingCommission, setEditingCommission] = useState<number>(0);
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -150,6 +151,14 @@ const AdminUserRewards: React.FC = () => {
   const openEditModal = (level: number) => {
     setSelectedLevel(level);
     setEditingRewards(userRewards[level] || {});
+    
+    // Load commission from selected user
+    if (selectedUser) {
+      const commissionField = `lvl${level}Commission`;
+      const commission = (selectedUser as any)[commissionField] || 0;
+      setEditingCommission(commission);
+    }
+    
     setShowEditModal(true);
   };
 
@@ -178,6 +187,7 @@ const AdminUserRewards: React.FC = () => {
         rewardsPayload[network] = rewardData.amount;
       });
 
+      // First, save rewards
       const response = await apiFetch(`/user-network-reward/user/${selectedUser._id}/level/${selectedLevel}`, {
         method: 'PUT',
         headers: {
@@ -191,8 +201,21 @@ const AdminUserRewards: React.FC = () => {
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
-        toast.success(`Level ${selectedLevel} rewards updated for ${selectedUser.name}!`);
+      // Then, save commission
+      const commissionField = `lvl${selectedLevel}Commission`;
+      const commissionResponse = await apiFetch(`/user/${selectedUser._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          [commissionField]: editingCommission
+        })
+      });
+
+      if (response.ok && data.success && commissionResponse.ok) {
+        toast.success(`Level ${selectedLevel} rewards and commission updated for ${selectedUser.name}!`);
         setShowEditModal(false);
         fetchUserRewards(selectedUser._id); // Refresh data
       } else {
@@ -419,6 +442,26 @@ const AdminUserRewards: React.FC = () => {
                           />
                         </div>
                       ))}
+                    </div>
+                    
+                    {/* Commission Field */}
+                    <div className="mt-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                      <Label className="flex items-center gap-2 text-sm font-medium mb-2">
+                        <DollarSign className="text-orange-400" size={16} />
+                        <span className="text-orange-400">Commission Fee (USDT)</span>
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editingCommission}
+                        onChange={(e) => setEditingCommission(parseFloat(e.target.value) || 0)}
+                        className="bg-background/50 border-border text-foreground"
+                        placeholder="0.00"
+                      />
+                      <p className="text-xs text-orange-300/80 mt-2">
+                        User must pay this commission from their balance before withdrawing Level {selectedLevel} rewards
+                      </p>
                     </div>
                     
                     <div className="flex justify-end gap-2 pt-4">
