@@ -539,7 +539,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             }
             isLoading={isUpgrading}
             className="absolute top-6 right-24 w-fit min-w-[10rem]"
-            onClick={pendingTierRequest ? undefined : ((hasWatchedCurrentLevel || !hasPaidForCurrentLevel) ? () => {
+            onClick={pendingTierRequest ? undefined : (!hasPaidForCurrentLevel ? () => {
               // Navigate to profile with state to open withdraw popup
               navigate('/profile', { state: { openWithdrawPopup: true } });
             } : (hasStarted ? undefined : () => {
@@ -551,8 +551,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         >
             {pendingTierRequest ? 'Upgrade Pending' : 
              (isUpgrading ? 'Upgrading...' : 
-             (hasWatchedCurrentLevel || !hasPaidForCurrentLevel) ? 'Withdraw' : 
-             hasStarted ? '' : 'START')}
+             (!hasPaidForCurrentLevel) ? 'Withdraw' : 
+             hasStarted ? 'Running...' : 'Start Animation')}
         </PulsatingButton>
         
 
@@ -593,7 +593,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             selectedNode={selectedNode}
             onClose={() => setSelectedNode(null)}
             hasStarted={hasStarted}
-            hasWatchedCurrentLevel={hasWatchedCurrentLevel || !hasPaidForCurrentLevel}
+            hasWatchedCurrentLevel={!hasPaidForCurrentLevel}
             onStartAnimation={() => {
               if (!hasPaidForCurrentLevel) {
                 handleUpgradeClick();
