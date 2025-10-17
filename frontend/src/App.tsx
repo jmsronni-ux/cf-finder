@@ -90,6 +90,8 @@ function App() {
                 <AdminTierManagement />
               </ProtectedRoute>
             } />
+        {/* Catch-all route for SPA routing */}
+        <Route path="*" element={<div>Loading...</div>} />
       </Routes>
     </AuthProvider>
   )
