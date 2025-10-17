@@ -21,6 +21,9 @@ userRouter.delete("/:id", authMiddleware, deleteUser);
 // Mark animation as watched
 userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next) => {
     try {
+        console.log(`[Animation] ===== ROUTE HIT - MARK ANIMATION WATCHED =====`);
+        console.log(`[Animation] Route called at:`, new Date().toISOString());
+        
         const { level } = req.body;
         const userId = req.user._id;
         
@@ -45,10 +48,13 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         
         // Only allow watching if tier >= level
         const effectiveTier = userCheck.tier || 1;
+        console.log(`[Animation] Effective tier: ${effectiveTier}, Level: ${level}`);
         if (effectiveTier < level) {
             console.error(`[Animation] Tier ${effectiveTier} too low for level ${level}`);
             return res.status(403).json({ success: false, message: "Tier too low for this level" });
         }
+        
+        console.log(`[Animation] Tier check passed - proceeding with animation completion`);
         
         // Check if animation was already watched to avoid duplicate rewards
         const currentUser = await User.findById(userId).select(`lvl${level}anim balance`);
