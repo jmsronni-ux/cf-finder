@@ -164,7 +164,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [token]);
 
   const markAnimationWatched = async (level: number): Promise<{ success: boolean; totalRewardUSDT?: number; networkRewards?: any }> => {
+    console.log(`[Frontend] ===== MARK ANIMATION WATCHED CALLED =====`);
     console.log(`[Frontend] markAnimationWatched called for level ${level}`);
+    console.log(`[Frontend] Token available:`, !!token);
+    console.log(`[Frontend] User:`, user);
     if (!token) {
       console.error('[Frontend] No token available');
       return { success: false };

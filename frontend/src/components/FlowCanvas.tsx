@@ -148,10 +148,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Show completion popup when animation finishes and save to DB
   useEffect(() => {
+    console.log(`[FlowCanvas] ===== ANIMATION COMPLETION CHECK =====`);
     console.log(`[FlowCanvas] Animation completion check: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}, completedLevels=${Array.from(completedLevels)}`);
     
     // Only show popup if animation was started for this specific level and hasn't been completed yet
     if (isCompleted && animationStartedForLevel === currentLevel && !completedLevels.has(currentLevel)) {
+      console.log(`[FlowCanvas] ===== ANIMATION COMPLETED - TRIGGERING COMPLETION FLOW =====`);
       console.log(`[FlowCanvas] Animation completed for level ${currentLevel}, showing popup and marking as watched`);
       setShowCompletionPopup(true);
       
