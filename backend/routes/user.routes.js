@@ -106,13 +106,6 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
             { new: true, runValidators: false }
         ).select('lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim balance');
         
-        console.log(`[Animation] Database update result:`, {
-            userId: updatedUser?._id,
-            oldBalance: currentUser.balance,
-            newBalance: updatedUser?.balance,
-            updateApplied: updateObj.balance ? 'YES' : 'NO'
-        });
-        
         if (!updatedUser) {
             console.error(`[Animation] Failed to update user: ${userId}`);
             return res.status(500).json({ success: false, message: "Failed to update animation status" });

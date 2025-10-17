@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NetworkRewards {
   [network: string]: number;
@@ -14,7 +15,7 @@ interface UseNetworkRewardsReturn {
   getLevelRewards: (level: number) => NetworkRewards;
   getTotalRewardForLevel: (level: number) => number;
   getNetworkReward: (level: number, network: string) => number;
-  getUserLevelRewards: (userId: string, level: number, token: string) => Promise<NetworkRewards>;
+  getUserLevelRewards: (userId: string, level: number) => Promise<NetworkRewards>;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -24,6 +25,7 @@ export const useNetworkRewards = (): UseNetworkRewardsReturn => {
   const [rewards, setRewards] = useState<LevelRewards>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
 
   const fetchRewards = async () => {
     try {
@@ -60,12 +62,11 @@ export const useNetworkRewards = (): UseNetworkRewardsReturn => {
     return levelRewards[network] || 0;
   };
 
-  const getUserLevelRewards = async (userId: string, level: number, token: string): Promise<NetworkRewards> => {
+  const getUserLevelRewards = async (userId: string, level: number): Promise<NetworkRewards> => {
     try {
       const response = await apiFetch(`/user-network-reward/user/${userId}/level/${level}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
       const data = await response.json();
