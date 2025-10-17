@@ -95,7 +95,7 @@ const AdminTierManagement: React.FC = () => {
 
       if (response.ok && data.success) {
         setTierInfo(data.data);
-        setNewTier(data.data.user.currentTier);
+        setNewTier(data.data.user.tier);
         setReason('');
       } else {
         toast.error(data.message || 'Failed to fetch user tier info');
@@ -309,8 +309,8 @@ const AdminTierManagement: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <p className="text-muted-foreground">Current Tier:</p>
-                            <Badge className={getTierBadgeColor(tierInfo.user.currentTier)}>
-                              {getTierIcon(tierInfo.user.currentTier)} Tier {tierInfo.user.currentTier}
+                            <Badge className={getTierBadgeColor(tierInfo.user.tier)}>
+                              {getTierIcon(tierInfo.user.tier)} Tier {tierInfo.user.tier}
                             </Badge>
                           </div>
                           <div>
@@ -352,7 +352,7 @@ const AdminTierManagement: React.FC = () => {
                             <div 
                               key={tier.tier} 
                               className={`p-3 rounded-lg border ${
-                                tier.tier === tierInfo.user.currentTier 
+                                tier.tier === tierInfo.user.tier 
                                   ? 'border-yellow-500/50 bg-yellow-500/5' 
                                   : 'border-border hover:border-yellow-500/30'
                               }`}

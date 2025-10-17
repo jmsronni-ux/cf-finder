@@ -55,7 +55,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [currentLevel, setCurrentLevel] = useState(1);
   const [selectedNode, setSelectedNode] = useState<any>(null);
-  const [levelData, setLevelData] = useState({ nodes: [], edges: [] });
+  const [levelData, setLevelData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<Set<number>>(new Set());
   const [downloadLevel, setDownloadLevel] = useState(1);
@@ -124,14 +124,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   
   // Load level data when currentLevel changes
   useEffect(() => {
-    const newLevelData = getLevelData(currentLevel);
+    const newLevelData = getLevelData(currentLevel, levels);
     setLevelData(newLevelData);
     setNodes(newLevelData.nodes as any[]);
     setEdges(newLevelData.edges as any[]);
     resetAnimation(); // Reset animation when level changes
     resetPendingStatus(); // Reset pending timers when level changes
     setAnimationStartedForLevel(null); // Reset animation tracking for new level
-  }, [currentLevel, setNodes, setEdges, resetAnimation, resetPendingStatus]);
+  }, [currentLevel, levels, setNodes, setEdges, resetAnimation, resetPendingStatus]);
 
   // Show completion popup when animation finishes and save to DB
   useEffect(() => {
@@ -479,7 +479,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         minZoom={0.05}
         maxZoom={2}
         onInit={(instance: any) => {
-          const centerNode = initialNodes.find(n => n.id === 'center');
+          const centerNode = nodes.find((n: any) => n.id === 'center');
           if (centerNode) {
             instance.setCenter(centerNode.position.x + 40, centerNode.position.y, { zoom: 1, duration: 0 });
           }

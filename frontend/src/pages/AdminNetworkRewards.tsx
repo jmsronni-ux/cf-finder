@@ -144,8 +144,8 @@ const AdminNetworkRewards: React.FC = () => {
 
   const calculateTotalRewards = () => {
     let total = 0;
-    Object.values(rewards).forEach(levelRewards => {
-      Object.values(levelRewards).forEach(amount => {
+    Object.values(rewards).forEach((levelRewards: NetworkRewards) => {
+      Object.values(levelRewards).forEach((amount: number) => {
         total += amount;
       });
     });
