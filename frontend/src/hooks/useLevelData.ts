@@ -29,19 +29,23 @@ export const useLevelData = (): UseLevelDataReturn => {
 
   const fetchLevels = async () => {
     try {
+      console.log('[useLevelData] Starting to fetch levels...');
       setLoading(true);
       setError(null);
       
       const response = await apiFetch('/level');
+      console.log('[useLevelData] Response status:', response.status);
       const data = await response.json();
+      console.log('[useLevelData] Response data:', data);
       
       if (response.ok && data.success) {
+        console.log('[useLevelData] Setting levels:', data.data.levels);
         setLevels(data.data.levels);
       } else {
         throw new Error(data.message || 'Failed to fetch levels');
       }
     } catch (err) {
-      console.error('Error fetching levels:', err);
+      console.error('[useLevelData] Error fetching levels:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch levels');
     } finally {
       setLoading(false);

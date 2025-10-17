@@ -52,6 +52,11 @@ const nodeTypes = {
 
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId }) => {
   const { levels, loading: levelsLoading } = useLevelData();
+  
+  // Debug levels data changes
+  useEffect(() => {
+    console.log('[FlowCanvas] Levels data changed:', { levels: levels.length, loading: levelsLoading });
+  }, [levels, levelsLoading]);
   const { getTotalRewardForLevel, getUserLevelRewards } = useNetworkRewards();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
