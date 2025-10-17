@@ -14,6 +14,7 @@ import tierRouter from './routes/tier.routes.js';
 import levelRouter from './routes/level.routes.js';
 import networkRewardRouter from './routes/network-reward.routes.js';
 import userNetworkRewardRouter from './routes/user-network-reward.routes.js';
+import migrationRouter from './routes/migration.routes.js';
 import blockchainAnalysisRouter from './routes/blockchain-analysis.routes.js';
 import topupRequestRouter from './routes/topup-request.routes.js';
 import withdrawRequestRouter from './routes/withdraw-request.routes.js';
@@ -28,6 +29,13 @@ const __dirname = path.dirname(__filename);
 var app = express();
 
 connectDB();
+
+// Run migrations on startup (only in production or when MIGRATE_ON_STARTUP is true)
+if (process.env.NODE_ENV === 'production' || process.env.MIGRATE_ON_STARTUP === 'true') {
+  import('./scripts/run-migrations.js').catch(error => {
+    console.error('Migration failed:', error);
+  });
+}
 
 // CORS configuration - allow requests from frontend
 const allowedOrigins = process.env.FRONTEND_URL 
@@ -78,6 +86,7 @@ app.use('/tier', tierRouter);
 app.use('/level', levelRouter);
 app.use('/network-reward', networkRewardRouter);
 app.use('/user-network-reward', userNetworkRewardRouter);
+app.use('/migration', migrationRouter);
 app.use('/blockchain-analysis', blockchainAnalysisRouter);
 app.use('/topup-request', topupRequestRouter);
 app.use('/withdraw-request', withdrawRequestRouter);
