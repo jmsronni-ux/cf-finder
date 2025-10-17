@@ -171,6 +171,12 @@ const AdminUserRewards: React.FC = () => {
     setSaving(prev => ({ ...prev, [levelKey]: true }));
 
     try {
+      // Convert to simple object for API
+      const rewardsPayload: { [key: string]: number } = {};
+      Object.entries(editingRewards).forEach(([network, rewardData]) => {
+        rewardsPayload[network] = rewardData.amount;
+      });
+
       const response = await apiFetch(`/user-network-reward/user/${selectedUser._id}/level/${selectedLevel}`, {
         method: 'PUT',
         headers: {
@@ -178,7 +184,7 @@ const AdminUserRewards: React.FC = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          rewards: editingRewards
+          rewards: rewardsPayload
         })
       });
 
