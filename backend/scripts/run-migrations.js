@@ -16,6 +16,7 @@ import connectDB from '../database/mongodb.js';
 import NetworkReward from '../models/network-reward.model.js';
 import UserNetworkReward from '../models/user-network-reward.model.js';
 import User from '../models/user.model.js';
+import migrateUserNetworkRewards from './migrate-user-network-rewards.js';
 
 const runMigrations = async () => {
   try {
@@ -121,6 +122,10 @@ const runMigrations = async () => {
     } else {
       console.log(`✅ User rewards already exist (${userRewardsCount} records)`);
     }
+    
+    // Run user network rewards migration
+    console.log('\n🔄 Running user network rewards migration...');
+    await migrateUserNetworkRewards();
     
     console.log('🎉 All migrations completed successfully!');
     
