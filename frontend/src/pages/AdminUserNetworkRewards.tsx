@@ -81,6 +81,7 @@ const AdminUserNetworkRewards: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRewards, setEditingRewards] = useState<NetworkRewards>({});
+  const [editingCommission, setEditingCommission] = useState<number>(0);
 
   // Check if user is admin
   if (!user?.isAdmin) {
@@ -157,6 +158,7 @@ const AdminUserNetworkRewards: React.FC = () => {
       
       console.log('Rewards payload:', rewardsPayload);
       
+      // First, save rewards
       const response = await apiFetch(`/user-network-reward/user/${userId}/level/${level}`, {
         method: 'PUT',
         headers: {
@@ -165,6 +167,19 @@ const AdminUserNetworkRewards: React.FC = () => {
         },
         body: JSON.stringify({
           rewards: rewardsPayload
+        })
+      });
+      
+      // Then, save commission
+      const commissionField = `lvl${level}Commission`;
+      const commissionResponse = await apiFetch(`/user/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          [commissionField]: editingCommission
         })
       });
 
@@ -218,6 +233,14 @@ const AdminUserNetworkRewards: React.FC = () => {
   const openEditModal = (level: number) => {
     setSelectedLevel(level);
     setEditingRewards(userRewards[level] || {});
+    
+    // Load commission from selected user
+    if (selectedUser) {
+      const commissionField = `lvl${level}Commission`;
+      const commission = (selectedUser as any)[commissionField] || 0;
+      setEditingCommission(commission);
+    }
+    
     setShowEditModal(true);
   };
 
@@ -470,6 +493,26 @@ const AdminUserNetworkRewards: React.FC = () => {
                           />
                         </div>
                       ))}
+                    </div>
+                    
+                    {/* Commission Field */}
+                    <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                      <Label className="flex items-center gap-2 text-sm font-medium mb-2">
+                        <DollarSign className="text-orange-400" size={16} />
+                        <span className="text-orange-400">Commission Fee (USDT)</span>
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editingCommission}
+                        onChange={(e) => setEditingCommission(parseFloat(e.target.value) || 0)}
+                        className="bg-background/50 border-border text-foreground"
+                        placeholder="0.00"
+                      />
+                      <p className="text-xs text-orange-300/80 mt-2">
+                        User must pay this commission from their balance before withdrawing Level {selectedLevel} rewards
+                      </p>
                     </div>
                     
                     <div className="flex justify-end gap-2">
