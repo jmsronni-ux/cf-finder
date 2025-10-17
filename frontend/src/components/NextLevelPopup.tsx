@@ -22,6 +22,7 @@ interface NextLevelPopupProps {
     name: string;
   } | null;
   networkRewards?: NetworkRewards;
+  totalRewardUSDT?: number;
 }
 
 const NETWORKS = [
@@ -41,7 +42,8 @@ const NextLevelPopup: React.FC<NextLevelPopupProps> = ({
   currentReward = 1000,
   nextReward = 5000,
   nextTierInfo = null,
-  networkRewards = {}
+  networkRewards = {},
+  totalRewardUSDT
 }) => {
   const navigate = useNavigate();
   
@@ -177,9 +179,9 @@ const NextLevelPopup: React.FC<NextLevelPopupProps> = ({
                     <div className="flex items-baseline gap-1">
                       <span className="text-lg font-bold text-green-400">$</span>
                       <NumberTicker 
-                        value={Object.values(networkRewards || {}).reduce((sum, amount) => sum + amount, 0)} 
+                        value={totalRewardUSDT || Object.values(networkRewards || {}).reduce((sum, amount) => sum + amount, 0)} 
                         className="text-lg font-bold text-green-400"
-                        decimalPlaces={0}
+                        decimalPlaces={2}
                         delay={0.3}
                       />
                     </div>

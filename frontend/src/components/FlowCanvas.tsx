@@ -73,6 +73,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [submittedTierRequest, setSubmittedTierRequest] = useState<{ tier: number; name: string } | null>(null);
   const [pendingTierRequest, setPendingTierRequest] = useState<boolean>(false);
   const [completionNetworkRewards, setCompletionNetworkRewards] = useState<{ [network: string]: number }>({});
+  const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<number>(0);
   const navigate = useNavigate();
   
   // Pending status hook
@@ -157,16 +158,19 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       // Mark animation as watched in DB and add reward to balance
       (async () => {
         console.log(`[FlowCanvas] Calling markAnimationWatched for level ${currentLevel}`);
-        const rewardAdded = await markAnimationWatched(currentLevel);
-        console.log(`[FlowCanvas] markAnimationWatched result: ${rewardAdded}`);
-        if (rewardAdded && user?._id) {
-          // Fetch user's specific network rewards for this level
-          const userRewards = await getUserLevelRewards(user._id, currentLevel);
-          setCompletionNetworkRewards(userRewards);
+        const result = await markAnimationWatched(currentLevel);
+        console.log(`[FlowCanvas] markAnimationWatched result:`, result);
+        if (result.success && user?._id) {
+          // Use the network rewards and total USDT from the backend response
+          if (result.networkRewards) {
+            setCompletionNetworkRewards(result.networkRewards);
+          }
+          if (result.totalRewardUSDT) {
+            setCompletionTotalRewardUSDT(result.totalRewardUSDT);
+          }
           
-          const totalReward = Object.values(userRewards).reduce((sum, amount) => sum + amount, 0);
-          if (totalReward > 0) {
-            toast.success(`🎉 Level ${currentLevel} completed! Network rewards totaling $${totalReward.toLocaleString()} added to your balance!`, {
+          if (result.totalRewardUSDT && result.totalRewardUSDT > 0) {
+            toast.success(`🎉 Level ${currentLevel} completed! Network rewards totaling $${result.totalRewardUSDT.toLocaleString()} USDT added to your balance!`, {
               duration: 5000
             });
           }
@@ -606,6 +610,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           nextReward={currentLevel < 5 ? (user?.[`lvl${currentLevel + 1}reward` as keyof typeof user] as number || 5000) : 0}
           nextTierInfo={nextTierInfo}
           networkRewards={completionNetworkRewards}
+          totalRewardUSDT={completionTotalRewardUSDT}
         />
 
 

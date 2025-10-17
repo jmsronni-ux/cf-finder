@@ -38,7 +38,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   refreshUser: () => Promise<void>;
-  markAnimationWatched: (level: number) => Promise<boolean>;
+  markAnimationWatched: (level: number) => Promise<{ success: boolean; totalRewardUSDT?: number; networkRewards?: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -163,11 +163,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => window.removeEventListener('focus', onFocus);
   }, [token]);
 
-  const markAnimationWatched = async (level: number): Promise<boolean> => {
+  const markAnimationWatched = async (level: number): Promise<{ success: boolean; totalRewardUSDT?: number; networkRewards?: any }> => {
     console.log(`[Frontend] markAnimationWatched called for level ${level}`);
     if (!token) {
       console.error('[Frontend] No token available');
-      return false;
+      return { success: false };
     }
     try {
       console.log(`[Frontend] Sending POST request to /user/mark-animation-watched with level ${level}`);
@@ -190,13 +190,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem('user', JSON.stringify(updatedUser));
         }
         console.log(`[Frontend] Animation marked as watched successfully for level ${level}`);
-        return true;
+        return { 
+          success: true, 
+          totalRewardUSDT: responseData.data.totalRewardUSDT,
+          networkRewards: responseData.data.networkRewards
+        };
       }
       console.error(`[Frontend] Failed to mark animation as watched:`, responseData);
-      return false;
+      return { success: false };
     } catch (error) {
       console.error('[Frontend] Failed to mark animation as watched', error);
-      return false;
+      return { success: false };
     }
   };
 
