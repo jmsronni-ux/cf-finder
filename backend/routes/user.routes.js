@@ -1,6 +1,6 @@
 import express from "express";
 import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo } from "../controllers/user.controller.js";
-import authMiddleware from "../middlewares/auth.middleware.js";
+import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
 import UserNetworkReward from "../models/user-network-reward.model.js";
@@ -139,12 +139,12 @@ userRouter.get("/me/wallets", authMiddleware, getMyWallets);
 userRouter.put("/me/wallets", authMiddleware, updateMyWallets);
 
 // Admin routes for managing user level rewards
-userRouter.get("/admin/rewards", authMiddleware, getAllUsersWithRewards);
-userRouter.put("/admin/rewards/:userId", authMiddleware, updateUserLevelRewards);
+userRouter.get("/admin/rewards", authMiddleware, adminMiddleware, getAllUsersWithRewards);
+userRouter.put("/admin/rewards/:userId", authMiddleware, adminMiddleware, updateUserLevelRewards);
 
 // Admin tier management routes
-userRouter.get("/:userId/tier-management", authMiddleware, getUserTierManagementInfo);
-userRouter.put("/:userId/tier", authMiddleware, adminChangeUserTier);
+userRouter.get("/:userId/tier-management", authMiddleware, adminMiddleware, getUserTierManagementInfo);
+userRouter.put("/:userId/tier", authMiddleware, adminMiddleware, adminChangeUserTier);
 
 // Tier price routes removed - use /tier-request endpoints for tier upgrade requests
 

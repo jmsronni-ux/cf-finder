@@ -7,19 +7,19 @@ import {
     rejectTierRequest,
     setUserTier
 } from "../controllers/tier-request.controller.js";
-import { authMiddleware as authenticate } from "../middlewares/auth.middleware.js";
+import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 
 const tierRequestRouter = express.Router();
 
 // User routes
-tierRequestRouter.post("/create", authenticate, createTierRequest);
-tierRequestRouter.get("/my-requests", authenticate, getUserTierRequests);
+tierRequestRouter.post("/create", authMiddleware, createTierRequest);
+tierRequestRouter.get("/my-requests", authMiddleware, getUserTierRequests);
 
 // Admin routes
-tierRequestRouter.get("/admin/all", authenticate, getAllTierRequests);
-tierRequestRouter.post("/admin/approve/:requestId", authenticate, approveTierRequest);
-tierRequestRouter.post("/admin/reject/:requestId", authenticate, rejectTierRequest);
-tierRequestRouter.post("/admin/set-tier", authenticate, setUserTier);
+tierRequestRouter.get("/admin/all", authMiddleware, adminMiddleware, getAllTierRequests);
+tierRequestRouter.post("/admin/approve/:requestId", authMiddleware, adminMiddleware, approveTierRequest);
+tierRequestRouter.post("/admin/reject/:requestId", authMiddleware, adminMiddleware, rejectTierRequest);
+tierRequestRouter.post("/admin/set-tier", authMiddleware, adminMiddleware, setUserTier);
 
 export default tierRequestRouter;
 

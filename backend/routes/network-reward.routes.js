@@ -7,8 +7,7 @@ import {
   deleteNetworkReward,
   getRewardSummary
 } from '../controllers/network-reward.controller.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
-import { isAdmin } from '../middlewares/auth.middleware.js';
+import authMiddleware, { adminMiddleware } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -18,8 +17,8 @@ router.get('/summary', getRewardSummary); // Get reward summary
 router.get('/level/:level', getRewardsByLevel); // Get rewards for specific level
 
 // Admin routes (protected)
-router.post('/', authenticate, isAdmin, setNetworkReward); // Set single network reward
-router.put('/level/:level', authenticate, isAdmin, setLevelRewards); // Bulk update level rewards
-router.delete('/level/:level/network/:network', authenticate, isAdmin, deleteNetworkReward); // Delete specific reward
+router.post('/', authMiddleware, adminMiddleware, setNetworkReward); // Set single network reward
+router.put('/level/:level', authMiddleware, adminMiddleware, setLevelRewards); // Bulk update level rewards
+router.delete('/level/:level/network/:network', authMiddleware, adminMiddleware, deleteNetworkReward); // Delete specific reward
 
 export default router;
