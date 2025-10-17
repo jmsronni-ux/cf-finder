@@ -24,7 +24,10 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         const { level } = req.body;
         const userId = req.user._id;
         
+        console.log(`[Animation] ===== ANIMATION COMPLETION REQUEST =====`);
         console.log(`[Animation] Request to mark level ${level} as watched for user ${userId}`);
+        console.log(`[Animation] Request body:`, req.body);
+        console.log(`[Animation] User from token:`, req.user);
         
         if (!level || level < 1 || level > 5) {
             console.error(`[Animation] Invalid level: ${level}`);
@@ -110,6 +113,13 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
             { new: true, runValidators: false }
         ).select('lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim balance');
         
+        console.log(`[Animation] Database update result:`, {
+            userId: updatedUser?._id,
+            oldBalance: currentUser.balance,
+            newBalance: updatedUser?.balance,
+            updateApplied: updateObj.balance ? 'YES' : 'NO'
+        });
+        
         if (!updatedUser) {
             console.error(`[Animation] Failed to update user: ${userId}`);
             return res.status(500).json({ success: false, message: "Failed to update animation status" });
@@ -117,7 +127,7 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         
         console.log(`[Animation] Successfully saved animation status for level ${level}`);
         
-        res.status(200).json({
+        const responseData = {
             success: true,
             message: `Animation marked as watched for level ${level}${!alreadyWatched ? '. Reward added to balance!' : ''}`,
             data: {
@@ -133,7 +143,12 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
                 totalRewardUSDT: !alreadyWatched ? totalRewardUSDT : null,
                 conversionBreakdown: !alreadyWatched ? conversionResult.breakdown : null
             }
-        });
+        };
+        
+        console.log(`[Animation] ===== SENDING RESPONSE =====`);
+        console.log(`[Animation] Response data:`, responseData);
+        
+        res.status(200).json(responseData);
     } catch (error) {
         console.error('[Animation] Error marking animation as watched:', error);
         next(error);
