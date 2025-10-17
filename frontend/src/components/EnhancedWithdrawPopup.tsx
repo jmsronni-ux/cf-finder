@@ -248,10 +248,11 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         body: JSON.stringify({
           amount: withdrawAmount,
           wallet: wallet.trim(),
-          networks: withdrawAll ? 'all' : Array.from(selectedNetworks),
+          networks: withdrawAll ? ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'] : Array.from(selectedNetworks),
           networkRewards: withdrawAll ? networkRewards : Object.fromEntries(
             Array.from(selectedNetworks).map(network => [network, networkRewards[network] || 0])
-          )
+          ),
+          withdrawAll: withdrawAll
         }),
       });
 

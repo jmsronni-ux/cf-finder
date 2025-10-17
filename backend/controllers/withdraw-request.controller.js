@@ -8,6 +8,15 @@ export const createWithdrawRequest = async (req, res, next) => {
         const { amount, wallet, networks, networkRewards, withdrawAll } = req.body;
         const userId = req.user._id;
 
+        console.log('[Withdraw Request] Creating request:', {
+            userId,
+            amount,
+            wallet: wallet?.substring(0, 20) + '...',
+            networks,
+            networkRewards,
+            withdrawAll
+        });
+
         if (!amount || amount <= 0) {
             throw new ApiError(400, 'Invalid amount');
         }
@@ -35,12 +44,15 @@ export const createWithdrawRequest = async (req, res, next) => {
             withdrawAll: withdrawAll || false
         });
 
+        console.log('[Withdraw Request] Created successfully:', withdrawRequest._id);
+
         res.status(201).json({
             success: true,
             message: 'Withdraw request created successfully',
             data: withdrawRequest
         });
     } catch (error) {
+        console.error('[Withdraw Request] Error creating request:', error);
         next(error);
     }
 };
