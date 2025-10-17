@@ -142,12 +142,15 @@ const AdminUserNetworkRewards: React.FC = () => {
     
     try {
       const levelRewards = editingRewards;
+      console.log('Saving level rewards:', { userId, level, levelRewards });
       
       // Convert to simple object for API
       const rewardsPayload: { [key: string]: number } = {};
       Object.entries(levelRewards).forEach(([network, rewardData]) => {
         rewardsPayload[network] = rewardData.amount;
       });
+      
+      console.log('Rewards payload:', rewardsPayload);
       
       const response = await apiFetch(`/user-network-reward/user/${userId}/level/${level}`, {
         method: 'PUT',
@@ -156,19 +159,20 @@ const AdminUserNetworkRewards: React.FC = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          userId,
-          level,
           rewards: rewardsPayload
         })
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (response.ok && data.success) {
         toast.success(`Level ${level} rewards updated for ${selectedUser?.name}!`);
         fetchUserRewards(userId);
         setShowEditModal(false);
       } else {
+        console.error('API Error:', data);
         toast.error(data.message || 'Failed to update rewards');
       }
     } catch (error) {
@@ -471,7 +475,10 @@ const AdminUserNetworkRewards: React.FC = () => {
                         Cancel
                       </Button>
                       <Button
-                        onClick={() => saveLevelRewards(selectedUser._id, selectedLevel)}
+                        onClick={() => {
+                          console.log('Save button clicked', { selectedUser: selectedUser?._id, selectedLevel });
+                          saveLevelRewards(selectedUser._id, selectedLevel);
+                        }}
                         disabled={saving[`level-${selectedLevel}`]}
                         className="bg-green-600/50 hover:bg-green-700 text-white"
                       >
