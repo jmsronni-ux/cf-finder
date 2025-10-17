@@ -73,52 +73,46 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         let totalRewardUSDT = 0;
         let conversionResult = { totalUSDT: 0, breakdown: {} };
         
-        // Always add network rewards to balance when animation is completed
-        if (true) { // Always add rewards on animation completion
-            if (alreadyWatched) {
-                console.log(`[Animation] Animation already watched, but adding rewards again as requested`);
+        // SIMPLE FIX: Always add network rewards to balance when animation is completed
+        console.log(`[Animation] ===== EXECUTING CONVERSION LOGIC =====`);
+        
+        // Get user's network rewards from user model
+        const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
+        userNetworkRewards = currentUser[levelNetworkRewardsField] || {};
+        
+        console.log(`[Animation] User network rewards for level ${level}:`, userNetworkRewards);
+        console.log(`[Animation] User current balance:`, currentUser.balance);
+        console.log(`[Animation] Network rewards field: ${levelNetworkRewardsField}`);
+        console.log(`[Animation] Raw network rewards from user:`, currentUser[levelNetworkRewardsField]);
+        
+        // Convert all rewards to USDT equivalent
+        console.log(`[Animation] Calling convertRewardsToUSDT with:`, userNetworkRewards);
+        try {
+            conversionResult = convertRewardsToUSDT(userNetworkRewards);
+            totalRewardUSDT = conversionResult.totalUSDT;
+            console.log(`[Animation] Conversion function result:`, conversionResult);
+        } catch (conversionError) {
+            console.error(`[Animation] Error in conversion function:`, conversionError);
+            conversionResult = { totalUSDT: 0, breakdown: {} };
+            totalRewardUSDT = 0;
+        }
+        
+        console.log(`[Animation] Conversion result:`, conversionResult);
+        console.log(`[Animation] Total reward USDT:`, totalRewardUSDT);
+        
+        Object.entries(conversionResult.breakdown).forEach(([network, data]) => {
+            if (data.original > 0) {
+                rewardBreakdown.push(`${network}: ${data.original} (${data.usdt} USDT)`);
             }
-            
-            // Get user's network rewards from user model
-            const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
-            userNetworkRewards = currentUser[levelNetworkRewardsField] || {};
-            
-            console.log(`[Animation] User network rewards for level ${level}:`, userNetworkRewards);
-            console.log(`[Animation] User current balance:`, currentUser.balance);
-            console.log(`[Animation] Network rewards field: ${levelNetworkRewardsField}`);
-            console.log(`[Animation] Raw network rewards from user:`, currentUser[levelNetworkRewardsField]);
-            
-            // Convert all rewards to USDT equivalent
-            console.log(`[Animation] Calling convertRewardsToUSDT with:`, userNetworkRewards);
-            try {
-                conversionResult = convertRewardsToUSDT(userNetworkRewards);
-                totalRewardUSDT = conversionResult.totalUSDT;
-                console.log(`[Animation] Conversion function result:`, conversionResult);
-            } catch (conversionError) {
-                console.error(`[Animation] Error in conversion function:`, conversionError);
-                conversionResult = { totalUSDT: 0, breakdown: {} };
-                totalRewardUSDT = 0;
-            }
-            
-            console.log(`[Animation] Conversion result:`, conversionResult);
-            console.log(`[Animation] Total reward USDT:`, totalRewardUSDT);
-            
-            Object.entries(conversionResult.breakdown).forEach(([network, data]) => {
-                if (data.original > 0) {
-                    rewardBreakdown.push(`${network}: ${data.original} (${data.usdt} USDT)`);
-                }
-            });
-            
-            if (totalRewardUSDT > 0) {
-                const newBalance = currentUser.balance + totalRewardUSDT;
-                updateObj.balance = newBalance;
-                console.log(`[Animation] Adding level ${level} network rewards: $${totalRewardUSDT} USDT. New balance: $${newBalance}`);
-                console.log(`[Animation] Network breakdown:`, rewardBreakdown.join(', '));
-            } else {
-                console.log(`[Animation] No rewards to add - totalRewardUSDT is ${totalRewardUSDT}`);
-            }
+        });
+        
+        if (totalRewardUSDT > 0) {
+            const newBalance = currentUser.balance + totalRewardUSDT;
+            updateObj.balance = newBalance;
+            console.log(`[Animation] Adding level ${level} network rewards: $${totalRewardUSDT} USDT. New balance: $${newBalance}`);
+            console.log(`[Animation] Network breakdown:`, rewardBreakdown.join(', '));
         } else {
-            console.log(`[Animation] Animation already watched, no reward added`);
+            console.log(`[Animation] No rewards to add - totalRewardUSDT is ${totalRewardUSDT}`);
         }
         
         console.log(`[Animation] Update object:`, updateObj);
