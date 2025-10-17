@@ -131,7 +131,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     const newLevelData = getLevelData(currentLevel, levels);
     console.log(`[FlowCanvas] Level data for level ${currentLevel}:`, newLevelData);
     console.log(`[FlowCanvas] Nodes in level data:`, newLevelData.nodes?.length || 0);
-    console.log(`[FlowCanvas] Node details:`, newLevelData.nodes?.map(n => ({ id: n.id, type: n.type, level: n.data?.level })));
+    console.log(`[FlowCanvas] Node details:`, newLevelData.nodes?.map((n: any) => ({ id: n.id, type: n.type, level: n.data?.level })));
     setLevelData(newLevelData);
     setNodes(newLevelData.nodes as any[]);
     setEdges(newLevelData.edges as any[]);
