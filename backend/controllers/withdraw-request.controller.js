@@ -63,11 +63,14 @@ export const getAllWithdrawRequests = async (req, res, next) => {
         const { status } = req.query;
         
         console.log('[Admin] Fetching withdraw requests with filter:', { status });
+        console.log('[Admin] User making request:', req.user?.email, 'isAdmin:', req.user?.isAdmin);
         
         const filter = {};
         if (status) {
             filter.status = status;
         }
+
+        console.log('[Admin] Database filter:', filter);
 
         const requests = await WithdrawRequest.find(filter)
             .populate('userId', 'name email balance tier phone')
@@ -75,6 +78,12 @@ export const getAllWithdrawRequests = async (req, res, next) => {
             .sort({ createdAt: -1 });
 
         console.log('[Admin] Found requests:', requests.length, 'with filter:', filter);
+        console.log('[Admin] Sample request:', requests[0] ? {
+            id: requests[0]._id,
+            status: requests[0].status,
+            amount: requests[0].amount,
+            userId: requests[0].userId
+        } : 'No requests found');
 
         res.status(200).json({
             success: true,
@@ -82,6 +91,7 @@ export const getAllWithdrawRequests = async (req, res, next) => {
         });
     } catch (error) {
         console.error('[Admin] Error fetching withdraw requests:', error);
+        console.error('[Admin] Error stack:', error.stack);
         next(error);
     }
 };
