@@ -10,6 +10,8 @@ import AdminWithdrawRequests from "./pages/AdminWithdrawRequests";
 import AdminTierRequests from "./pages/AdminTierRequests";
 import AdminLevelManagement from "./pages/AdminLevelManagement";
 import AdminNetworkRewards from "./pages/AdminNetworkRewards";
+import AdminUserNetworkRewards from "./pages/AdminUserNetworkRewards";
+import AdminRewardAnalytics from "./pages/AdminRewardAnalytics";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -64,6 +66,16 @@ function App() {
         <Route path="/admin/network-rewards" element={
           <ProtectedRoute>
             <AdminNetworkRewards />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/user-network-rewards" element={
+          <ProtectedRoute>
+            <AdminUserNetworkRewards />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/reward-analytics" element={
+          <ProtectedRoute>
+            <AdminRewardAnalytics />
           </ProtectedRoute>
         } />
       </Routes>

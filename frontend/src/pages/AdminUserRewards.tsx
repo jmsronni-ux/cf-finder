@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
-import { User, Mail, Wallet, Trophy, DollarSign, Calendar, Loader2, ArrowLeft, Save, Edit2, X, Search, Copy, ExternalLink, UserRoundSearch, Coins } from 'lucide-react';
+import { User, Mail, Wallet, Trophy, DollarSign, Calendar, Loader2, ArrowLeft, Save, Edit2, X, Search, Copy, ExternalLink, UserRoundSearch, Coins, BarChart3 } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
 import { apiFetch } from '../utils/api';
@@ -252,7 +252,15 @@ const AdminUserRewards: React.FC = () => {
                 </Button>
                 <Button onClick={() => navigate('/admin/network-rewards')} className="bg-orange-600/50 hover:bg-orange-700 text-white flex items-center gap-2 border border-orange-600">
                   <Coins size={16} />
-                  Network Rewards
+                  Global Rewards
+                </Button>
+                <Button onClick={() => navigate('/admin/user-network-rewards')} className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600">
+                  <User size={16} />
+                  User Rewards
+                </Button>
+                <Button onClick={() => navigate('/admin/reward-analytics')} className="bg-indigo-600/50 hover:bg-indigo-700 text-white flex items-center gap-2 border border-indigo-600">
+                  <BarChart3 size={16} />
+                  Analytics
                 </Button>
               </div>
             </div>

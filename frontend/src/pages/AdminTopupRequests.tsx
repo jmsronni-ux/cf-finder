@@ -215,7 +215,11 @@ const AdminTopupRequests: React.FC = () => {
                 </Button>
                 <Button onClick={() => navigate('/admin/network-rewards')} className="bg-orange-600/50 hover:bg-orange-700 text-white flex items-center gap-2 border border-orange-600">
                   <Coins size={16} />
-                  Network Rewards
+                  Global Rewards
+                </Button>
+                <Button onClick={() => navigate('/admin/user-network-rewards')} className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600">
+                  <User size={16} />
+                  User Rewards
                 </Button>
               </div>
             </div>
