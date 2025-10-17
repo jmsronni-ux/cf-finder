@@ -13,6 +13,7 @@ import AdminNetworkRewards from "./pages/AdminNetworkRewards";
 import AdminUserNetworkRewards from "./pages/AdminUserNetworkRewards";
 import AdminRewardAnalytics from "./pages/AdminRewardAnalytics";
 import AdminTierManagement from "./pages/AdminTierManagement";
+import AdminDashboard from "./pages/AdminDashboard";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -37,6 +38,11 @@ function App() {
         <Route path="/transactions" element={
           <ProtectedRoute>
             <UserTransactions />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin" element={
+          <ProtectedRoute>
+            <AdminDashboard />
           </ProtectedRoute>
         } />
         <Route path="/admin/topup-requests" element={
