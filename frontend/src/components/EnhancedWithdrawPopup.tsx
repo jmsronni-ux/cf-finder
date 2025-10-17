@@ -94,13 +94,20 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     for (const level of levels) {
       const networkRewardsField = `lvl${level}NetworkRewards`;
       const commissionField = `lvl${level}Commission`;
+      const animField = `lvl${level}anim`;
       const userNetworkRewards = (userData as any)[networkRewardsField] || {};
       const levelCommissionPercent = (userData as any)[commissionField] || 0; // Percentage value (e.g., 30 = 30%)
+      const levelCompleted = (userData as any)[animField] === 1; // Check if user completed this level
       
-      console.log(`[Commission] Checking level ${level}: commission=${levelCommissionPercent}% (raw value: ${(userData as any)[commissionField]})`);
+      console.log(`[Commission] Checking level ${level}: commission=${levelCommissionPercent}%, completed=${levelCompleted} (raw value: ${(userData as any)[commissionField]})`);
       
       if (levelCommissionPercent <= 0) {
         console.log(`[Commission] Skipping level ${level} - no commission set`);
+        continue;
+      }
+      
+      if (!levelCompleted) {
+        console.log(`[Commission] Skipping level ${level} - user has not completed this level yet`);
         continue;
       }
       
