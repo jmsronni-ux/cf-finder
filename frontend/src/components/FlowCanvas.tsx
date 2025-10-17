@@ -159,9 +159,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         console.log(`[FlowCanvas] Calling markAnimationWatched for level ${currentLevel}`);
         const rewardAdded = await markAnimationWatched(currentLevel);
         console.log(`[FlowCanvas] markAnimationWatched result: ${rewardAdded}`);
-        if (rewardAdded && user?._id) {
+        if (rewardAdded && user?._id && token) {
           // Fetch user's specific network rewards for this level
-          const userRewards = await getUserLevelRewards(user._id, currentLevel);
+          const userRewards = await getUserLevelRewards(user._id, currentLevel, token);
           setCompletionNetworkRewards(userRewards);
           
           const totalReward = Object.values(userRewards).reduce((sum, amount) => sum + amount, 0);

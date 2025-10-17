@@ -14,7 +14,7 @@ interface UseNetworkRewardsReturn {
   getLevelRewards: (level: number) => NetworkRewards;
   getTotalRewardForLevel: (level: number) => number;
   getNetworkReward: (level: number, network: string) => number;
-  getUserLevelRewards: (userId: string, level: number) => Promise<NetworkRewards>;
+  getUserLevelRewards: (userId: string, level: number, token: string) => Promise<NetworkRewards>;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -60,9 +60,14 @@ export const useNetworkRewards = (): UseNetworkRewardsReturn => {
     return levelRewards[network] || 0;
   };
 
-  const getUserLevelRewards = async (userId: string, level: number): Promise<NetworkRewards> => {
+  const getUserLevelRewards = async (userId: string, level: number, token: string): Promise<NetworkRewards> => {
     try {
-      const response = await apiFetch(`/user-network-reward/user/${userId}/level/${level}`);
+      const response = await apiFetch(`/user-network-reward/user/${userId}/level/${level}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await response.json();
       
       if (response.ok && data.success) {
