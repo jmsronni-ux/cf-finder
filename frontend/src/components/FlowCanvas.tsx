@@ -75,6 +75,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [completionNetworkRewards, setCompletionNetworkRewards] = useState<{ [network: string]: number }>({});
 const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<number>(0);
   const [isProcessingCompletion, setIsProcessingCompletion] = useState<boolean>(false);
+  const [completionPopupShown, setCompletionPopupShown] = useState<boolean>(false);
   const navigate = useNavigate();
   
   // Pending status hook
@@ -145,6 +146,7 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
     resetAnimation(); // Reset animation when level changes
     resetPendingStatus(); // Reset pending timers when level changes
     setAnimationStartedForLevel(null); // Reset animation tracking for new level
+    setCompletionPopupShown(false); // Reset completion popup flag for new level
   }, [currentLevel, levels, setNodes, setEdges, resetAnimation, resetPendingStatus]);
 
   // Show completion popup when animation finishes and save to DB
@@ -163,10 +165,11 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
     console.log(`[FlowCanvas] Should trigger completion: ${shouldTriggerCompletion}`);
     console.log(`[FlowCanvas] Breakdown: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}`);
     
-    if (shouldTriggerCompletion && !isProcessingCompletion) {
+    if (shouldTriggerCompletion && !isProcessingCompletion && !completionPopupShown) {
       console.log(`[FlowCanvas] ===== ANIMATION COMPLETED - TRIGGERING COMPLETION FLOW =====`);
       console.log(`[FlowCanvas] Animation completed for level ${currentLevel}, showing popup and marking as watched`);
       setIsProcessingCompletion(true); // Prevent multiple calls
+      setCompletionPopupShown(true); // Mark popup as shown
       setShowCompletionPopup(true);
       
       // Mark animation as watched in DB and add reward to balance
@@ -207,7 +210,7 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
       setCompletedLevels(newCompleted);
       setAnimationStartedForLevel(null); // Reset after showing popup
     }
-  }, [isCompleted, currentLevel, completedLevels, markAnimationWatched, animationStartedForLevel, user, refreshUser, isProcessingCompletion]);
+  }, [isCompleted, currentLevel, completedLevels, markAnimationWatched, animationStartedForLevel, user, refreshUser, isProcessingCompletion, completionPopupShown]);
 
   // Handle external node selection from transaction table click
   useEffect(() => {
