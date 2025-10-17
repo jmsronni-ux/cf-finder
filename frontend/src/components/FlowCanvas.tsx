@@ -153,11 +153,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     console.log(`[FlowCanvas] User animation status: lvl1anim=${user?.lvl1anim}, lvl2anim=${user?.lvl2anim}, lvl3anim=${user?.lvl3anim}`);
     console.log(`[FlowCanvas] Condition check: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}, !completedLevels.has(currentLevel)=${!completedLevels.has(currentLevel)}`);
     console.log(`[FlowCanvas] User balance: ${user?.balance}`);
+    console.log(`[FlowCanvas] Animation state: hasStarted=${hasStarted}, isCompleted=${isCompleted}`);
     
     // Always show popup and add rewards when animation is completed
     const shouldTriggerCompletion = isCompleted && animationStartedForLevel === currentLevel;
     
     console.log(`[FlowCanvas] Should trigger completion: ${shouldTriggerCompletion}`);
+    console.log(`[FlowCanvas] Breakdown: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}`);
     
     if (shouldTriggerCompletion) {
       console.log(`[FlowCanvas] ===== ANIMATION COMPLETED - TRIGGERING COMPLETION FLOW =====`);
@@ -166,7 +168,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       
       // Mark animation as watched in DB and add reward to balance
       (async () => {
+        console.log(`[FlowCanvas] ===== CALLING MARK ANIMATION WATCHED =====`);
         console.log(`[FlowCanvas] Calling markAnimationWatched for level ${currentLevel}`);
+        console.log(`[FlowCanvas] User before call:`, user);
         const result = await markAnimationWatched(currentLevel);
         console.log(`[FlowCanvas] markAnimationWatched result:`, result);
         if (result.success && user?._id) {
