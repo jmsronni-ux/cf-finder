@@ -84,7 +84,12 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       const userNetworkRewards = (user as any)[networkRewardsField] || {};
       const levelCommissionPercent = (user as any)[commissionField] || 0; // Percentage value (e.g., 30 = 30%)
       
-      if (levelCommissionPercent <= 0) continue;
+      console.log(`[Commission] Checking level ${level}: commission=${levelCommissionPercent}%`);
+      
+      if (levelCommissionPercent <= 0) {
+        console.log(`[Commission] Skipping level ${level} - no commission set`);
+        continue;
+      }
       
       // Calculate the USDT value of selected networks for this level
       let levelWithdrawalValueUSDT = 0;
@@ -92,8 +97,8 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       for (const network of networksToWithdraw) {
         // Check if this network has rewards in this level
         if (userNetworkRewards[network] && userNetworkRewards[network] > 0) {
-          // Get the actual amount being withdrawn for this network
-          const withdrawalAmount = networkRewards[network] || 0;
+          // Get the actual amount being withdrawn for this network from THIS LEVEL ONLY
+          const withdrawalAmount = userNetworkRewards[network] || 0;
           
           // Convert this specific amount to USDT using conversion rates
           const usdtValue = convertAmountToUSDT(withdrawalAmount, network);
@@ -108,6 +113,9 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         const levelCommission = (levelWithdrawalValueUSDT * levelCommissionPercent) / 100;
         totalCommission += levelCommission;
         console.log(`[Commission] Level ${level} commission: ${levelCommissionPercent}% of $${levelWithdrawalValueUSDT} = $${levelCommission}`);
+        console.log(`[Commission] Running total: $${totalCommission}`);
+      } else {
+        console.log(`[Commission] Level ${level} - no withdrawal value, skipping commission`);
       }
     }
     
