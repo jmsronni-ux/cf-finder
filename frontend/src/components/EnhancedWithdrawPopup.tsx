@@ -60,8 +60,34 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [pendingRequest, setPendingRequest] = useState<WithdrawRequest | null>(null);
   const [isCheckingPending, setIsCheckingPending] = useState(false);
   const [isLoadingRewards, setIsLoadingRewards] = useState(false);
+  const [totalCommission, setTotalCommission] = useState<number>(0);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token } = useAuth();
+
+  // Calculate total commission from user data
+  const calculateTotalCommission = () => {
+    if (!user) return 0;
+    
+    let commission = 0;
+    const levels = [1, 2, 3, 4, 5];
+    
+    for (const level of levels) {
+      const networkRewardsField = `lvl${level}NetworkRewards`;
+      const commissionField = `lvl${level}Commission`;
+      const userNetworkRewards = (user as any)[networkRewardsField] || {};
+      const levelCommission = (user as any)[commissionField] || 0;
+      
+      // Check if user has rewards for this level
+      const hasRewards = Object.values(userNetworkRewards).some((val: any) => val > 0);
+      
+      // If user has rewards for this level, add commission
+      if (hasRewards && levelCommission > 0) {
+        commission += levelCommission;
+      }
+    }
+    
+    return commission;
+  };
 
   // Fetch user's total network rewards
   const fetchNetworkRewards = async () => {
@@ -80,6 +106,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         setNetworkRewards(data.data.totalRewards);
         setConversionBreakdown(data.data.conversionBreakdown);
         setTotalUSDT(data.data.totalUSDT);
+        
+        // Calculate commission
+        const commission = calculateTotalCommission();
+        setTotalCommission(commission);
       } else {
         console.error('Failed to fetch network rewards:', data.message);
       }
@@ -315,7 +345,18 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-white">Withdraw Network Rewards</h2>
-                  <p className="text-gray-400 text-sm">Available Balance: <span className="text-green-500 font-semibold">${currentBalance}</span></p>
+                  <p className="text-gray-400 text-sm">Available Balance: <span className="text-green-500 font-semibold">${currentBalance.toLocaleString()}</span></p>
+                  {totalCommission > 0 && (
+                    <p className="text-orange-400 text-sm mt-1">
+                      <AlertCircle className="w-3 h-3 inline mr-1" />
+                      Commission Required: <span className="font-semibold">${totalCommission.toLocaleString()} USDT</span>
+                    </p>
+                  )}
+                  {totalCommission > currentBalance && (
+                    <p className="text-red-400 text-xs mt-1">
+                      ⚠️ Insufficient balance to pay commission
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -415,10 +456,30 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                   </div>
                 </div>
 
+                {/* Commission Warning */}
+                {totalCommission > 0 && (
+                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="text-orange-400 flex-shrink-0 mt-0.5" size={20} />
+                      <div className="flex-1">
+                        <h4 className="text-orange-400 font-semibold mb-1">Commission Required</h4>
+                        <p className="text-orange-300/80 text-sm">
+                          A commission fee of <span className="font-semibold">${totalCommission.toLocaleString()} USDT</span> will be deducted from your balance to process this withdrawal.
+                        </p>
+                        {totalCommission > currentBalance && (
+                          <p className="text-red-400 text-sm mt-2 font-semibold">
+                            ⚠️ You don't have enough balance to pay the commission. Please deposit more funds.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  disabled={isSubmitting || getSelectedAmount() <= 0}
+                  disabled={isSubmitting || getSelectedAmount() <= 0 || totalCommission > currentBalance}
                   className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
@@ -426,6 +487,8 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                       <Loader2 className="w-5 h-5 animate-spin mr-2" />
                       Submitting Request...
                     </>
+                  ) : totalCommission > currentBalance ? (
+                    'Insufficient Balance for Commission'
                   ) : (
                     `Withdraw $${getSelectedAmount().toLocaleString()}`
                   )}
