@@ -59,6 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastAnimationUpdate, setLastAnimationUpdate] = useState<number>(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -85,6 +86,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Helper function to refresh user data
   const refreshUserData = async (authToken: string) => {
+    // Skip refresh if animation was just completed (within last 2 seconds)
+    const now = Date.now();
+    if (now - lastAnimationUpdate < 2000) {
+      console.log('[Frontend] Skipping refresh - animation just completed');
+      return;
+    }
+    
     try {
       const response = await apiFetch('/tier/my-tier', {
         method: 'GET',
@@ -183,14 +191,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const responseData = await response.json();
       console.log(`[Frontend] Response data:`, responseData);
       if (response.ok && responseData.success) {
-        // Update user in context with new animation flags
+        // Update user in context with new animation flags and balance
         if (user) {
           console.log(`[Frontend] Current user balance: ${user.balance}`);
           console.log(`[Frontend] Response data:`, responseData.data);
-          const updatedUser = { ...user, ...responseData.data };
-          console.log(`[Frontend] Updated user balance: ${updatedUser.balance}`);
-          setUser(updatedUser);
-          localStorage.setItem('user', JSON.stringify(updatedUser));
+          
+          // Use functional update to ensure we get the latest state
+          setUser(prevUser => {
+            const updatedUser = { ...prevUser, ...responseData.data };
+            console.log(`[Frontend] Updated user balance: ${updatedUser.balance}`);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            return updatedUser;
+          });
+          
+          // Set timestamp to prevent refresh from overriding balance update
+          setLastAnimationUpdate(Date.now());
         }
         console.log(`[Frontend] Animation marked as watched successfully for level ${level}`);
         return true;
