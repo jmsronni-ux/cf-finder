@@ -3,6 +3,7 @@ import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWall
 import authMiddleware from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
+import UserNetworkReward from "../models/user-network-reward.model.js";
 
 const userRouter = express.Router();
 
@@ -58,15 +59,44 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         
         // Add network rewards to balance if animation not already watched
         if (!alreadyWatched) {
-            // Get network rewards for this level
-            const networkRewards = await NetworkReward.find({ level, isActive: true });
-            const totalReward = networkRewards.reduce((sum, reward) => sum + reward.rewardAmount, 0);
+            // Get user's custom network rewards first, fallback to global rewards
+            const userRewards = await UserNetworkReward.find({ userId, level, isActive: true });
+            const globalRewards = await NetworkReward.find({ level, isActive: true });
+            
+            const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+            let totalReward = 0;
+            const rewardBreakdown = [];
+            
+            // Calculate total reward using user-specific rewards with global fallback
+            for (const network of networks) {
+                let rewardAmount = 0;
+                let source = 'none';
+                
+                // Check if user has custom reward for this network
+                const userReward = userRewards.find(r => r.network === network);
+                if (userReward) {
+                    rewardAmount = userReward.rewardAmount;
+                    source = 'custom';
+                } else {
+                    // Fall back to global reward
+                    const globalReward = globalRewards.find(r => r.network === network);
+                    if (globalReward) {
+                        rewardAmount = globalReward.rewardAmount;
+                        source = 'global';
+                    }
+                }
+                
+                totalReward += rewardAmount;
+                if (rewardAmount > 0) {
+                    rewardBreakdown.push(`${network}: ${rewardAmount} (${source})`);
+                }
+            }
             
             if (totalReward > 0) {
                 const newBalance = currentUser.balance + totalReward;
                 updateObj.balance = newBalance;
                 console.log(`[Animation] Adding level ${level} network rewards: $${totalReward}. New balance: $${newBalance}`);
-                console.log(`[Animation] Network breakdown:`, networkRewards.map(r => `${r.network}: ${r.rewardAmount}`).join(', '));
+                console.log(`[Animation] Network breakdown:`, rewardBreakdown.join(', '));
             }
         } else {
             console.log(`[Animation] Animation already watched, no reward added`);
