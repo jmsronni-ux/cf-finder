@@ -23,6 +23,7 @@ import tierRequestRouter from './routes/tier-request.routes.js';
 import connectDB from './database/mongodb.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 import arcjetMiddleware from './middlewares/arcjet.middleware.js';
+import { FRONTEND_URL, NODE_ENV } from './config/env.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,24 +47,37 @@ if (process.env.NODE_ENV === 'production' || process.env.MIGRATE_ON_STARTUP === 
 }
 
 // CORS configuration - allow requests from frontend
-const allowedOrigins = process.env.FRONTEND_URL 
-  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+const allowedOrigins = FRONTEND_URL 
+  ? FRONTEND_URL.split(',').map(url => url.trim())
   : ['http://localhost:5173', 'http://localhost:3000'];
+
+console.log('CORS Configuration:');
+console.log('NODE_ENV:', NODE_ENV);
+console.log('FRONTEND_URL:', FRONTEND_URL);
+console.log('Allowed Origins:', allowedOrigins);
 
 app.use(cors({
   origin: (origin, callback) => {
+    console.log('CORS Request from origin:', origin);
+    
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('No origin, allowing request');
+      return callback(null, true);
+    }
     
     // If FRONTEND_URL is not set in production, allow all origins (for initial deployment)
-    if (!process.env.FRONTEND_URL && process.env.NODE_ENV === 'production') {
+    if (!FRONTEND_URL && NODE_ENV === 'production') {
       console.log('⚠️  FRONTEND_URL not set, allowing all origins. Set FRONTEND_URL for better security.');
       return callback(null, true);
     }
     
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+    if (allowedOrigins.includes(origin) || NODE_ENV === 'development') {
+      console.log('✅ Origin allowed:', origin);
       callback(null, true);
     } else {
+      console.log('❌ Origin blocked:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },

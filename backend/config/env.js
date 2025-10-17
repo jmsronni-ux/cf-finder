@@ -32,5 +32,6 @@ export const {
     EMAIL_USER,
     EMAIL_PASS,
     EMAIL_FROM,
-    ADMIN_EMAIL
+    ADMIN_EMAIL,
+    FRONTEND_URL
 } = process.env;
