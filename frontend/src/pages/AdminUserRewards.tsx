@@ -214,12 +214,16 @@ const AdminUserRewards: React.FC = () => {
         })
       });
 
-      if (response.ok && data.success && commissionResponse.ok) {
+      const commissionData = await commissionResponse.json();
+
+      if (response.ok && data.success && commissionResponse.ok && commissionData.success) {
         toast.success(`Level ${selectedLevel} rewards and commission updated for ${selectedUser.name}!`);
         setShowEditModal(false);
         fetchUserRewards(selectedUser._id); // Refresh data
       } else {
-        toast.error(data.message || 'Failed to update rewards');
+        console.error('Rewards response:', data);
+        console.error('Commission response:', commissionData);
+        toast.error(data.message || commissionData.message || 'Failed to update rewards or commission');
       }
     } catch (error) {
       console.error('Error updating rewards:', error);

@@ -14,7 +14,7 @@ userRouter.get("/:id", authMiddleware, getUserById);
 
 userRouter.post("/", authMiddleware, createUser);
 
-userRouter.put("/:id", authMiddleware, updateUser);
+userRouter.put("/:id", authMiddleware, adminMiddleware, updateUser);
 
 userRouter.delete("/:id", authMiddleware, deleteUser);
 
