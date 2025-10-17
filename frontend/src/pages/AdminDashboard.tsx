@@ -78,13 +78,13 @@ const AdminDashboard: React.FC = () => {
       ]);
 
       const adminStats: AdminStats = {
-        totalUsers: usersData.success ? usersData.data.length : 0,
+        totalUsers: usersData.success && Array.isArray(usersData.data) ? usersData.data.length : 0,
         totalRequests: 0,
-        pendingTopups: topupData.success ? topupData.data.filter((r: any) => r.status === 'pending').length : 0,
-        pendingWithdrawals: withdrawData.success ? withdrawData.data.filter((r: any) => r.status === 'pending').length : 0,
-        pendingTierRequests: tierData.success ? tierData.data.filter((r: any) => r.status === 'pending').length : 0,
+        pendingTopups: topupData.success && Array.isArray(topupData.data) ? topupData.data.filter((r: any) => r.status === 'pending').length : 0,
+        pendingWithdrawals: withdrawData.success && Array.isArray(withdrawData.data) ? withdrawData.data.filter((r: any) => r.status === 'pending').length : 0,
+        pendingTierRequests: tierData.success && Array.isArray(tierData.data) ? tierData.data.filter((r: any) => r.status === 'pending').length : 0,
         totalRewards: 0,
-        activeUsers: usersData.success ? usersData.data.filter((u: any) => u.tier > 0).length : 0
+        activeUsers: usersData.success && Array.isArray(usersData.data) ? usersData.data.filter((u: any) => u.tier > 0).length : 0
       };
 
       adminStats.totalRequests = adminStats.pendingTopups + adminStats.pendingWithdrawals + adminStats.pendingTierRequests;

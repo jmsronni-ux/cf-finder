@@ -222,14 +222,16 @@ export const setUserNetworkReward = async (req, res, next) => {
 // Bulk update user's level rewards (Admin only)
 export const setUserLevelRewards = async (req, res, next) => {
   try {
-    const { userId, level, rewards } = req.body;
+    const { userId, level } = req.params;
+    const { rewards } = req.body;
     const adminId = req.user?.id;
     
     if (!userId || !level || !rewards || typeof rewards !== 'object') {
       throw new ApiError(400, 'userId, level, and rewards object are required');
     }
     
-    if (level < 1 || level > 5) {
+    const levelNumber = parseInt(level);
+    if (levelNumber < 1 || levelNumber > 5) {
       throw new ApiError(400, 'Level must be between 1 and 5');
     }
     
@@ -261,10 +263,10 @@ export const setUserLevelRewards = async (req, res, next) => {
     // Update each network reward for this user
     for (const [network, rewardAmount] of rewardEntries) {
       const reward = await UserNetworkReward.findOneAndUpdate(
-        { userId, level, network },
+        { userId, level: levelNumber, network },
         {
           userId,
-          level,
+          level: levelNumber,
           network,
           rewardAmount,
           isActive: true,

@@ -406,7 +406,7 @@ const AdminTierManagement: React.FC = () => {
                       <label className="text-sm font-medium text-foreground mb-2 block">
                         New Tier
                       </label>
-                      <Select value={newTier.toString()} onValueChange={(value) => setNewTier(parseInt(value))}>
+                      <Select value={newTier?.toString() || ''} onValueChange={(value) => setNewTier(parseInt(value))}>
                         <SelectTrigger className="bg-background/50 border-border focus:border-yellow-500/50">
                           <SelectValue placeholder="Select new tier" />
                         </SelectTrigger>
@@ -447,7 +447,7 @@ const AdminTierManagement: React.FC = () => {
                       </Button>
                       <Button
                         onClick={handleTierChange}
-                        disabled={saving || newTier === selectedUser.tier || !reason.trim()}
+                        disabled={saving || newTier === selectedUser?.tier || !reason.trim()}
                         className="flex-1 bg-yellow-600/50 hover:bg-yellow-700 text-white border border-yellow-600"
                       >
                         {saving ? (
