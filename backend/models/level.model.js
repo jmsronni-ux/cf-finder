@@ -23,19 +23,11 @@ const nodeSchema = new mongoose.Schema({
     },
     transaction: {
       id: String,
-      type: String,
+      date: String,
+      transaction: String,
       amount: Number,
       currency: String,
-      status: String,
-      timestamp: String,
-      hash: String,
-      from: String,
-      to: String,
-      fee: Number,
-      gasUsed: Number,
-      gasPrice: Number,
-      blockNumber: Number,
-      confirmations: Number
+      status: String
     },
     pending: Number,
     level: Number
