@@ -62,6 +62,8 @@ export const getAllWithdrawRequests = async (req, res, next) => {
     try {
         const { status } = req.query;
         
+        console.log('[Admin] Fetching withdraw requests with filter:', { status });
+        
         const filter = {};
         if (status) {
             filter.status = status;
@@ -72,11 +74,14 @@ export const getAllWithdrawRequests = async (req, res, next) => {
             .populate('processedBy', 'name email')
             .sort({ createdAt: -1 });
 
+        console.log('[Admin] Found requests:', requests.length, 'with filter:', filter);
+
         res.status(200).json({
             success: true,
             data: requests
         });
     } catch (error) {
+        console.error('[Admin] Error fetching withdraw requests:', error);
         next(error);
     }
 };

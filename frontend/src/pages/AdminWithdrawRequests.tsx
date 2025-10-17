@@ -63,6 +63,29 @@ const AdminWithdrawRequests: React.FC = () => {
     fetchRequests();
   }, [filter]);
 
+  // Debug: Also fetch all requests on component mount to see if any exist
+  useEffect(() => {
+    const debugFetchAll = async () => {
+      try {
+        const response = await apiFetch('/withdraw-request/all', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        console.log('[Admin Panel] Debug - All requests:', data);
+      } catch (error) {
+        console.error('[Admin Panel] Debug - Error fetching all requests:', error);
+      }
+    };
+    
+    if (token) {
+      debugFetchAll();
+    }
+  }, [token]);
+
   // Don't pre-populate - admin needs to enter their own wallet and amount
 
   const fetchRequests = async () => {
@@ -71,6 +94,8 @@ const AdminWithdrawRequests: React.FC = () => {
       const url = filter === 'all' 
         ? '/withdraw-request/all' 
         : `/withdraw-request/all?status=${filter}`;
+      
+      console.log('[Admin Panel] Fetching requests from:', url);
       
       const response = await apiFetch(url, {
         method: 'GET',
@@ -81,14 +106,17 @@ const AdminWithdrawRequests: React.FC = () => {
       });
 
       const data = await response.json();
+      console.log('[Admin Panel] Response:', { status: response.status, data });
 
       if (response.ok && data.success) {
+        console.log('[Admin Panel] Setting requests:', data.data.length, 'requests');
         setRequests(data.data);
       } else {
+        console.error('[Admin Panel] API Error:', data);
         toast.error(data.message || 'Failed to fetch requests');
       }
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      console.error('[Admin Panel] Error fetching requests:', error);
       toast.error('An error occurred while fetching requests');
     } finally {
       setIsLoading(false);
