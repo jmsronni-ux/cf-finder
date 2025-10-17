@@ -67,10 +67,10 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         let totalRewardUSDT = 0;
         let conversionResult = { totalUSDT: 0, breakdown: {} };
         
-        // Add network rewards to balance if animation not already watched OR if user has 0 balance
-        if (!alreadyWatched || (alreadyWatched && currentUser.balance === 0)) {
-            if (alreadyWatched && currentUser.balance === 0) {
-                console.log(`[Animation] Animation already watched but balance is 0, adding rewards anyway`);
+        // Always add network rewards to balance when animation is completed
+        if (true) { // Always add rewards on animation completion
+            if (alreadyWatched) {
+                console.log(`[Animation] Animation already watched, but adding rewards again as requested`);
             }
             
             // Get user's network rewards from user model
@@ -129,7 +129,7 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
         
         const responseData = {
             success: true,
-            message: `Animation marked as watched for level ${level}${!alreadyWatched ? '. Reward added to balance!' : ''}`,
+            message: `Animation marked as watched for level ${level}. Reward added to balance!`,
             data: {
                 lvl1anim: updatedUser.lvl1anim,
                 lvl2anim: updatedUser.lvl2anim,
@@ -137,11 +137,11 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
                 lvl4anim: updatedUser.lvl4anim,
                 lvl5anim: updatedUser.lvl5anim,
                 balance: updatedUser.balance,
-                rewardAdded: !alreadyWatched,
-                networkRewards: !alreadyWatched ? userNetworkRewards : null,
-                rewardBreakdown: !alreadyWatched ? rewardBreakdown : null,
-                totalRewardUSDT: !alreadyWatched ? totalRewardUSDT : null,
-                conversionBreakdown: !alreadyWatched ? conversionResult.breakdown : null
+                rewardAdded: true, // Always true since we always add rewards
+                networkRewards: userNetworkRewards,
+                rewardBreakdown: rewardBreakdown,
+                totalRewardUSDT: totalRewardUSDT,
+                conversionBreakdown: conversionResult.breakdown
             }
         };
         

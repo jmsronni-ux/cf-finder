@@ -154,10 +154,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     console.log(`[FlowCanvas] Condition check: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}, !completedLevels.has(currentLevel)=${!completedLevels.has(currentLevel)}`);
     console.log(`[FlowCanvas] User balance: ${user?.balance}`);
     
-    // Only show popup if animation was started for this specific level and hasn't been completed yet
-    // OR if the level is completed but user has 0 balance (recovery case)
-    const shouldTriggerCompletion = isCompleted && animationStartedForLevel === currentLevel && 
-      (!completedLevels.has(currentLevel) || (completedLevels.has(currentLevel) && user?.balance === 0));
+    // Always show popup and add rewards when animation is completed
+    const shouldTriggerCompletion = isCompleted && animationStartedForLevel === currentLevel;
     
     console.log(`[FlowCanvas] Should trigger completion: ${shouldTriggerCompletion}`);
     
@@ -183,6 +181,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           if (result.totalRewardUSDT && result.totalRewardUSDT > 0) {
             toast.success(`🎉 Level ${currentLevel} completed! Network rewards totaling $${result.totalRewardUSDT.toLocaleString()} USDT added to your balance!`, {
               duration: 5000
+            });
+          } else {
+            toast.success(`🎉 Level ${currentLevel} completed!`, {
+              duration: 3000
             });
           }
         }
