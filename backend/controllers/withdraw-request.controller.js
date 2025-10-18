@@ -90,8 +90,18 @@ export const createWithdrawRequest = async (req, res, next) => {
         for (const level of levelsToWithdraw) {
             const networkRewardsField = `lvl${level}NetworkRewards`;
             const commissionField = `lvl${level}Commission`;
+            const animField = `lvl${level}anim`;
             const userNetworkRewards = user[networkRewardsField] || {};
             const levelCommissionPercent = user[commissionField] || 0; // This is now a percentage (e.g., 10 = 10%)
+            const levelCompleted = user[animField] === 1; // Check if user completed this level
+            
+            console.log(`[Withdraw Request] Level ${level}: commission=${levelCommissionPercent}%, completed=${levelCompleted}, rewards=`, userNetworkRewards);
+            
+            // Skip if level not completed or no commission set
+            if (!levelCompleted || levelCommissionPercent <= 0) {
+                console.log(`[Withdraw Request] Skipping level ${level} - not completed or no commission`);
+                continue;
+            }
             
             // Check if user is withdrawing from this level
             let isWithdrawingFromThisLevel = false;
@@ -103,8 +113,11 @@ export const createWithdrawRequest = async (req, res, next) => {
                     // Check if this network has rewards in this level
                     if (userNetworkRewards[network] && userNetworkRewards[network] > 0) {
                         isWithdrawingFromThisLevel = true;
-                        const usdtValue = convertToUSDT(amount, network);
+                        // Use the user's stored network rewards amount, not the withdrawal amount
+                        const userRewardAmount = userNetworkRewards[network];
+                        const usdtValue = convertToUSDT(userRewardAmount, network);
                         levelWithdrawalValueUSDT += usdtValue;
+                        console.log(`[Withdraw Request] Level ${level} ${network}: user has ${userRewardAmount}, converting to ${usdtValue} USDT`);
                     }
                 }
             }
