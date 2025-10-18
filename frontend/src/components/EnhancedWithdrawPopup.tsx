@@ -375,53 +375,72 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('[Withdraw] Form submitted');
+    console.log('[Withdraw] Current balance:', currentBalance);
+    console.log('[Withdraw] Total commission:', totalCommission);
+    console.log('[Withdraw] Selected networks:', Array.from(selectedNetworks));
+    console.log('[Withdraw] Withdraw all:', withdrawAll);
+    
     const withdrawAmount = getSelectedAmount();
+    console.log('[Withdraw] Withdraw amount:', withdrawAmount);
     
     // Validation
     if (withdrawAmount <= 0) {
+      console.log('[Withdraw] Validation failed: No networks selected');
       toast.error('Please select networks to withdraw from');
       return;
     }
     
-    if (withdrawAmount > currentBalance) {
-      toast.error(`Insufficient balance. Available: $${currentBalance}`);
+    // For network rewards, only check if user has enough balance to pay commission
+    if (totalCommission > currentBalance) {
+      console.log('[Withdraw] Validation failed: Insufficient balance for commission');
+      toast.error(`Insufficient balance to pay commission. Required: $${totalCommission}, Available: $${currentBalance}`);
       return;
     }
+    
+    console.log('[Withdraw] Validation passed, proceeding with API call');
     
     // No wallet validation needed for network rewards since money goes to balance
 
     setIsSubmitting(true);
 
     try {
+      const requestBody = {
+        amount: withdrawAmount,
+        wallet: '', // No wallet needed since money goes to balance
+        networks: withdrawAll ? ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'] : Array.from(selectedNetworks),
+        networkRewards: withdrawAll ? networkRewards : Object.fromEntries(
+          Array.from(selectedNetworks).map(network => [network, networkRewards[network] || 0])
+        ),
+        withdrawAll: withdrawAll,
+        addToBalance: true // New flag to add network rewards to user balance instead of direct withdrawal
+      };
+      
+      console.log('[Withdraw] API request body:', requestBody);
+      
       const response = await apiFetch('/withdraw-request/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          amount: withdrawAmount,
-          wallet: '', // No wallet needed since money goes to balance
-          networks: withdrawAll ? ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'] : Array.from(selectedNetworks),
-          networkRewards: withdrawAll ? networkRewards : Object.fromEntries(
-            Array.from(selectedNetworks).map(network => [network, networkRewards[network] || 0])
-          ),
-          withdrawAll: withdrawAll,
-          addToBalance: true // New flag to add network rewards to user balance instead of direct withdrawal
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
+      console.log('[Withdraw] API response:', { status: response.status, data });
 
       if (response.ok && data.success) {
+        console.log('[Withdraw] Success! Request created:', data.data);
         setPendingRequest(data.data);
         setRequestStatus('pending');
         toast.success('Request submitted! Waiting for admin approval...');
       } else {
+        console.log('[Withdraw] API error:', data.message);
         toast.error(data.message || 'Withdrawal request failed. Please try again.');
       }
     } catch (error) {
-      console.error('Withdrawal error:', error);
+      console.error('[Withdraw] Network error:', error);
       toast.error('An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
