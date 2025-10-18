@@ -63,7 +63,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [totalCommission, setTotalCommission] = useState<number>(0);
   const [freshUserData, setFreshUserData] = useState<any>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const { user, token } = useAuth();
+  const { user, token, updateUser } = useAuth();
   
   // New state for direct balance withdrawal
   const [directWithdrawAmount, setDirectWithdrawAmount] = useState('');
@@ -435,6 +435,20 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         setPendingRequest(data.data);
         setRequestStatus('pending');
         toast.success('Request submitted! Waiting for admin approval...');
+        
+        // Refresh user data and network rewards after successful withdrawal
+        await fetchFreshUserData();
+        await fetchNetworkRewards();
+        
+        // Update user balance in AuthContext
+        if (freshUserData) {
+          updateUser(freshUserData);
+        }
+        
+        // Clear selected networks since they've been withdrawn
+        setSelectedNetworks(new Set());
+        setWithdrawAll(false);
+        setTotalCommission(0);
       } else {
         console.log('[Withdraw] API error:', data.message);
         toast.error(data.message || 'Withdrawal request failed. Please try again.');

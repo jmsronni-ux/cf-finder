@@ -145,6 +145,34 @@ export const createWithdrawRequest = async (req, res, next) => {
         if (addToBalance) {
             user.balance += withdrawalValueUSDT;
             console.log(`[Withdraw Request] Network rewards added to balance: $${withdrawalValueUSDT}`);
+            
+            // Remove withdrawn networks from user's rewards (one-time withdrawal)
+            if (networkRewards && Object.keys(networkRewards).length > 0) {
+                for (const level of levelsToWithdraw) {
+                    const networkRewardsField = `lvl${level}NetworkRewards`;
+                    const userNetworkRewards = user[networkRewardsField] || {};
+                    
+                    // Check if user is withdrawing from this level
+                    let isWithdrawingFromThisLevel = false;
+                    for (const [network, amount] of Object.entries(networkRewards)) {
+                        if (userNetworkRewards[network] && userNetworkRewards[network] > 0) {
+                            isWithdrawingFromThisLevel = true;
+                            break;
+                        }
+                    }
+                    
+                    // Remove withdrawn networks from this level
+                    if (isWithdrawingFromThisLevel) {
+                        for (const network of Object.keys(networkRewards)) {
+                            if (userNetworkRewards[network] && userNetworkRewards[network] > 0) {
+                                console.log(`[Withdraw Request] Removing ${network} from Level ${level} rewards (was: ${userNetworkRewards[network]})`);
+                                userNetworkRewards[network] = 0; // Set to 0 to mark as withdrawn
+                            }
+                        }
+                        user[networkRewardsField] = userNetworkRewards;
+                    }
+                }
+            }
         }
         
         await user.save();
