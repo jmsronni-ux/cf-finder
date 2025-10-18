@@ -63,7 +63,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [totalCommission, setTotalCommission] = useState<number>(0);
   const [freshUserData, setFreshUserData] = useState<any>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const { user, token, updateUser } = useAuth();
+  const { user, token, refreshUser } = useAuth();
   
   // New state for direct balance withdrawal
   const [directWithdrawAmount, setDirectWithdrawAmount] = useState('');
@@ -440,10 +440,8 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         await fetchFreshUserData();
         await fetchNetworkRewards();
         
-        // Update user balance in AuthContext
-        if (freshUserData) {
-          updateUser(freshUserData);
-        }
+        // Update user data in AuthContext
+        await refreshUser();
         
         // Clear selected networks since they've been withdrawn
         setSelectedNetworks(new Set());
