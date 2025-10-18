@@ -23,7 +23,8 @@ export const createWithdrawRequest = async (req, res, next) => {
             throw new ApiError(400, 'Invalid amount');
         }
 
-        if (!wallet || !wallet.trim()) {
+        // Wallet is only required for direct balance withdrawal, not for network rewards to balance
+        if (!isDirectBalanceWithdraw && !addToBalance && (!wallet || !wallet.trim())) {
             throw new ApiError(400, 'Wallet address is required');
         }
 
@@ -39,10 +40,7 @@ export const createWithdrawRequest = async (req, res, next) => {
                 throw new ApiError(400, `Insufficient balance. Required: $${amount}, Available: $${user.balance}`);
             }
 
-            // Deduct amount from user balance
-            user.balance -= amount;
-            await user.save();
-
+            // Create withdrawal request for admin approval (don't deduct balance yet)
             const withdrawRequest = await WithdrawRequest.create({
                 userId,
                 amount,
@@ -54,11 +52,11 @@ export const createWithdrawRequest = async (req, res, next) => {
                 isDirectBalanceWithdraw: true
             });
 
-            console.log('[Direct Balance Withdraw] Created successfully:', withdrawRequest._id);
+            console.log('[Direct Balance Withdraw] Request created for admin approval:', withdrawRequest._id);
 
             res.status(201).json({
                 success: true,
-                message: 'Direct balance withdrawal request created successfully',
+                message: 'Direct balance withdrawal request created successfully. Awaiting admin approval.',
                 data: withdrawRequest
             });
             return;

@@ -388,10 +388,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       return;
     }
     
-    if (!wallet.trim()) {
-      toast.error('Please enter your wallet address');
-      return;
-    }
+    // No wallet validation needed for network rewards since money goes to balance
 
     setIsSubmitting(true);
 
@@ -404,7 +401,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         },
         body: JSON.stringify({
           amount: withdrawAmount,
-          wallet: wallet.trim(),
+          wallet: '', // No wallet needed since money goes to balance
           networks: withdrawAll ? ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'] : Array.from(selectedNetworks),
           networkRewards: withdrawAll ? networkRewards : Object.fromEntries(
             Array.from(selectedNetworks).map(network => [network, networkRewards[network] || 0])
@@ -686,26 +683,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Wallet Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Wallet Address
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      <Wallet className="w-5 h-5" />
-                    </div>
-                    <input
-                      type="text"
-                      value={wallet}
-                      onChange={(e) => setWallet(e.target.value)}
-                      placeholder="Enter your wallet address"
-                      className="w-full bg-white/5 text-white pl-10 pr-4 py-3 rounded-lg border border-white/10 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 text-lg transition-all"
-                      disabled={isSubmitting}
-                      required
-                    />
-                  </div>
-                </div>
+                {/* No wallet input needed - money goes to balance */}
 
                 {/* Commission Warning */}
                 {totalCommission > 0 && (

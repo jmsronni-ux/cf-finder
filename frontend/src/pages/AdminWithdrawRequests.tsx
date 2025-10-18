@@ -37,6 +37,10 @@ interface WithdrawRequestData {
   networks?: string[];
   networkRewards?: { [network: string]: number };
   withdrawAll?: boolean;
+  commissionPaid?: number;
+  isDirectBalanceWithdraw?: boolean;
+  addToBalance?: boolean;
+  networkRewardsAddedToBalance?: number;
 }
 
 const NETWORKS = [
@@ -451,11 +455,39 @@ const AdminWithdrawRequests: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Wallet Address */}
-                      <div className="bg-background/50 border border-border rounded-lg p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Wallet Address:</p>
-                        <p className="text-sm font-mono text-foreground break-all">{request.walletAddress}</p>
-                      </div>
+                      {/* Withdrawal Type */}
+                      {request.isDirectBalanceWithdraw && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <DollarSign className="w-4 h-4 text-blue-400" />
+                            <p className="text-sm font-medium text-blue-400">Direct Balance Withdrawal</p>
+                          </div>
+                          <p className="text-xs text-gray-400">User wants to withdraw directly from their balance (no commission)</p>
+                        </div>
+                      )}
+
+                      {request.addToBalance && (
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Coins className="w-4 h-4 text-purple-400" />
+                            <p className="text-sm font-medium text-purple-400">Network Rewards to Balance</p>
+                          </div>
+                          <p className="text-xs text-gray-400">Network rewards will be added to user's balance after commission payment</p>
+                          {request.networkRewardsAddedToBalance > 0 && (
+                            <p className="text-sm text-purple-300 mt-1">
+                              Amount added to balance: ${request.networkRewardsAddedToBalance.toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Wallet Address - only show if not addToBalance */}
+                      {!request.addToBalance && request.walletAddress && (
+                        <div className="bg-background/50 border border-border rounded-lg p-3">
+                          <p className="text-xs text-muted-foreground mb-1">Wallet Address:</p>
+                          <p className="text-sm font-mono text-foreground break-all">{request.walletAddress}</p>
+                        </div>
+                      )}
 
                       {/* Network Information */}
                       {(request.networks && request.networks.length > 0) || request.withdrawAll ? (
@@ -518,6 +550,18 @@ const AdminWithdrawRequests: React.FC = () => {
                           )}
                         </div>
                       ) : null}
+
+                      {/* Commission Information */}
+                      {request.commissionPaid > 0 && (
+                        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <DollarSign className="w-4 h-4 text-orange-400" />
+                            <p className="text-sm font-medium text-orange-400">Commission Paid</p>
+                          </div>
+                          <p className="text-lg font-bold text-orange-300">${request.commissionPaid.toLocaleString()}</p>
+                          <p className="text-xs text-gray-400 mt-1">Commission deducted from user's balance</p>
+                        </div>
+                      )}
 
                       {request.processedAt && (
                         <div className="text-xs text-gray-500 pt-2">
