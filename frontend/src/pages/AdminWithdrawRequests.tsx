@@ -473,7 +473,7 @@ const AdminWithdrawRequests: React.FC = () => {
                             <p className="text-sm font-medium text-purple-400">Network Rewards to Balance</p>
                           </div>
                           <p className="text-xs text-gray-400">Network rewards will be added to user's balance after commission payment</p>
-                          {request.networkRewardsAddedToBalance > 0 && (
+                          {request.networkRewardsAddedToBalance && request.networkRewardsAddedToBalance > 0 && (
                             <p className="text-sm text-purple-300 mt-1">
                               Amount added to balance: ${request.networkRewardsAddedToBalance.toLocaleString()}
                             </p>
@@ -552,7 +552,7 @@ const AdminWithdrawRequests: React.FC = () => {
                       ) : null}
 
                       {/* Commission Information */}
-                      {request.commissionPaid > 0 && (
+                      {request.commissionPaid && request.commissionPaid > 0 && (
                         <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-2">
                             <DollarSign className="w-4 h-4 text-orange-400" />
