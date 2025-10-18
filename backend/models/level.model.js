@@ -46,6 +46,7 @@ const edgeSchema = new mongoose.Schema({
   id: String,
   source: String,
   target: String,
+  sourceHandle: String,
   type: String,
   animated: Boolean,
   style: {
