@@ -5,7 +5,7 @@ import { ApiError } from '../middlewares/error.middleware.js';
 // User creates a withdraw request
 export const createWithdrawRequest = async (req, res, next) => {
     try {
-        const { amount, wallet, networks, networkRewards, withdrawAll } = req.body;
+        const { amount, wallet, networks, networkRewards, withdrawAll, isDirectBalanceWithdraw, addToBalance } = req.body;
         const userId = req.user._id;
 
         console.log('[Withdraw Request] Creating request:', {
@@ -14,7 +14,9 @@ export const createWithdrawRequest = async (req, res, next) => {
             wallet: wallet?.substring(0, 20) + '...',
             networks,
             networkRewards,
-            withdrawAll
+            withdrawAll,
+            isDirectBalanceWithdraw,
+            addToBalance
         });
 
         if (!amount || amount <= 0) {
@@ -29,6 +31,37 @@ export const createWithdrawRequest = async (req, res, next) => {
         const user = await User.findById(userId);
         if (!user) {
             throw new ApiError(404, 'User not found');
+        }
+
+        // Handle direct balance withdrawal (no commission)
+        if (isDirectBalanceWithdraw) {
+            if (user.balance < amount) {
+                throw new ApiError(400, `Insufficient balance. Required: $${amount}, Available: $${user.balance}`);
+            }
+
+            // Deduct amount from user balance
+            user.balance -= amount;
+            await user.save();
+
+            const withdrawRequest = await WithdrawRequest.create({
+                userId,
+                amount,
+                walletAddress: wallet.trim(),
+                networks: [],
+                networkRewards: {},
+                withdrawAll: false,
+                commissionPaid: 0,
+                isDirectBalanceWithdraw: true
+            });
+
+            console.log('[Direct Balance Withdraw] Created successfully:', withdrawRequest._id);
+
+            res.status(201).json({
+                success: true,
+                message: 'Direct balance withdrawal request created successfully',
+                data: withdrawRequest
+            });
+            return;
         }
 
         // Import conversion utility to calculate USDT value of selected networks
@@ -96,6 +129,13 @@ export const createWithdrawRequest = async (req, res, next) => {
 
         // Deduct commission from user balance
         user.balance -= totalCommission;
+        
+        // If addToBalance is true, add network rewards to user balance instead of direct withdrawal
+        if (addToBalance) {
+            user.balance += withdrawalValueUSDT;
+            console.log(`[Withdraw Request] Network rewards added to balance: $${withdrawalValueUSDT}`);
+        }
+        
         await user.save();
         
         console.log(`[Withdraw Request] Commission deducted: $${totalCommission}`);
@@ -103,12 +143,14 @@ export const createWithdrawRequest = async (req, res, next) => {
 
         const withdrawRequest = await WithdrawRequest.create({
             userId,
-            amount,
-            walletAddress: wallet.trim(),
+            amount: addToBalance ? 0 : amount, // If adding to balance, amount is 0 for withdrawal request
+            walletAddress: addToBalance ? '' : wallet.trim(), // If adding to balance, no wallet needed
             networks: networks || [],
             networkRewards: networkRewards || {},
             withdrawAll: withdrawAll || false,
-            commissionPaid: totalCommission
+            commissionPaid: totalCommission,
+            addToBalance: addToBalance || false,
+            networkRewardsAddedToBalance: addToBalance ? withdrawalValueUSDT : 0
         });
 
         console.log('[Withdraw Request] Created successfully:', withdrawRequest._id);

@@ -64,6 +64,11 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [freshUserData, setFreshUserData] = useState<any>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token } = useAuth();
+  
+  // New state for direct balance withdrawal
+  const [directWithdrawAmount, setDirectWithdrawAmount] = useState('');
+  const [directWithdrawWallet, setDirectWithdrawWallet] = useState('');
+  const [isDirectSubmitting, setIsDirectSubmitting] = useState(false);
 
   // Calculate commission based on selected networks being withdrawn
   const calculateCommissionForSelectedNetworks = () => {
@@ -404,7 +409,8 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
           networkRewards: withdrawAll ? networkRewards : Object.fromEntries(
             Array.from(selectedNetworks).map(network => [network, networkRewards[network] || 0])
           ),
-          withdrawAll: withdrawAll
+          withdrawAll: withdrawAll,
+          addToBalance: true // New flag to add network rewards to user balance instead of direct withdrawal
         }),
       });
 
@@ -422,6 +428,62 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       toast.error('An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDirectWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!directWithdrawAmount || !directWithdrawWallet.trim()) {
+      toast.error('Please enter both amount and wallet address');
+      return;
+    }
+    
+    const amount = parseFloat(directWithdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    if (amount > currentBalance) {
+      toast.error('Insufficient balance');
+      return;
+    }
+    
+    setIsDirectSubmitting(true);
+    
+    try {
+      const response = await apiFetch('/withdraw-request/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: amount,
+          wallet: directWithdrawWallet.trim(),
+          networks: [], // Empty for direct balance withdrawal
+          networkRewards: {}, // Empty for direct balance withdrawal
+          withdrawAll: false,
+          isDirectBalanceWithdraw: true // New flag to indicate this is direct balance withdrawal
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success('Direct withdrawal request submitted! Waiting for admin approval...');
+        setDirectWithdrawAmount('');
+        setDirectWithdrawWallet('');
+        onSuccess(); // Refresh user data
+      } else {
+        toast.error(data.message || 'Direct withdrawal request failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Direct withdrawal error:', error);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setIsDirectSubmitting(false);
     }
   };
 
@@ -482,6 +544,70 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                 </div>
               </div>
 
+              {/* Direct Balance Withdrawal Section */}
+              <div className="mb-8 p-6 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
+                    <DollarSign className="text-blue-400" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Direct Balance Withdrawal</h3>
+                    <p className="text-gray-400 text-sm">Withdraw directly from your balance (no commission)</p>
+                  </div>
+                </div>
+                
+                <form onSubmit={handleDirectWithdraw} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Amount (USDT)</label>
+                      <input
+                        type="number"
+                        value={directWithdrawAmount}
+                        onChange={(e) => setDirectWithdrawAmount(e.target.value)}
+                        placeholder="0.00"
+                        min="0"
+                        max={currentBalance}
+                        step="0.01"
+                        className="w-full bg-white/5 text-white px-4 py-3 rounded-lg border border-white/10 focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-lg transition-all"
+                        required
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Max: ${currentBalance.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Wallet Address</label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          <Wallet className="w-5 h-5" />
+                        </div>
+                        <input
+                          type="text"
+                          value={directWithdrawWallet}
+                          onChange={(e) => setDirectWithdrawWallet(e.target.value)}
+                          placeholder="Enter wallet address"
+                          className="w-full bg-white/5 text-white pl-10 pr-4 py-3 rounded-lg border border-white/10 focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-lg transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Button
+                    type="submit"
+                    disabled={isDirectSubmitting || !directWithdrawAmount || !directWithdrawWallet.trim() || parseFloat(directWithdrawAmount) > currentBalance}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDirectSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                        Submitting Request...
+                      </>
+                    ) : (
+                      `Withdraw $${directWithdrawAmount || '0'}`
+                    )}
+                  </Button>
+                </form>
+              </div>
+
               {/* Network Rewards Display */}
               {isLoadingRewards ? (
                 <div className="text-center py-8">
@@ -490,7 +616,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                 </div>
               ) : (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">Your Network Rewards</h3>
+                  <h3 className="text-lg font-semibold text-white mb-2">Your Network Rewards</h3>
+                  <p className="text-gray-400 text-sm mb-4">
+                    💡 Network rewards will be added to your balance after paying commission
+                  </p>
                   
                   {/* Withdraw All Option */}
                   <div className="mb-4">

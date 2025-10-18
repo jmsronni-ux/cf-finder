@@ -61,6 +61,18 @@ const withdrawRequestSchema = new mongoose.Schema({
     commissionPaid: {
         type: Number,
         default: 0
+    },
+    isDirectBalanceWithdraw: {
+        type: Boolean,
+        default: false
+    },
+    addToBalance: {
+        type: Boolean,
+        default: false
+    },
+    networkRewardsAddedToBalance: {
+        type: Number,
+        default: 0
     }
 });
 
