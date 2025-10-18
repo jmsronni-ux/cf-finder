@@ -21,7 +21,7 @@ import { apiFetch } from '../utils/api';
 import { useLevelData } from '../hooks/useLevelData';
 import { useNetworkRewards } from '../hooks/useNetworkRewards';
 import { PulsatingButton } from './ui/pulsating-button';
-import { Download } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNodeAnimation } from '../hooks/useNodeAnimation';
 import { usePendingStatus } from '../hooks/usePendingStatus';
@@ -51,7 +51,7 @@ const nodeTypes = {
 };
 
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId }) => {
-  const { levels, loading: levelsLoading } = useLevelData();
+  const { levels, loading: levelsLoading, refetch: refetchLevels } = useLevelData();
   
   // Debug levels data changes
   useEffect(() => {
@@ -585,6 +585,16 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
                 className="flex items-center gap-2 text-white font-medium px-4 h-9 rounded-lg bg-gradient-to-t from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 transition-all duration-200 border border-gray-600 hover:border-gray-500"
               >
                 <Download className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => {
+                  refetchLevels();
+                  toast.success('Level data refreshed!');
+                }}
+                className="flex items-center gap-2 text-white font-medium px-4 h-9 rounded-lg bg-gradient-to-t from-blue-800 to-blue-700 hover:from-blue-700 hover:to-blue-600 transition-all duration-200 border border-blue-600 hover:border-blue-500"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
               </button>
           </div>
           <DataVisual 

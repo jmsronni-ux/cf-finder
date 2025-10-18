@@ -33,7 +33,7 @@ export const useLevelData = (): UseLevelDataReturn => {
       setLoading(true);
       setError(null);
       
-      const response = await apiFetch('/level');
+      const response = await apiFetch(`/level?t=${Date.now()}`);
       console.log('[useLevelData] Response status:', response.status);
       const data = await response.json();
       console.log('[useLevelData] Response data:', data);
