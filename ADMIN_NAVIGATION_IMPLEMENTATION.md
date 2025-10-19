@@ -18,21 +18,21 @@ A modern, responsive navigation component featuring:
 
 ### 2. Admin Pages Included
 
-1. **Dashboard** (`/admin`) - Overview & Stats
-2. **User Rewards** (`/admin/user-rewards`) - Manage user rewards
-3. **Tier Management** (`/admin/tier-management`) - Configure tiers
-4. **Topup Requests** (`/admin/topup-requests`) - Pending top-ups
-5. **Withdraw Requests** (`/admin/withdraw-requests`) - Pending withdrawals
-6. **Tier Requests** (`/admin/tier-requests`) - Tier upgrade requests
-7. **Level Management** (`/admin/level-management`) - Configure levels
-8. **Conversion Rates** (`/admin/conversion-rates`) - Crypto conversion rates
-9. **Network Rewards** (`/admin/network-rewards`) - Network reward settings
+**Note:** The admin panel now starts directly at User Rewards (`/admin`). The dashboard page has been removed as the navigation component provides quick access to all sections.
+
+1. **User Rewards** (`/admin`) - Manage user rewards (Default admin page)
+2. **Tier Management** (`/admin/tier-management`) - Configure tiers
+3. **Topup Requests** (`/admin/topup-requests`) - Pending top-ups
+4. **Withdraw Requests** (`/admin/withdraw-requests`) - Pending withdrawals
+5. **Tier Requests** (`/admin/tier-requests`) - Tier upgrade requests
+6. **Level Management** (`/admin/level-management`) - Configure levels
+7. **Conversion Rates** (`/admin/conversion-rates`) - Crypto conversion rates
+8. **Network Rewards** (`/admin/network-rewards`) - Network reward settings
 
 ### 3. Updated All Admin Pages
 
-Added the `<AdminNavigation />` component to all 9 admin pages:
-- AdminDashboard.tsx
-- AdminUserRewards.tsx
+Added the `<AdminNavigation />` component to all 8 admin pages:
+- AdminUserRewards.tsx (default at `/admin`)
 - AdminTierManagement.tsx
 - AdminTopupRequests.tsx
 - AdminWithdrawRequests.tsx
@@ -117,7 +117,24 @@ Possible improvements:
 
 ---
 
+## Recent Updates
+
+### ✅ Removed Dashboard Page (Latest Change)
+- **DELETED:** `AdminDashboard.tsx` file completely removed
+- Removed import from `App.tsx`
+- The admin panel now starts directly at **User Rewards** (`/admin`)
+- Removed the Dashboard item from navigation (was redundant)
+- Simplified admin flow - users go straight to the most useful page
+- All navigation links pointing to `/admin` now go to User Rewards
+- Active state detection updated to highlight User Rewards when at `/admin`
+
+**Files Deleted:**
+- ❌ `frontend/src/pages/AdminDashboard.tsx`
+
+---
+
 **Status:** ✅ Complete and deployed to all admin pages
-**No Breaking Changes:** All existing functionality preserved
+**No Breaking Changes:** All existing functionality preserved  
 **Zero Linter Errors:** Clean implementation
+**Admin Count:** 8 active admin pages (Dashboard removed)
 
