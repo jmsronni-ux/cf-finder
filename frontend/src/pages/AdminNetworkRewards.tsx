@@ -23,6 +23,8 @@ import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
 import AdminNavigation from '../components/AdminNavigation';
 import { apiFetch } from '../utils/api';
+import { useConversionRates } from '../hooks/useConversionRates';
+import { convertUSDTToCrypto, convertCryptoToUSDT, formatCryptoAmount, formatUSDTAmount } from '../utils/cryptoConversion';
 
 interface NetworkRewards {
   [network: string]: number;
@@ -52,11 +54,13 @@ const TIER_NAMES: { [key: number]: string } = {
 const AdminNetworkRewards: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const { ratesMap, loading: ratesLoading } = useConversionRates();
   
   const [rewards, setRewards] = useState<LevelRewards>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<{ [key: string]: boolean }>({});
   const [summary, setSummary] = useState<any>(null);
+  const [inputMode, setInputMode] = useState<'crypto' | 'usdt'>('crypto');
 
   // Check if user is admin
   if (!user?.isAdmin) {
@@ -104,6 +108,18 @@ const AdminNetworkRewards: React.FC = () => {
     try {
       const levelRewards = rewards[level] || {};
       
+      // Convert USDT to crypto if in USDT mode
+      const rewardsToSave: NetworkRewards = {};
+      Object.entries(levelRewards).forEach(([network, value]) => {
+        if (inputMode === 'usdt') {
+          // Convert USDT to crypto
+          rewardsToSave[network] = convertUSDTToCrypto(value, network, ratesMap);
+        } else {
+          // Already in crypto mode
+          rewardsToSave[network] = value;
+        }
+      });
+      
       const response = await apiFetch(`/network-reward/level/${level}`, {
         method: 'PUT',
         headers: {
@@ -112,7 +128,7 @@ const AdminNetworkRewards: React.FC = () => {
         },
         body: JSON.stringify({
           level,
-          rewards: levelRewards
+          rewards: rewardsToSave
         })
       });
 
@@ -225,6 +241,52 @@ const AdminNetworkRewards: React.FC = () => {
               </div>
             )}
 
+            {/* Input Mode Toggle */}
+            <Card className="border border-border rounded-xl mb-6">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Input Mode</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Choose how you want to enter reward amounts
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setInputMode('crypto')}
+                      variant={inputMode === 'crypto' ? 'primary' : 'outline'}
+                      className={`flex items-center gap-2 ${
+                        inputMode === 'crypto'
+                          ? 'bg-purple-600 hover:bg-purple-700'
+                          : 'border-white/20 hover:bg-white/10'
+                      }`}
+                    >
+                      <Coins className="w-4 h-4" />
+                      Crypto Mode
+                    </Button>
+                    <Button
+                      onClick={() => setInputMode('usdt')}
+                      variant={inputMode === 'usdt' ? 'primary' : 'outline'}
+                      className={`flex items-center gap-2 ${
+                        inputMode === 'usdt'
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'border-white/20 hover:bg-white/10'
+                      }`}
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      USDT Mode
+                    </Button>
+                  </div>
+                </div>
+                {ratesLoading && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-yellow-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading conversion rates...
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <MagicBadge title="Network Rewards by Level" className="mb-6"/>
 
             {/* Rewards by Level */}
@@ -267,23 +329,50 @@ const AdminNetworkRewards: React.FC = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                          {NETWORKS.map(network => (
-                            <div key={network.key} className="space-y-2">
-                              <Label className="flex items-center gap-2 text-sm font-medium">
-                                <span className={`text-lg ${network.color}`}>{network.icon}</span>
-                                {network.name}
-                              </Label>
-                              <Input
-                                type="number"
-                                step="0.001"
-                                min="0"
-                                value={rewards[level]?.[network.key] || 0}
-                                onChange={(e) => updateReward(level, network.key, e.target.value)}
-                                className="bg-background/50 border-border text-foreground"
-                                placeholder="0.00"
-                              />
-                            </div>
-                          ))}
+                          {NETWORKS.map(network => {
+                            const currentValue = rewards[level]?.[network.key] || 0;
+                            const rate = ratesMap[network.key] || 0;
+                            
+                            // Calculate conversion preview
+                            let conversionPreview = '';
+                            if (rate > 0 && currentValue > 0) {
+                              if (inputMode === 'usdt') {
+                                const cryptoAmount = convertUSDTToCrypto(currentValue, network.key, ratesMap);
+                                conversionPreview = `≈ ${formatCryptoAmount(cryptoAmount, network.key)} ${network.key}`;
+                              } else {
+                                const usdtAmount = convertCryptoToUSDT(currentValue, network.key, ratesMap);
+                                conversionPreview = `≈ ${formatUSDTAmount(usdtAmount)} USDT`;
+                              }
+                            }
+                            
+                            return (
+                              <div key={network.key} className="space-y-2">
+                                <Label className="flex items-center gap-2 text-sm font-medium">
+                                  <span className={`text-lg ${network.color}`}>{network.icon}</span>
+                                  <span>{network.name}</span>
+                                  {inputMode === 'usdt' && <span className="text-xs text-muted-foreground">(USDT)</span>}
+                                  {inputMode === 'crypto' && <span className="text-xs text-muted-foreground">({network.key})</span>}
+                                </Label>
+                                <Input
+                                  type="number"
+                                  step={inputMode === 'usdt' ? '1' : '0.00000001'}
+                                  min="0"
+                                  value={currentValue}
+                                  onChange={(e) => updateReward(level, network.key, e.target.value)}
+                                  className="bg-background/50 border-border text-foreground"
+                                  placeholder="0.00"
+                                />
+                                {conversionPreview && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {conversionPreview}
+                                  </p>
+                                )}
+                                {rate === 0 && (
+                                  <p className="text-xs text-yellow-500">Rate missing</p>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                         
                         {/* Level Summary */}
@@ -312,10 +401,12 @@ const AdminNetworkRewards: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>• Set reward amounts for each network (BTC, ETH, TRON, USDT, BNB, SOL) per level</p>
-                <p>• Use decimal values for precise amounts (e.g., 0.001 for BTC, 50 for USDT)</p>
+                <p>• Choose between <strong>Crypto Mode</strong> (enter amounts in cryptocurrency) or <strong>USDT Mode</strong> (enter amounts in USDT)</p>
+                <p>• In USDT Mode: Enter amounts in USDT, they'll be converted to crypto automatically using current rates</p>
+                <p>• In Crypto Mode: Enter amounts directly in cryptocurrency (e.g., 0.001 for BTC, 50 for USDT)</p>
+                <p>• Conversion previews show what will be saved to the database</p>
                 <p>• Click "Save Changes" for each level to update the rewards</p>
-                <p>• Changes will be reflected immediately in the reward calculations</p>
+                <p>• All values are stored as cryptocurrency amounts in the database</p>
               </CardContent>
             </Card>
           </div>

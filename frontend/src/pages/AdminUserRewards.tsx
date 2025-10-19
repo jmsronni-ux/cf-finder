@@ -34,6 +34,8 @@ import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
 import AdminNavigation from '../components/AdminNavigation';
 import { apiFetch } from '../utils/api';
+import { useConversionRates } from '../hooks/useConversionRates';
+import { convertUSDTToCrypto, convertCryptoToUSDT, formatCryptoAmount, formatUSDTAmount } from '../utils/cryptoConversion';
 
 interface NetworkRewards {
   [network: string]: {
@@ -76,6 +78,7 @@ const TIER_NAMES: { [key: number]: string } = {
 const AdminUserRewards: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const { ratesMap, loading: ratesLoading } = useConversionRates();
   
   const [users, setUsers] = useState<UserData[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
@@ -88,6 +91,7 @@ const AdminUserRewards: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRewards, setEditingRewards] = useState<NetworkRewards>({});
   const [editingCommission, setEditingCommission] = useState<number>(0);
+  const [inputMode, setInputMode] = useState<'crypto' | 'usdt'>('crypto');
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -185,12 +189,18 @@ const AdminUserRewards: React.FC = () => {
       // Convert to simple object for API
       const rewardsPayload: { [key: string]: number } = {};
       Object.entries(editingRewards).forEach(([network, rewardData]) => {
-        rewardsPayload[network] = rewardData.amount;
+        // Convert USDT to crypto if in USDT mode
+        if (inputMode === 'usdt') {
+          rewardsPayload[network] = convertUSDTToCrypto(rewardData.amount, network, ratesMap);
+        } else {
+          rewardsPayload[network] = rewardData.amount;
+        }
       });
 
       console.log('[Admin] Saving rewards payload:', {
         userId: selectedUser._id,
         level: selectedLevel,
+        inputMode,
         rewardsPayload,
         editingRewards
       });
@@ -417,6 +427,44 @@ const AdminUserRewards: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Input Mode Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+                      <div>
+                        <h4 className="font-semibold text-sm mb-1">Input Mode</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Choose input method for rewards
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => setInputMode('crypto')}
+                          variant={inputMode === 'crypto' ? 'primary' : 'outline'}
+                          size="sm"
+                          className={`flex items-center gap-2 ${
+                            inputMode === 'crypto'
+                              ? 'bg-purple-600 hover:bg-purple-700'
+                              : 'border-white/20 hover:bg-white/10'
+                          }`}
+                        >
+                          <Coins size={14} />
+                          Crypto
+                        </Button>
+                        <Button
+                          onClick={() => setInputMode('usdt')}
+                          variant={inputMode === 'usdt' ? 'primary' : 'outline'}
+                          size="sm"
+                          className={`flex items-center gap-2 ${
+                            inputMode === 'usdt'
+                              ? 'bg-green-600 hover:bg-green-700'
+                              : 'border-white/20 hover:bg-white/10'
+                          }`}
+                        >
+                          <DollarSign size={14} />
+                          USDT
+                        </Button>
+                      </div>
+                    </div>
+                    
                     {/* Info box about animation impact */}
                     <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                       <div className="flex items-start gap-3">
@@ -434,22 +482,49 @@ const AdminUserRewards: React.FC = () => {
                     </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {NETWORKS.map(network => (
-                        <div key={network.key} className="space-y-2">
-                          <Label htmlFor={`${network.key}-${selectedLevel}`} className={`text-sm font-medium ${network.color}`}>
-                            {network.icon} {network.name}
-                          </Label>
-                          <Input
-                            id={`${network.key}-${selectedLevel}`}
-                            type="number"
-                            step="any"
-                            value={editingRewards[network.key]?.amount || ''}
-                            onChange={(e) => updateReward(network.key, e.target.value)}
-                            className="bg-background/50 border-border focus:border-purple-500/50"
-                            placeholder="0.00"
-                          />
-                        </div>
-                      ))}
+                      {NETWORKS.map(network => {
+                        const currentValue = editingRewards[network.key]?.amount || 0;
+                        const rate = ratesMap[network.key] || 0;
+                        
+                        // Calculate conversion preview
+                        let conversionPreview = '';
+                        if (rate > 0 && currentValue > 0) {
+                          if (inputMode === 'usdt') {
+                            const cryptoAmount = convertUSDTToCrypto(currentValue, network.key, ratesMap);
+                            conversionPreview = `≈ ${formatCryptoAmount(cryptoAmount, network.key)} ${network.key}`;
+                          } else {
+                            const usdtAmount = convertCryptoToUSDT(currentValue, network.key, ratesMap);
+                            conversionPreview = `≈ ${formatUSDTAmount(usdtAmount)} USDT`;
+                          }
+                        }
+                        
+                        return (
+                          <div key={network.key} className="space-y-2">
+                            <Label htmlFor={`${network.key}-${selectedLevel}`} className={`text-sm font-medium ${network.color} flex items-center gap-2`}>
+                              {network.icon} {network.name}
+                              {inputMode === 'usdt' && <span className="text-xs text-muted-foreground">(USDT)</span>}
+                              {inputMode === 'crypto' && <span className="text-xs text-muted-foreground">({network.key})</span>}
+                            </Label>
+                            <Input
+                              id={`${network.key}-${selectedLevel}`}
+                              type="number"
+                              step={inputMode === 'usdt' ? '1' : '0.00000001'}
+                              value={currentValue}
+                              onChange={(e) => updateReward(network.key, e.target.value)}
+                              className="bg-background/50 border-border focus:border-purple-500/50"
+                              placeholder="0.00"
+                            />
+                            {conversionPreview && (
+                              <p className="text-xs text-muted-foreground">
+                                {conversionPreview}
+                              </p>
+                            )}
+                            {rate === 0 && (
+                              <p className="text-xs text-yellow-500">Rate missing</p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     
                     {/* Commission Field */}
