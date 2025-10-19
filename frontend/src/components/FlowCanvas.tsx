@@ -21,7 +21,7 @@ import { apiFetch } from '../utils/api';
 import { useLevelData } from '../hooks/useLevelData';
 import { useNetworkRewards } from '../hooks/useNetworkRewards';
 import { PulsatingButton } from './ui/pulsating-button';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download, RefreshCw, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNodeAnimation } from '../hooks/useNodeAnimation';
 import { usePendingStatus } from '../hooks/usePendingStatus';
@@ -66,6 +66,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<Set<number>>(new Set());
   const [downloadLevel, setDownloadLevel] = useState(1);
+  const [isSavingToDatabase, setIsSavingToDatabase] = useState(false);
   const [nextTierInfo, setNextTierInfo] = useState<{ tier: number; name: string } | null>(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [animationStartedForLevel, setAnimationStartedForLevel] = useState<number | null>(null);
@@ -465,6 +466,104 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
     toast.success(`Downloaded level ${downloadLevel} JSON with ${filteredNodes.length} nodes`);
   }, [nodes, edges, downloadLevel]);
 
+  const saveLevelToDatabase = useCallback(async () => {
+    if (!user?.isAdmin || !token) {
+      toast.error('Admin access required');
+      return;
+    }
+
+    setIsSavingToDatabase(true);
+    try {
+      // Filter nodes and edges based on selected download level (same logic as savePositionsToJSON)
+      const filteredNodes = nodes
+        .filter((node: any) => {
+          const nodeLevel = node?.data?.level ?? 1;
+          return nodeLevel <= downloadLevel;
+        })
+        .map((node: any) => {
+          const cleanNode: any = {
+            id: node.id,
+            type: node.type,
+            data: {
+              label: node.data.label,
+              logo: node.data.logo,
+              handles: node.data.handles,
+            },
+            position: {
+              x: Math.round(node.position.x),
+              y: Math.round(node.position.y)
+            },
+            sourcePosition: node.sourcePosition,
+            targetPosition: node.targetPosition,
+            hidden: node.hidden,
+            width: node.width,
+            height: node.height,
+          };
+
+          if (node.type === 'fingerprintNode' && node.data.transaction) {
+            cleanNode.data.transaction = node.data.transaction;
+            cleanNode.data.level = node.data.level;
+            cleanNode.data.pending = node.data.pending;
+          }
+
+          if (node.selected !== undefined) cleanNode.selected = node.selected;
+          if (node.positionAbsolute) cleanNode.positionAbsolute = node.positionAbsolute;
+          if (node.dragging !== undefined) cleanNode.dragging = node.dragging;
+
+          return cleanNode;
+        });
+      
+      const filteredNodeIds = new Set(filteredNodes.map((n: any) => n.id));
+      const filteredEdges = edges
+        .filter((edge: any) => 
+          filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
+        )
+        .map((edge: any) => {
+          const cleanEdge: any = {
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+          };
+
+          if (edge.sourceHandle) cleanEdge.sourceHandle = edge.sourceHandle;
+          if (edge.targetHandle) cleanEdge.targetHandle = edge.targetHandle;
+          if (edge.style) cleanEdge.style = edge.style;
+          if (edge.animated !== undefined) cleanEdge.animated = edge.animated;
+
+          return cleanEdge;
+        });
+
+      // Send to database
+      const response = await apiFetch(`/level/${downloadLevel}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: `Level ${downloadLevel}`,
+          description: `Animation level ${downloadLevel}`,
+          nodes: filteredNodes,
+          edges: filteredEdges
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(`Level ${downloadLevel} saved to database! (${filteredNodes.length} nodes, ${filteredEdges.length} edges)`);
+        refetchLevels(); // Refresh the levels data
+      } else {
+        toast.error(data.message || 'Failed to save level to database');
+      }
+    } catch (error) {
+      console.error('Error saving level to database:', error);
+      toast.error('An error occurred while saving to database');
+    } finally {
+      setIsSavingToDatabase(false);
+    }
+  }, [nodes, edges, downloadLevel, user, token, refetchLevels]);
+
   const handleAddChildNode = useCallback((parentNodeId: string) => {
     const parentNode = nodes.find((n: any) => n.id === parentNodeId);
     if (!parentNode || parentNode.type !== 'fingerprintNode') return;
@@ -581,8 +680,27 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
                 <option value={5}>Level 5</option>
               </select>
               <button
+                onClick={saveLevelToDatabase}
+                disabled={isSavingToDatabase}
+                className="flex items-center gap-2 text-white font-medium px-4 h-9 rounded-lg bg-gradient-to-t from-green-800 to-green-700 hover:from-green-700 hover:to-green-600 transition-all duration-200 border border-green-600 hover:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Save current level to database"
+              >
+                {isSavingToDatabase ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save
+                  </>
+                )}
+              </button>
+              <button
                 onClick={savePositionsToJSON}
                 className="flex items-center gap-2 text-white font-medium px-4 h-9 rounded-lg bg-gradient-to-t from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 transition-all duration-200 border border-gray-600 hover:border-gray-500"
+                title="Download level as JSON file"
               >
                 <Download className="w-4 h-4" />
               </button>
