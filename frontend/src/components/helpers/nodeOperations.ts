@@ -13,6 +13,22 @@ export function createChildNode(parentNode: any, timestamp: number = Date.now())
   const childTargetPos = parentSourcePos === 'right' ? 'left' : 'right';
   const childSourcePos = parentSourcePos; // Keep same direction for further children
   
+  // Determine currency based on parent node type
+  let currency = 'BTC';
+  if (parentNode.type === 'cryptoNode') {
+    // For crypto nodes, derive currency from the label
+    const label = parentNode.data.label?.toLowerCase();
+    if (label === 'bitcoin') currency = 'BTC';
+    else if (label === 'ethereum') currency = 'ETH';
+    else if (label === 'solana') currency = 'SOL';
+    else if (label === 'tether') currency = 'USDT';
+    else if (label === 'trx') currency = 'TRX';
+    else if (label === 'bnb') currency = 'BNB';
+  } else if (parentNode.data.transaction?.currency) {
+    // For fingerprint nodes, use the existing transaction currency
+    currency = parentNode.data.transaction.currency;
+  }
+  
   // Create new fingerprint node
   const newNode = {
     id: newNodeId,
@@ -25,7 +41,7 @@ export function createChildNode(parentNode: any, timestamp: number = Date.now())
         date: new Date().toISOString().split('T')[0],
         transaction: '0x' + Math.random().toString(16).slice(2, 42),
         amount: 0,
-        currency: parentNode.data.transaction?.currency || 'BTC',
+        currency: currency,
         status: 'Pending'
       },
       level: parentNode.data.level || 1,

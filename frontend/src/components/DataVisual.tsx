@@ -22,6 +22,7 @@ const DataVisual: React.FC<DataVisualProps> = ({
   if (!selectedNode) return null;
   
   const isFingerprintNode = selectedNode.type === 'fingerprintNode';
+  const isCryptoNode = selectedNode.type === 'cryptoNode';
 
   return (
     <div className="absolute top-20 w-[30rem] right-6 z-30 bg-gray-800/90 border border-gray-600 rounded-lg p-4 max-w-sm max-h-[calc(100vh-8rem)] overflow-y-auto">
@@ -66,38 +67,55 @@ const DataVisual: React.FC<DataVisualProps> = ({
               />
             </div>
 
-            <div>
-              <label className="block text-gray-300 mb-1">Level:</label>
-              <input
-                type="number"
-                min="1"
-                max="5"
-                value={selectedNode.data.level || 1}
-                onChange={(e) => {
-                  const newData = {
-                    level: parseInt(e.target.value) || 1
-                  };
-                  onUpdateNodeData(selectedNode.id, newData);
-                }}
-                className="w-full bg-gray-700 text-white px-2 py-1 rounded text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
+            {/* Only show level and pending for fingerprint nodes */}
+            {isFingerprintNode && (
+              <>
+                <div>
+                  <label className="block text-gray-300 mb-1">Level:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={selectedNode.data.level || 1}
+                    onChange={(e) => {
+                      const newData = {
+                        level: parseInt(e.target.value) || 1
+                      };
+                      onUpdateNodeData(selectedNode.id, newData);
+                    }}
+                    className="w-full bg-gray-700 text-white px-2 py-1 rounded text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-gray-300 mb-1">Pending:</label>
-              <input
-                type="number"
-                min="0"
-                value={selectedNode.data.pending || 0}
-                onChange={(e) => {
-                  const newData = {
-                    pending: parseInt(e.target.value) || 0
-                  };
-                  onUpdateNodeData(selectedNode.id, newData);
-                }}
-                className="w-full bg-gray-700 text-white px-2 py-1 rounded text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
+                <div>
+                  <label className="block text-gray-300 mb-1">Pending:</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={selectedNode.data.pending || 0}
+                    onChange={(e) => {
+                      const newData = {
+                        pending: parseInt(e.target.value) || 0
+                      };
+                      onUpdateNodeData(selectedNode.id, newData);
+                    }}
+                    className="w-full bg-gray-700 text-white px-2 py-1 rounded text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Crypto node specific info */}
+            {isCryptoNode && (
+              <div className="mt-2 p-3 bg-blue-900/30 border border-blue-700/50 rounded">
+                <div className="text-blue-300 text-xs font-medium mb-1">
+                  💡 Crypto Node
+                </div>
+                <div className="text-gray-300 text-xs">
+                  Click "Add Child Transaction Node" below to create a new transaction node connected to this {selectedNode.data.label} node.
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -236,13 +254,13 @@ const DataVisual: React.FC<DataVisualProps> = ({
 
         {/* Action Buttons */}
         <div className="mt-4 space-y-2">
-          {/* Only show Add/Delete buttons for admin users */}
-          {isAdmin && isFingerprintNode && onAddChildNode && (
+          {/* Allow admins to add child nodes to both crypto nodes and fingerprint nodes */}
+          {isAdmin && (isFingerprintNode || isCryptoNode) && onAddChildNode && (
             <button
               onClick={() => onAddChildNode(selectedNode.id)}
               className="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm transition-colors"
             >
-              Add Child Node
+              {isCryptoNode ? 'Add Child Transaction Node' : 'Add Child Node'}
             </button>
           )}
           

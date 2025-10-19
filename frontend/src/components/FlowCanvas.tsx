@@ -544,7 +544,17 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   const handleAddChildNode = useCallback((parentNodeId: string) => {
     const parentNode = nodes.find((n: any) => n.id === parentNodeId);
-    if (!parentNode || parentNode.type !== 'fingerprintNode') return;
+    // Allow admins to create child nodes from both cryptoNode and fingerprintNode
+    if (!parentNode || (parentNode.type !== 'fingerprintNode' && parentNode.type !== 'cryptoNode')) {
+      toast.error('Cannot add child to this node type');
+      return;
+    }
+
+    // Only admins can create children from crypto nodes
+    if (parentNode.type === 'cryptoNode' && !user?.isAdmin) {
+      toast.error('Admin access required to add child nodes to crypto nodes');
+      return;
+    }
 
     const { newNode, newEdge } = createChildNode(parentNode);
 
@@ -558,7 +568,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       nodes: [...prevData.nodes, newNode],
       edges: [...(prevData.edges || []), newEdge]
     }));
-  }, [nodes, setNodes, setEdges, setLevelData]);
+    
+    toast.success(`Added child transaction node to ${parentNode.data.label}`);
+  }, [nodes, setNodes, setEdges, setLevelData, user]);
 
   const handleDeleteNode = useCallback((nodeId: string) => {
     const nodeToDelete = nodes.find((n: any) => n.id === nodeId);
