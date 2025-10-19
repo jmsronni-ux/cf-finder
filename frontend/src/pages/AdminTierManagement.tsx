@@ -231,10 +231,6 @@ const AdminTierManagement: React.FC = () => {
                   <Users size={16} />
                   User Rewards
                 </Button>
-                <Button onClick={() => navigate('/admin/reward-analytics')} className="bg-indigo-600/50 hover:bg-indigo-700 text-white flex items-center gap-2 border border-indigo-600">
-                  <Users size={16} />
-                  Analytics
-                </Button>
               </div>
             </div>
 

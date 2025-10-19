@@ -116,14 +116,6 @@ const AdminDashboard: React.FC = () => {
       stats: `${stats?.activeUsers || 0} Active`
     },
     {
-      title: 'Individual User Rewards',
-      description: 'Set custom network rewards for specific users',
-      icon: <User className="w-6 h-6" />,
-      color: 'bg-indigo-600/50 hover:bg-indigo-700 border-indigo-600',
-      route: '/admin/user-network-rewards',
-      stats: 'Custom Rewards'
-    },
-    {
       title: 'Top-Up Requests',
       description: 'Process user balance top-up requests',
       icon: <DollarSign className="w-6 h-6" />,
@@ -154,14 +146,6 @@ const AdminDashboard: React.FC = () => {
       color: 'bg-gray-600/50 hover:bg-gray-700 border-gray-600',
       route: '/admin/level-management',
       stats: 'Animation Data'
-    },
-    {
-      title: 'Reward Analytics',
-      description: 'View comprehensive reward statistics and analytics',
-      icon: <BarChart3 className="w-6 h-6" />,
-      color: 'bg-teal-600/50 hover:bg-teal-700 border-teal-600',
-      route: '/admin/reward-analytics',
-      stats: 'Analytics'
     },
     {
       title: 'Conversion Rates',
@@ -310,17 +294,6 @@ const AdminDashboard: React.FC = () => {
                   <div className="text-left">
                     <div className="font-semibold">Change User Tier</div>
                     <div className="text-xs opacity-80">Direct tier control</div>
-                  </div>
-                </Button>
-                
-                <Button 
-                  onClick={() => navigate('/admin/user-network-rewards')}
-                  className="bg-indigo-600/50 hover:bg-indigo-700 text-white flex items-center gap-2 border border-indigo-600 h-16"
-                >
-                  <User size={20} />
-                  <div className="text-left">
-                    <div className="font-semibold">Set Individual Rewards</div>
-                    <div className="text-xs opacity-80">Custom user rewards</div>
                   </div>
                 </Button>
                 

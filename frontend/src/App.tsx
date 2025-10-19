@@ -11,7 +11,6 @@ import AdminWithdrawRequests from "./pages/AdminWithdrawRequests";
 import AdminTierRequests from "./pages/AdminTierRequests";
 import AdminLevelManagement from "./pages/AdminLevelManagement";
 import AdminNetworkRewards from "./pages/AdminNetworkRewards";
-import AdminRewardAnalytics from "./pages/AdminRewardAnalytics";
 import AdminTierManagement from "./pages/AdminTierManagement";
 import AdminConversionRates from "./pages/AdminConversionRates";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -76,11 +75,6 @@ function App() {
             <AdminNetworkRewards />
           </ProtectedRoute>
         } />
-            <Route path="/admin/reward-analytics" element={
-              <ProtectedRoute>
-                <AdminRewardAnalytics />
-              </ProtectedRoute>
-            } />
             <Route path="/admin/tier-management" element={
               <ProtectedRoute>
                 <AdminTierManagement />
