@@ -15,6 +15,7 @@ import MagicBadge from '../components/ui/magic-badge';
 import { apiFetch } from '../utils/api';
 import LevelProgressBar from '../components/LevelProgressBar';
 import { Link } from 'react-router-dom';
+import WithdrawPopup from '@/components/WithdrawPopup';
 
 interface TierInfo {
   tier: number;
@@ -430,8 +431,7 @@ const UserProfile: React.FC = () => {
           </div>
         </MaxWidthWrapper>
 
-        {/* Enhanced Withdraw Popup */}
-        <EnhancedWithdrawPopup 
+        <WithdrawPopup
           isOpen={showWithdrawPopup}
           onClose={() => setShowWithdrawPopup(false)}
           currentBalance={user.balance}

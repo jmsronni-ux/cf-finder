@@ -104,18 +104,6 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       const levelCommissionPercent = (userData as any)[commissionField] || 0; // Percentage value (e.g., 30 = 30%)
       const levelCompleted = (userData as any)[animField] === 1; // Check if user completed this level
       
-      console.log(`[Commission] Checking level ${level}: commission=${levelCommissionPercent}%, completed=${levelCompleted} (raw value: ${(userData as any)[commissionField]})`);
-      
-      if (levelCommissionPercent <= 0) {
-        console.log(`[Commission] Skipping level ${level} - no commission set`);
-        continue;
-      }
-      
-      if (!levelCompleted) {
-        console.log(`[Commission] Skipping level ${level} - user has not completed this level yet`);
-        continue;
-      }
-      
       // Calculate the USDT value of selected networks for this level
       let levelWithdrawalValueUSDT = 0;
       
@@ -128,32 +116,16 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
           // Convert this specific amount to USDT using conversion rates
           const usdtValue = convertAmountToUSDT(withdrawalAmount, network);
           levelWithdrawalValueUSDT += usdtValue;
-          
-          console.log(`[Commission] Level ${level} ${network}: ${withdrawalAmount} = ${usdtValue} USDT`);
         }
       }
-      
-      // Only calculate commission if user is actually withdrawing from this level
-      if (levelWithdrawalValueUSDT > 0) {
-        console.log(`[Commission] User is withdrawing from Level ${level}: $${levelWithdrawalValueUSDT} USDT`);
-      }
+  
       
       // Calculate commission as percentage of withdrawal value
       if (levelWithdrawalValueUSDT > 0) {
         const levelCommission = (levelWithdrawalValueUSDT * levelCommissionPercent) / 100;
         totalCommission += levelCommission;
-        console.log(`[Commission] Level ${level} commission: ${levelCommissionPercent}% of $${levelWithdrawalValueUSDT} = $${levelCommission}`);
-        console.log(`[Commission] Running total: $${totalCommission}`);
-      } else {
-        console.log(`[Commission] Level ${level} - no withdrawal value, skipping commission`);
       }
     }
-    
-    console.log(`[Commission] ===== COMMISSION SUMMARY =====`);
-    console.log(`[Commission] Total commission: $${totalCommission}`);
-    console.log(`[Commission] This commission is calculated as percentage of withdrawal amount`);
-    console.log(`[Commission] Only levels with commission set AND rewards being withdrawn are charged`);
-    console.log(`[Commission] ================================`);
     return totalCommission;
   };
 
@@ -375,32 +347,19 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('[Withdraw] Form submitted');
-    console.log('[Withdraw] Current balance:', currentBalance);
-    console.log('[Withdraw] Total commission:', totalCommission);
-    console.log('[Withdraw] Selected networks:', Array.from(selectedNetworks));
-    console.log('[Withdraw] Withdraw all:', withdrawAll);
-    
     const withdrawAmount = getSelectedAmount();
-    console.log('[Withdraw] Withdraw amount:', withdrawAmount);
     
     // Validation
     if (withdrawAmount <= 0) {
-      console.log('[Withdraw] Validation failed: No networks selected');
       toast.error('Please select networks to withdraw from');
       return;
     }
     
     // For network rewards, only check if user has enough balance to pay commission
     if (totalCommission > currentBalance) {
-      console.log('[Withdraw] Validation failed: Insufficient balance for commission');
       toast.error(`Insufficient balance to pay commission. Required: $${totalCommission}, Available: $${currentBalance}`);
       return;
     }
-    
-    console.log('[Withdraw] Validation passed, proceeding with API call');
-    
-    // No wallet validation needed for network rewards since money goes to balance
 
     setIsSubmitting(true);
 
@@ -415,8 +374,6 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         withdrawAll: withdrawAll,
         addToBalance: true // New flag to add network rewards to user balance instead of direct withdrawal
       };
-      
-      console.log('[Withdraw] API request body:', requestBody);
       
       const response = await apiFetch('/withdraw-request/create', {
         method: 'POST',
@@ -459,69 +416,6 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     }
   };
 
-  const handleDirectWithdraw = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!directWithdrawAmount || !directWithdrawWallet.trim()) {
-      toast.error('Please enter both amount and wallet address');
-      return;
-    }
-    
-    const amount = parseFloat(directWithdrawAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    
-    if (amount > currentBalance) {
-      toast.error('Insufficient balance');
-      return;
-    }
-    
-    setIsDirectSubmitting(true);
-    
-    try {
-      const response = await apiFetch('/withdraw-request/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          amount: amount,
-          wallet: directWithdrawWallet.trim(),
-          networks: [], // Empty for direct balance withdrawal
-          networkRewards: {}, // Empty for direct balance withdrawal
-          withdrawAll: false,
-          isDirectBalanceWithdraw: true // New flag to indicate this is direct balance withdrawal
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        toast.success('Direct withdrawal request submitted! Waiting for admin approval...');
-        setDirectWithdrawAmount('');
-        setDirectWithdrawWallet('');
-        onSuccess(); // Refresh user data
-      } else {
-        toast.error(data.message || 'Direct withdrawal request failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Direct withdrawal error:', error);
-      toast.error('An error occurred. Please try again.');
-    } finally {
-      setIsDirectSubmitting(false);
-    }
-  };
-
-  const handleClose = () => {
-    if (requestStatus === 'pending') {
-      const confirm = window.confirm('Your request is still pending. Are you sure you want to close?');
-      if (!confirm) return;
-    }
-    onClose();
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -531,7 +425,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         
         {/* Close button */}
         <button
-          onClick={handleClose}
+          onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
           disabled={isSubmitting}
         >
@@ -553,88 +447,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
               {/* Header */}
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
-                  <Coins className="text-purple-400" size={24} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Withdraw Network Rewards</h2>
-                  <p className="text-gray-400 text-sm">Available Balance: <span className="text-green-500 font-semibold">${currentBalance.toLocaleString()}</span></p>
-                  {totalCommission > 0 && (
-                    <p className="text-orange-400 text-sm mt-1">
-                      <AlertCircle className="w-3 h-3 inline mr-1" />
-                      Commission (percentage of withdrawal): <span className="font-semibold">${totalCommission.toLocaleString()} USDT</span>
-                    </p>
-                  )}
-                  {totalCommission > currentBalance && (
-                    <p className="text-red-400 text-xs mt-1">
-                      ⚠️ Insufficient balance to pay commission
-                    </p>
-                  )}
+                  <DollarSign className="text-purple-400" size={24} />
                 </div>
               </div>
-
-              {/* Direct Balance Withdrawal Section */}
-              <div className="mb-8 p-6 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
-                    <DollarSign className="text-blue-400" size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">Direct Balance Withdrawal</h3>
-                    <p className="text-gray-400 text-sm">Withdraw directly from your balance (no commission)</p>
-                  </div>
-                </div>
-                
-                <form onSubmit={handleDirectWithdraw} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Amount (USDT)</label>
-                      <input
-                        type="number"
-                        value={directWithdrawAmount}
-                        onChange={(e) => setDirectWithdrawAmount(e.target.value)}
-                        placeholder="0.00"
-                        min="0"
-                        max={currentBalance}
-                        step="0.01"
-                        className="w-full bg-white/5 text-white px-4 py-3 rounded-lg border border-white/10 focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-lg transition-all"
-                        required
-                      />
-                      <p className="text-xs text-gray-400 mt-1">Max: ${currentBalance.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Wallet Address</label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                          <Wallet className="w-5 h-5" />
-                        </div>
-                        <input
-                          type="text"
-                          value={directWithdrawWallet}
-                          onChange={(e) => setDirectWithdrawWallet(e.target.value)}
-                          placeholder="Enter wallet address"
-                          className="w-full bg-white/5 text-white pl-10 pr-4 py-3 rounded-lg border border-white/10 focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-lg transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    type="submit"
-                    disabled={isDirectSubmitting || !directWithdrawAmount || !directWithdrawWallet.trim() || parseFloat(directWithdrawAmount) > currentBalance}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isDirectSubmitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                        Submitting Request...
-                      </>
-                    ) : (
-                      `Withdraw $${directWithdrawAmount || '0'}`
-                    )}
-                  </Button>
-                </form>
-              </div>
+              
 
               {/* Network Rewards Display */}
               {isLoadingRewards ? (

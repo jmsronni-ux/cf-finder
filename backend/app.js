@@ -48,9 +48,20 @@ if (process.env.NODE_ENV === 'production' || process.env.MIGRATE_ON_STARTUP === 
 }
 
 // CORS configuration - allow requests from frontend
-const allowedOrigins = FRONTEND_URL 
+// Always include localhost URLs for development
+const localhostOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+];
+
+const productionOrigins = FRONTEND_URL 
   ? FRONTEND_URL.split(',').map(url => url.trim())
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : [];
+
+const allowedOrigins = [...localhostOrigins, ...productionOrigins];
 
 console.log('CORS Configuration:');
 console.log('NODE_ENV:', NODE_ENV);
@@ -67,13 +78,8 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // If FRONTEND_URL is not set in production, allow all origins (for initial deployment)
-    if (!FRONTEND_URL && NODE_ENV === 'production') {
-      console.log('⚠️  FRONTEND_URL not set, allowing all origins. Set FRONTEND_URL for better security.');
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.includes(origin) || NODE_ENV === 'development') {
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
       console.log('✅ Origin allowed:', origin);
       callback(null, true);
     } else {

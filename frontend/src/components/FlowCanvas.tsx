@@ -38,9 +38,7 @@ interface FlowCanvasProps {
 
 // Helper function to get level data based on level number
 const getLevelData = (level: number, levels: any[]): any => {
-  console.log(`[getLevelData] Looking for level ${level} in levels:`, levels);
   const levelData = levels.find(l => l.level === level);
-  console.log(`[getLevelData] Found level data:`, levelData);
   return levelData || { nodes: [], edges: [] };
 };
 
@@ -74,7 +72,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [submittedTierRequest, setSubmittedTierRequest] = useState<{ tier: number; name: string } | null>(null);
   const [pendingTierRequest, setPendingTierRequest] = useState<boolean>(false);
   const [completionNetworkRewards, setCompletionNetworkRewards] = useState<{ [network: string]: number }>({});
-const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<number>(0);
+  const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<number>(0);
   const [isProcessingCompletion, setIsProcessingCompletion] = useState<boolean>(false);
   const [completionPopupShown, setCompletionPopupShown] = useState<boolean>(false);
   const navigate = useNavigate();
@@ -135,12 +133,7 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
   
   // Load level data when currentLevel changes
   useEffect(() => {
-    console.log(`[FlowCanvas] Loading level data for level ${currentLevel}`);
-    console.log(`[FlowCanvas] Available levels:`, levels.length);
     const newLevelData = getLevelData(currentLevel, levels);
-    console.log(`[FlowCanvas] Level data for level ${currentLevel}:`, newLevelData);
-    console.log(`[FlowCanvas] Nodes in level data:`, newLevelData.nodes?.length || 0);
-    console.log(`[FlowCanvas] Node details:`, newLevelData.nodes?.map((n: any) => ({ id: n.id, type: n.type, level: n.data?.level })));
     setLevelData(newLevelData);
     setNodes(newLevelData.nodes as any[]);
     setEdges(newLevelData.edges as any[]);
@@ -152,34 +145,19 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
 
   // Show completion popup when animation finishes and save to DB
   useEffect(() => {
-    console.log(`[FlowCanvas] ===== ANIMATION COMPLETION CHECK =====`);
-    console.log(`[FlowCanvas] Animation completion check: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}, completedLevels=${Array.from(completedLevels)}`);
-    console.log(`[FlowCanvas] User animation status: lvl1anim=${user?.lvl1anim}, lvl2anim=${user?.lvl2anim}, lvl3anim=${user?.lvl3anim}`);
-    console.log(`[FlowCanvas] Condition check: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}, !completedLevels.has(currentLevel)=${!completedLevels.has(currentLevel)}`);
-    console.log(`[FlowCanvas] User balance: ${user?.balance}`);
-    console.log(`[FlowCanvas] Animation state: hasStarted=${hasStarted}, isCompleted=${isCompleted}`);
     
     // Always show popup and add rewards when animation is completed
     // Allow completion even if animationStartedForLevel is null (for already completed levels)
     const shouldTriggerCompletion = isCompleted && (animationStartedForLevel === currentLevel || animationStartedForLevel === null);
     
-    console.log(`[FlowCanvas] Should trigger completion: ${shouldTriggerCompletion}`);
-    console.log(`[FlowCanvas] Breakdown: isCompleted=${isCompleted}, animationStartedForLevel=${animationStartedForLevel}, currentLevel=${currentLevel}`);
-    
     if (shouldTriggerCompletion && !isProcessingCompletion && !completionPopupShown) {
-      console.log(`[FlowCanvas] ===== ANIMATION COMPLETED - TRIGGERING COMPLETION FLOW =====`);
-      console.log(`[FlowCanvas] Animation completed for level ${currentLevel}, showing popup and marking as watched`);
       setIsProcessingCompletion(true); // Prevent multiple calls
       setCompletionPopupShown(true); // Mark popup as shown
       setShowCompletionPopup(true);
       
       // Mark animation as watched in DB and add reward to balance
       (async () => {
-        console.log(`[FlowCanvas] ===== CALLING MARK ANIMATION WATCHED =====`);
-        console.log(`[FlowCanvas] Calling markAnimationWatched for level ${currentLevel}`);
-        console.log(`[FlowCanvas] User before call:`, user);
         const result = await markAnimationWatched(currentLevel);
-        console.log(`[FlowCanvas] markAnimationWatched result:`, result);
         if (result.success && user?._id) {
           // Use the network rewards and total USDT from the backend response
           if (result.networkRewards) {
@@ -209,7 +187,7 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
       const newCompleted = new Set(completedLevels);
       newCompleted.add(currentLevel);
       setCompletedLevels(newCompleted);
-      setAnimationStartedForLevel(null); // Reset after showing popup
+      setAnimationStartedForLevel(null); 
     }
   }, [isCompleted, currentLevel, completedLevels, markAnimationWatched, animationStartedForLevel, user, refreshUser, isProcessingCompletion, completionPopupShown]);
 
@@ -647,20 +625,33 @@ const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<numbe
             }
             isLoading={isUpgrading}
             className="absolute top-6 right-24 w-fit min-w-[10rem]"
-            onClick={pendingTierRequest ? undefined : ((hasWatchedCurrentLevel || !hasPaidForCurrentLevel) ? () => {
-              // Navigate to profile with state to open withdraw popup
-              navigate('/profile', { state: { openWithdrawPopup: true } });
-            } : (hasStarted ? undefined : () => {
-              resetPendingStatus(); // Reset pending timers before starting animation
-              setAnimationStartedForLevel(currentLevel); // Track which level animation is starting for
-              startAnimation();
-            }))}
+            onClick={
+              pendingTierRequest 
+                ? undefined 
+                : (hasWatchedCurrentLevel || !hasPaidForCurrentLevel) 
+                  ? () => {
+                      // Navigate to profile with state to open withdraw popup
+                      navigate('/profile', { state: { openWithdrawPopup: true } });
+                    }
+                  : hasStarted 
+                    ? undefined 
+                    : () => {
+                        resetPendingStatus(); // Reset pending timers before starting animation
+                        setAnimationStartedForLevel(currentLevel); // Track which level animation is starting for
+                        startAnimation();
+                      }
+            }
             disabled={pendingTierRequest || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading}
         >
-            {pendingTierRequest ? 'Upgrade Pending' : 
-             (isUpgrading ? 'Upgrading...' : 
-             (hasWatchedCurrentLevel || !hasPaidForCurrentLevel) ? 'Withdraw' : 
-             hasStarted ? 'Running...' : 'Start Animation')}
+            {pendingTierRequest 
+              ? 'Upgrade Pending' 
+              : isUpgrading 
+                ? 'Upgrading...' 
+                : (hasWatchedCurrentLevel || !hasPaidForCurrentLevel) 
+                  ? 'Withdraw' 
+                  : hasStarted 
+                    ? 'Running...' 
+                    : 'Start Animation'}
         </PulsatingButton>
         
 

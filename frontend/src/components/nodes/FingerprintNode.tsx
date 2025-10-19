@@ -166,14 +166,14 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
           {data.isVisible && (
             <HyperText 
               key={`${id}-${data.isVisible}`}
-              className="text-xl font-bold py-0 pointer-events-none" 
+              className="text-lg font-bold py-0 pointer-events-none" 
               as="span" 
               duration={2000} 
               animateOnHover={false}
               startOnView={false}
               delay={400}
             >
-              {`${data.transaction?.amount || 0}$`}
+              {`${data.transaction?.amount.toFixed(0) || 0}$`}
             </HyperText>
           )}
         </div>

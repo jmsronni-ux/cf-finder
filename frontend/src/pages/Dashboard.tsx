@@ -360,15 +360,6 @@ const Dashboard = () => {
           onClose={() => setShowWalletPopup(false)}
           onSuccess={handleWalletSuccess}
         />
-
-        {/* Insufficient Balance Popup */}
-        <InsufficientBalancePopup 
-          isOpen={showInsufficientBalancePopup}
-          onClose={() => setShowInsufficientBalancePopup(false)}
-          requiredAmount={0}
-          currentBalance={user?.balance || 0}
-          tierName="Next Tier"
-        />
     </div>
   )
 }

@@ -22,6 +22,10 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      '/tier-request': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
       '/user': {
         target: 'http://localhost:3000',
         changeOrigin: true,
@@ -35,6 +39,26 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/bulk-user': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/level': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/network-reward': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/user-network-reward': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/withdrawal-request': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/migration': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
