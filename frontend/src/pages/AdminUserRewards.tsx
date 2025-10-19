@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
+import AdminNavigation from '../components/AdminNavigation';
 import { apiFetch } from '../utils/api';
 
 interface NetworkRewards {
@@ -278,41 +279,10 @@ const AdminUserRewards: React.FC = () => {
                 </h1>
                 <p className="text-muted-foreground mt-4">Set custom network rewards for each user per level</p>
               </div>
-              <div className="flex flex-col flex-wrap gap-2">
-                <Button onClick={() => navigate('/admin')} className="text-white bg-transparent flex items-center gap-2 border border-border py-1 px-4 rounded-md hover:bg-border/50">
-                  <ArrowLeft size={16} />
-                  Back to Admin
-                </Button>
-                <Button onClick={() => navigate('/admin/topup-requests')} className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600">
-                  <DollarSign size={16} />
-                  Top-Up Requests
-                </Button>
-                <Button onClick={() => navigate('/admin/withdraw-requests')} className="bg-red-600/50 hover:bg-red-700 text-white flex items-center gap-2 border border-red-600">
-                  <Wallet size={16} />
-                  Withdraw Requests
-                </Button>
-                <Button onClick={() => navigate('/admin/tier-requests')} className="bg-blue-600/50 hover:bg-blue-700 text-white flex items-center gap-2 border border-blue-600">
-                  <Trophy size={16} />
-                  Tier Requests
-                </Button>
-                <Button onClick={() => navigate('/admin/user-rewards')} className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600">
-                  <UserRoundSearch size={16} />
-                  User Management
-                </Button>
-                <Button onClick={() => navigate('/admin/user-network-rewards')} className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600">
-                  <User size={16} />
-                  User Rewards
-                </Button>
-                <Button onClick={() => navigate('/admin/tier-management')} className="bg-yellow-600/50 hover:bg-yellow-700 text-white flex items-center gap-2 border border-yellow-600">
-                  <Crown size={16} />
-                  Tier Management
-                </Button>
-                <Button onClick={() => navigate('/admin/conversion-rates')} className="bg-emerald-600/50 hover:bg-emerald-700 text-white flex items-center gap-2 border border-emerald-600">
-                  <DollarSign size={16} />
-                  Conversion Rates
-                </Button>
-              </div>
             </div>
+
+            {/* Admin Navigation */}
+            <AdminNavigation />
 
             <MagicBadge title="User Network Rewards Management" className="mb-6" />
 

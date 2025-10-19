@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
+import AdminNavigation from '../components/AdminNavigation';
 import { useLevelData } from '../hooks/useLevelData';
 import { apiFetch } from '../utils/api';
 
@@ -278,17 +279,10 @@ const AdminLevelManagement: React.FC = () => {
                 </h1>
                 <p className="text-muted-foreground mt-4">Manage animation level data and upload new configurations</p>
               </div>
-              <div className="flex flex-col flex-wrap gap-2">
-                <Button onClick={() => navigate('/profile')} className="text-white bg-transparent flex items-center gap-2 border border-border py-1 px-4 rounded-md hover:bg-border/50">
-                  <ArrowLeft size={16} />
-                  Back
-                </Button>
-                <Button onClick={refetch} className="bg-blue-600/50 hover:bg-blue-700 text-white flex items-center gap-2 border border-blue-600">
-                  <RefreshCw size={16} />
-                  Refresh
-                </Button>
-              </div>
             </div>
+
+            {/* Admin Navigation */}
+            <AdminNavigation />
 
             <MagicBadge title="Upload New Level Data" className="mb-6"/>
 

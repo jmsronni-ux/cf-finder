@@ -243,3 +243,17 @@ html, body {
 #\:r1\: > div > div > div.react-flow__panel.react-flow__attribution.bottom.right {
   visibility: hidden !important;
 }
+
+/* Shimmer animation for admin navigation */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}

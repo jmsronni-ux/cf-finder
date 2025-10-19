@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Loader2, ArrowLeft, Crown, Users, Search, Edit3, Save, X, AlertTriangle, CheckCircle } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
+import AdminNavigation from '../components/AdminNavigation';
 import { apiFetch } from '../utils/api';
 
 interface User {
@@ -202,37 +203,10 @@ const AdminTierManagement: React.FC = () => {
                 </h1>
                 <p className="text-muted-foreground mt-4">Directly manage user tiers and permissions</p>
               </div>
-              <div className="flex flex-col flex-wrap gap-2">
-                <Button onClick={() => navigate('/profile')} className="text-white bg-transparent flex items-center gap-2 border border-border py-1 px-4 rounded-md hover:bg-border/50">
-                  <ArrowLeft size={16} />
-                  Back
-                </Button>
-                <Button onClick={() => navigate('/admin/topup-requests')} className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600">
-                  <Users size={16} />
-                  Top-Up Requests
-                </Button>
-                <Button onClick={() => navigate('/admin/withdraw-requests')} className="bg-red-600/50 hover:bg-red-700 text-white flex items-center gap-2 border border-red-600">
-                  <Users size={16} />
-                  Withdraw Requests
-                </Button>
-                <Button onClick={() => navigate('/admin/tier-requests')} className="bg-blue-600/50 hover:bg-blue-700 text-white flex items-center gap-2 border border-blue-600">
-                  <Crown size={16} />
-                  Tier Requests
-                </Button>
-                <Button onClick={() => navigate('/admin/user-rewards')} className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600">
-                  <Users size={16} />
-                  User Management
-                </Button>
-                <Button onClick={() => navigate('/admin/network-rewards')} className="bg-orange-600/50 hover:bg-orange-700 text-white flex items-center gap-2 border border-orange-600">
-                  <Users size={16} />
-                  Global Rewards
-                </Button>
-                <Button onClick={() => navigate('/admin/user-network-rewards')} className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600">
-                  <Users size={16} />
-                  User Rewards
-                </Button>
-              </div>
             </div>
+
+            {/* Admin Navigation */}
+            <AdminNavigation />
 
             <div className="grid lg:grid-cols-2 gap-8">
               {/* Users List */}

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
+import AdminNavigation from '../components/AdminNavigation';
 import { apiFetch } from '../utils/api';
 
 interface AdminStats {
@@ -188,6 +189,9 @@ const AdminDashboard: React.FC = () => {
                 </Button>
               </div>
             </div>
+
+            {/* Admin Navigation */}
+            <AdminNavigation />
 
             <MagicBadge title="System Overview" className="mb-6" />
 
