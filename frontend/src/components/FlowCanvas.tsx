@@ -16,7 +16,7 @@ import AccountNode from './nodes/AccountNode';
 import FingerprintNode from './nodes/FingerprintNode';
 import DataVisual from './DataVisual';
 import NodeDetailsPanel from './NodeDetailsPanel';
-import NextLevelPopup from './NextLevelPopup';
+import EnhancedWithdrawPopup from './EnhancedWithdrawPopup';
 import { apiFetch } from '../utils/api';
 import { useLevelData } from '../hooks/useLevelData';
 import { useNetworkRewards } from '../hooks/useNetworkRewards';
@@ -630,8 +630,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                 ? undefined 
                 : (hasWatchedCurrentLevel || !hasPaidForCurrentLevel) 
                   ? () => {
-                      // Navigate to profile with state to open withdraw popup
-                      navigate('/profile', { state: { openWithdrawPopup: true } });
+                      setShowCompletionPopup(!showCompletionPopup);
                     }
                   : hasStarted 
                     ? undefined 
@@ -742,20 +741,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         />
       </ReactFlow>
       
-        {/* Animation Completion Popup */}
-        <NextLevelPopup 
+        {/* Animation Completion Popup - Now showing Withdraw Popup */}
+        <EnhancedWithdrawPopup 
           isOpen={showCompletionPopup}
           onClose={() => setShowCompletionPopup(false)}
-          onUnlockNext={handleUpgradeClick}
-          currentLevel={currentLevel}
-          currentReward={(() => {
-            const reward = user?.[`lvl${currentLevel}reward` as keyof typeof user] as number;
-            return reward || 1000;
-          })()}
-          nextReward={currentLevel < 5 ? (user?.[`lvl${currentLevel + 1}reward` as keyof typeof user] as number || 5000) : 0}
-          nextTierInfo={nextTierInfo}
-          networkRewards={completionNetworkRewards}
-          totalRewardUSDT={completionTotalRewardUSDT}
+          currentBalance={user?.balance || 0}
+          onSuccess={async () => {
+            // Refresh user data after successful withdrawal
+            await refreshUser();
+            toast.success('Withdrawal request submitted successfully!');
+          }}
         />
 
 

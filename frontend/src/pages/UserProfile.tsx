@@ -16,6 +16,8 @@ import { apiFetch } from '../utils/api';
 import LevelProgressBar from '../components/LevelProgressBar';
 import { Link } from 'react-router-dom';
 import WithdrawPopup from '@/components/WithdrawPopup';
+import AddWalletPopup from '../components/AddWalletPopup';
+import ChangeWallet from '../components/ChangeWallet';
 
 interface TierInfo {
   tier: number;
@@ -31,7 +33,6 @@ const UserProfile: React.FC = () => {
   const { user, logout, token, refreshUser } = useAuth();
   const location = useLocation();
   const [wallets, setWallets] = useState<{ btc?: string; eth?: string; tron?: string; usdtErc20?: string } | null>(null);
-  const [savingWallets, setSavingWallets] = useState(false);
   const [showWithdrawPopup, setShowWithdrawPopup] = useState(false);
   const [showTopupPopup, setShowTopupPopup] = useState(false);
   const [upgradeOptions, setUpgradeOptions] = useState<TierInfo[]>([]);
@@ -40,6 +41,7 @@ const UserProfile: React.FC = () => {
   const [pendingTierRequest, setPendingTierRequest] = useState<{ tier: number; name: string } | null>(null);
   const [showTierRequestSuccess, setShowTierRequestSuccess] = useState(false);
   const [submittedTierRequest, setSubmittedTierRequest] = useState<{ tier: number; name: string } | null>(null);
+  const [showChangeWalletPopup, setShowChangeWalletPopup] = useState(false);
   const navigate = useNavigate();
 
   // Ensure we show real-time tier/balance from DB
@@ -47,11 +49,16 @@ const UserProfile: React.FC = () => {
     refreshUser();
   }, []);
 
-  // Check if we should auto-open the withdraw popup from navigation state
+  // Check if we should auto-open the withdraw or topup popup from navigation state
   useEffect(() => {
-    const state = location.state as { openWithdrawPopup?: boolean } | null;
+    const state = location.state as { openWithdrawPopup?: boolean; openTopupPopup?: boolean } | null;
     if (state?.openWithdrawPopup) {
       setShowWithdrawPopup(true);
+      // Clear the state to prevent reopening on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    if (state?.openTopupPopup) {
+      setShowTopupPopup(true);
       // Clear the state to prevent reopening on refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
@@ -119,78 +126,32 @@ const UserProfile: React.FC = () => {
     fetchPendingRequests();
   }, [token, user?.tier]); // Refetch when tier changes
 
-  useEffect(() => {
-    const fetchWallets = async () => {
-      if (!token) return;
-      try {
-        const res = await apiFetch('/user/me/wallets', {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const json = await res.json();
-        if (res.ok && json?.success !== false) {
-          setWallets({
-            btc: json?.data?.btc || '',
-            eth: json?.data?.eth || '',
-            tron: json?.data?.tron || '',
-            usdtErc20: json?.data?.usdtErc20 || ''
-          });
-        }
-      } catch (e) {
-        console.error('Failed to fetch wallets');
-      }
-    };
-    fetchWallets();
-  }, [token]);
-
-  const saveWallets = async (): Promise<void> => {
-    if (!token || !wallets) return;
-    
-    // Import validation function
-    const { validateWalletAddress } = await import('../utils/walletValidation');
-    
-    // Validate each wallet address before saving
-    const walletsToValidate = [
-      { network: 'btc', address: wallets.btc },
-      { network: 'eth', address: wallets.eth },
-      { network: 'tron', address: wallets.tron },
-      { network: 'usdtErc20', address: wallets.usdtErc20 }
-    ];
-    
-    for (const wallet of walletsToValidate) {
-      if (wallet.address && wallet.address.trim()) {
-        const validation = validateWalletAddress(wallet.address, wallet.network);
-        if (!validation.isValid) {
-          toast.error(validation.error || 'Invalid wallet address');
-          return;
-        }
-      }
-    }
-    
-    setSavingWallets(true);
+  const fetchWallets = async () => {
+    if (!token) return;
     try {
       const res = await apiFetch('/user/me/wallets', {
-        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ wallets })
+        }
       });
       const json = await res.json();
-      if (res.ok && json?.success) {
-        toast.success('Wallets saved successfully!');
-      } else {
-        toast.error(json?.message || 'Failed to save wallets');
+      if (res.ok && json?.success !== false) {
+        setWallets({
+          btc: json?.data?.btc || '',
+          eth: json?.data?.eth || '',
+          tron: json?.data?.tron || '',
+          usdtErc20: json?.data?.usdtErc20 || ''
+        });
       }
     } catch (e) {
-      toast.error('Failed to save wallets');
-    } finally {
-      setSavingWallets(false);
+      // Silent fail
     }
   };
+
+  useEffect(() => {
+    fetchWallets();
+  }, [token]);
 
   const handleTierUpgrade = async (targetTier: number, tierName?: string): Promise<void> => {
     if (!token || !user) return;
@@ -364,64 +325,36 @@ const UserProfile: React.FC = () => {
                   <CardContent className="flex-1 flex flex-col gap-2">
                     <p className="text-sm text-foreground w-full border border-border rounded-md p-2"><strong className="me-4">Email:</strong> {user.email}</p>
                     <p className="text-sm text-foreground w-full border border-border rounded-md p-2"><strong className="me-4">Phone:</strong> {user.phone || 'Not provided'}</p>
-                    <p className="text-sm text-foreground w-full border border-border rounded-md p-2"><strong className="me-4">Member since:</strong> {new Date().toLocaleDateString()}</p>
+                    
+                    
+                    {/* Change Wallet Button - Only show if BTC wallet exists */}
+                    {wallets?.btc && (
+                      <Button 
+                        onClick={() => setShowChangeWalletPopup(true)}
+                        className="mt-2 w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2"
+                      >
+                        <Wallet className="w-4 h-4" />
+                        Change Wallet
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               </div>
             </div>
 
-            {/* Wallets Section */}
-            <MagicBadge title="Wallet Management" className="mt-24 mb-6"/>
-
-            <div className="group w-full border border-border rounded-xl p-6">
-              <Card className="border-none bg-transparent w-full">
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-[#F7931A] mb-1">BTC</label>
-                      <input
-                        className="w-full px-3 py-2 bg-background/50 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#F7931A]"
-                        value={wallets?.btc || ''}
-                        onChange={(e) => setWallets(prev => ({ ...(prev || {}), btc: e.target.value }))}
-                        placeholder="bc1..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-[#627EEA] mb-1">ETH</label>
-                      <input
-                        className="w-full px-3 py-2 bg-background/50 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#627EEA]"
-                        value={wallets?.eth || ''}
-                        onChange={(e) => setWallets(prev => ({ ...(prev || {}), eth: e.target.value }))}
-                        placeholder="0x..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-[#FF060A] mb-1">TRON</label>
-                      <input
-                        className="w-full px-3 py-2 bg-background/50 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#FF060A]"
-                        value={wallets?.tron || ''}
-                        onChange={(e) => setWallets(prev => ({ ...(prev || {}), tron: e.target.value }))}
-                        placeholder="T..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-green-500 mb-1">USDT (ERC20)</label>
-                      <input
-                        className="w-full px-3 py-2 bg-background/50 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-green-500"
-                        value={wallets?.usdtErc20 || ''}
-                        onChange={(e) => setWallets(prev => ({ ...(prev || {}), usdtErc20: e.target.value }))}
-                        placeholder="0x..."
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <Button onClick={saveWallets} disabled={savingWallets} className="bg-green-600/20 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600 w-full">
-                      {savingWallets ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Wallets'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Wallets Section - Only show if no BTC wallet has been added */}
+            {wallets && !wallets.btc && (
+              <>
+                <MagicBadge title="Wallet Management" className="mt-24 mb-6"/>
+                <AddWalletPopup 
+                  isPopup={false}
+                  onSuccess={() => {
+                    fetchWallets();
+                    refreshUser();
+                  }}
+                />
+              </>
+            )}
 
             {/* User Transactions */}
             <MagicBadge title="Transaction History" className="mt-24 mb-6"/>
@@ -442,6 +375,17 @@ const UserProfile: React.FC = () => {
         <TopupRequestPopup 
           isOpen={showTopupPopup}
           onClose={() => setShowTopupPopup(false)}
+        />
+
+        {/* Change Wallet Popup */}
+        <ChangeWallet
+          isOpen={showChangeWalletPopup}
+          onClose={() => setShowChangeWalletPopup(false)}
+          token={token || ''}
+          onWalletsSaved={() => {
+            fetchWallets();
+            refreshUser();
+          }}
         />
 
       </div>

@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, DollarSign, Wallet, AlertCircle, CheckCircle, Clock, Loader2, XCircle, Copy, Coins } from 'lucide-react';
+import { X, DollarSign, Wallet, AlertCircle, CheckCircle, Clock, Loader2, XCircle, Copy, Coins, Check, Plus, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { apiFetch } from '../utils/api';
+import { BorderBeam } from './ui/border-beam';
+import { NumberTicker } from './ui/number-ticker';
+import { useNavigate } from 'react-router-dom';
 
 interface EnhancedWithdrawPopupProps {
   isOpen: boolean;
@@ -35,12 +38,12 @@ interface ConversionBreakdown {
 }
 
 const NETWORKS = [
-  { key: 'BTC', name: 'Bitcoin', icon: '₿', color: 'text-orange-500' },
-  { key: 'ETH', name: 'Ethereum', icon: 'Ξ', color: 'text-blue-500' },
-  { key: 'TRON', name: 'TRON', icon: 'T', color: 'text-red-500' },
-  { key: 'USDT', name: 'Tether', icon: '$', color: 'text-green-500' },
-  { key: 'BNB', name: 'Binance Coin', icon: 'B', color: 'text-yellow-500' },
-  { key: 'SOL', name: 'Solana', icon: '◎', color: 'text-purple-500' }
+  { key: 'BTC', name: 'Bitcoin', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500' },
+  { key: 'ETH', name: 'Ethereum', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500' },
+  { key: 'TRON', name: 'TRON', icon: '/assets/crypto-logos/tron-trx-logo.svg', color: 'text-red-500' },
+  { key: 'USDT', name: 'Tether', icon: '/assets/crypto-logos/tether-usdt-logo.svg', color: 'text-green-500' },
+  { key: 'BNB', name: 'Binance Coin', icon: '/assets/crypto-logos/bnb-bnb-logo.svg', color: 'text-yellow-500' },
+  { key: 'SOL', name: 'Solana', icon: '/assets/crypto-logos/solana-sol-logo.svg', color: 'text-purple-500' }
 ];
 
 const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({ 
@@ -64,27 +67,14 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [freshUserData, setFreshUserData] = useState<any>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token, refreshUser } = useAuth();
-  
-  // New state for direct balance withdrawal
-  const [directWithdrawAmount, setDirectWithdrawAmount] = useState('');
-  const [directWithdrawWallet, setDirectWithdrawWallet] = useState('');
-  const [isDirectSubmitting, setIsDirectSubmitting] = useState(false);
-
+  const navigate = useNavigate();
+ 
   // Calculate commission based on selected networks being withdrawn
   const calculateCommissionForSelectedNetworks = () => {
     if (!user) return 0;
     
     // Use fresh user data if available, otherwise fall back to AuthContext user
     const userData = freshUserData || user;
-    
-    console.log('[Commission] Using user data:', userData);
-    console.log('[Commission] User commission fields:', {
-      lvl1Commission: (userData as any).lvl1Commission,
-      lvl2Commission: (userData as any).lvl2Commission,
-      lvl3Commission: (userData as any).lvl3Commission,
-      lvl4Commission: (userData as any).lvl4Commission,
-      lvl5Commission: (userData as any).lvl5Commission
-    });
     
     let totalCommission = 0;
     const levels = [1, 2, 3, 4, 5];
@@ -93,8 +83,6 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     const networksToWithdraw = withdrawAll 
       ? Object.keys(networkRewards)
       : Array.from(selectedNetworks);
-    
-    console.log('[Commission] Calculating commission for networks:', networksToWithdraw);
     
     for (const level of levels) {
       const networkRewardsField = `lvl${level}NetworkRewards`;
@@ -421,7 +409,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-2xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Background pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-10 rounded-2xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-15 rounded-2xl" />
         
         {/* Close button */}
         <button
@@ -445,9 +433,19 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
           {!isCheckingPending && requestStatus === 'idle' && (
             <>
               {/* Header */}
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
-                  <DollarSign className="text-purple-400" size={24} />
+              <div className="text-center mb-6">
+                <div className="flex justify-start gap-5 mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+                    <Wallet className="text-purple-400" size={24} />
+                  </div>
+                  <div className="flex flex-col items-start justify-center">
+                    <h2 className="text-2xl font-bold text-white">
+                      Layer {user?.tier || 1} Scan Completed!
+                    </h2>
+                    <p className="text-gray-400 text-sm text-left">
+                      We have successfully identified <span className="font-bold text-green-500">${totalUSDT.toLocaleString()} USDT</span> amount on this layer.
+                    </p>
+                  </div>
                 </div>
               </div>
               
@@ -460,33 +458,73 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                 </div>
               ) : (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white mb-2">Your Network Rewards</h3>
-                  <p className="text-gray-400 text-sm mb-4">
-                    💡 Network rewards will be added to your balance after paying commission
-                  </p>
+
+                {/* Commission Warning */}
+                {totalCommission > currentBalance && (
+                  <div className="mt-3 p-3 bg-red-500/20 border border-red-500/30 rounded-lg mb-6">
+                    <p className="text-red-400 text-sm font-semibold flex items-center gap-2 flex-row">
+                      <XCircle className="w-4 h-4" />
+                      <span>
+                      Insufficient balance to pay commission. Please deposit <span className=" text-white">${(totalCommission - currentBalance).toLocaleString()}</span> to proceed.
+                      </span>
+                    </p>
+                  </div>
+                )}
                   
                   {/* Withdraw All Option */}
-                  <div className="mb-4">
-                    <label className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={withdrawAll}
-                        onChange={handleWithdrawAllToggle}
-                        className="w-4 h-4 text-purple-500 bg-transparent border-white/20 rounded focus:ring-purple-500 focus:ring-2"
-                      />
-                      <div className="flex items-center gap-2">
-                        <Coins className="w-5 h-5 text-purple-400" />
-                        <span className="text-white font-medium">Withdraw All Networks</span>
+                  <div className="mb-6">
+                    <div
+                      onClick={handleWithdrawAllToggle}
+                      className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all overflow-hidden ${
+                        withdrawAll
+                          ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/20'
+                          : 'bg-white/5 border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      {withdrawAll && (
+                        <BorderBeam 
+                          size={80} 
+                          duration={8} 
+                          colorFrom="#10b981" 
+                          colorTo="#34d399"
+                          borderWidth={2}
+                        />
+                      )}
+                      <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${
+                            withdrawAll
+                              ? 'bg-green-500 border-green-400'
+                              : 'bg-white/5 border-white/20'
+                          }`}>
+                            {withdrawAll && <Check className="w-6 h-6 text-white" />}
+                          </div>
+
+                          <div className="flex flex-col items-start mb-1">
+                            <span className="text-white font-semibold text-md">Withdraw All Networks</span>
+                            <p className="text-gray-400 text-xs">Select all available networks</p>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-bold text-green-400">$</span>
+                            <span className="text-2xl font-bold text-green-400">
+                              {totalUSDT.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">Total Value</div>
+                        </div>
                       </div>
-                      <div className="ml-auto text-right">
-                        <div className="text-lg font-bold text-green-400">${totalUSDT.toLocaleString()}</div>
-                        <div className="text-xs text-gray-400">Total Value</div>
-                      </div>
-                    </label>
+                    </div>
                   </div>
 
-                  {/* Individual Network Options */}
-                  <div className="space-y-2">
+                  {/* Individual Network Options - 3 Column Grid */}
+                  <h3 className="text-xs text-gray-400 uppercase tracking-wider mb-3">
+                    Or Select Individual Networks
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
                     {NETWORKS.map(network => {
                       const amount = networkRewards[network.key] || 0;
                       const breakdown = conversionBreakdown[network.key];
@@ -495,99 +533,142 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                       if (amount === 0) return null;
                       
                       return (
-                        <label key={network.key} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleNetworkToggle(network.key)}
-                            disabled={withdrawAll}
-                            className="w-4 h-4 text-purple-500 bg-transparent border-white/20 rounded focus:ring-purple-500 focus:ring-2 disabled:opacity-50"
-                          />
-                          <div className="flex items-center gap-2">
-                            <span className={`text-lg ${network.color}`}>{network.icon}</span>
-                            <span className="text-white font-medium">{network.name}</span>
+                        <div
+                          key={network.key}
+                          onClick={() => !withdrawAll && handleNetworkToggle(network.key)}
+                          className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                            withdrawAll
+                              ? 'opacity-50 cursor-not-allowed bg-white/5 border-white/10'
+                              : isSelected
+                              ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/10'
+                              : 'bg-white/5 border-white/10 hover:border-white/20'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${
+                              isSelected && !withdrawAll
+                                ? 'bg-green-500 border-green-400'
+                                : 'bg-white/5 border-white/20'
+                            }`}>
+                              {isSelected && !withdrawAll && <Check className="w-5 h-5 text-white" />}
+                            </div>
+                            <img src={network.icon} alt={network.name} className="w-6 h-6" />
                           </div>
-                          <div className="ml-auto text-right">
-                            <div className="text-sm text-white">{amount.toLocaleString()} {network.key}</div>
-                            <div className="text-xs text-gray-400">${breakdown?.usdt.toLocaleString() || '0'} USDT</div>
+                          <div>
+                            <div className="text-sm text-gray-300 mb-2">
+                              {amount.toLocaleString()} {network.key}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              ${breakdown?.usdt.toLocaleString() || '0'} USDT
+                            </div>
                           </div>
-                        </label>
+                        </div>
                       );
                     })}
                   </div>
-
-                  {/* Selected Amount Summary */}
-                  {getSelectedAmount() > 0 && (
-                    <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className="text-green-400 font-medium">Selected Amount:</span>
-                        <span className="text-xl font-bold text-green-400">${getSelectedAmount().toLocaleString()}</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* No wallet input needed - money goes to balance */}
 
-                {/* Commission Warning */}
-                {totalCommission > 0 && (
-                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="text-orange-400 flex-shrink-0 mt-0.5" size={20} />
-                      <div className="flex-1">
-                        <h4 className="text-orange-400 font-semibold mb-1">Commission Required</h4>
-                        <p className="text-orange-300/80 text-sm">
-                          A commission of <span className="font-semibold">${totalCommission.toLocaleString()} USDT</span> (calculated as percentage of withdrawal amount) will be deducted from your balance to process this withdrawal.
-                        </p>
-                        {totalCommission > currentBalance && (
-                          <p className="text-red-400 text-sm mt-2 font-semibold">
-                            ⚠️ You don't have enough balance to pay the commission. Please deposit more funds.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
 
-                {/* Submit Button */}
+              {/* Withdraw Button */}
+              <div className="flex gap-3 pt-2">
                 <Button
-                  type="submit"
+                  onClick={() => {
+                    if (totalCommission > currentBalance) {
+                      // Navigate to profile with state to open top-up popup
+                      onClose();
+                      navigate('/profile', { state: { openTopupPopup: true } });
+                    } else {
+                      // Navigate to profile normally
+                      onClose();
+                      navigate('/profile');
+                    }
+                  }}
+                  className={`flex-1 py-6 rounded-xl font-semibold transition-all shadow-lg ${
+                    totalCommission > currentBalance
+                      ? 'bg-green-500/40 hover:bg-green-500/50 border border-green-500/50 shadow-green-500/20'
+                      : 'bg-white/5 hover:bg-white/10 border border-white/10'
+                  } text-white`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    {totalCommission > currentBalance ? (
+                      <>
+                        <Plus className="w-5 h-5" />
+                        Request Top-Up
+                      </>
+                    ) : (
+                      <>
+                        <User className="w-5 h-5" />
+                        Go to Profile
+                      </>
+                    )}
+                  </span>
+                </Button>
+                <Button
+                  onClick={handleSubmit}
                   disabled={isSubmitting || getSelectedAmount() <= 0 || totalCommission > currentBalance}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 bg-purple-500/40 hover:bg-purple-500/50 border border-purple-500/50 text-white py-6 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
                 >
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                      Submitting Request...
-                    </>
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Submitting...
+                    </span>
                   ) : totalCommission > currentBalance ? (
-                    'Insufficient Balance for Commission'
+                    'Insufficient Balance'
                   ) : (
-                    `Withdraw $${getSelectedAmount().toLocaleString()}`
+                    <span className="flex items-center justify-center gap-2">
+                      Withdraw ${getSelectedAmount().toLocaleString()}
+                    </span>
                   )}
                 </Button>
-              </form>
+              </div>
             </>
           )}
 
           {/* PENDING STATE - Show pending request */}
           {requestStatus === 'pending' && pendingRequest && (
             <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-6">
-                <Clock className="w-8 h-8 text-yellow-400" />
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
+                    <Clock className="w-8 h-8 text-yellow-400" />
+                  </div>
+                  <div className="absolute inset-0 animate-ping">
+                    <div className="w-16 h-16 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                      <Clock className="w-8 h-8 text-yellow-500 opacity-30" />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Request Pending</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">Request Pending</h3>
               <p className="text-gray-400 mb-6">
-                Your withdrawal request for <span className="text-green-400 font-semibold">${pendingRequest.amount}</span> is being reviewed by our team.
+                Your withdrawal request for <span className="text-green-400 font-bold">${pendingRequest.amount.toLocaleString()}</span> is being reviewed by our team.
               </p>
-              <div className="bg-white/5 rounded-lg p-4 mb-6">
-                <div className="text-sm text-gray-400 mb-2">Request Details:</div>
-                <div className="text-white">Amount: ${pendingRequest.amount}</div>
-                <div className="text-white">Wallet: {pendingRequest.walletAddress}</div>
-                <div className="text-white">Status: <span className="text-yellow-400">Pending</span></div>
+              <div className="relative bg-white/5 border border-yellow-500/30 rounded-xl p-6 mb-6 overflow-hidden">
+                <div className="relative z-10">
+                  <div className="text-sm text-gray-400 font-semibold uppercase tracking-wider mb-4">Request Details</div>
+                  <div className="space-y-3 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Amount:</span>
+                      <span className="text-white font-semibold">${pendingRequest.amount.toLocaleString()}</span>
+                    </div>
+                    {pendingRequest.walletAddress && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">Wallet:</span>
+                        <span className="text-white font-mono text-sm">{pendingRequest.walletAddress.substring(0, 10)}...{pendingRequest.walletAddress.substring(pendingRequest.walletAddress.length - 8)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Status:</span>
+                      <span className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-400 font-semibold text-sm">
+                        <Clock className="w-4 h-4" />
+                        Pending
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <p className="text-sm text-gray-400">
                 You'll be notified once your request is processed.
@@ -598,38 +679,56 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
           {/* APPROVED STATE */}
           {requestStatus === 'approved' && (
             <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="w-8 h-8 text-green-400" />
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-xl bg-green-500/20 flex items-center justify-center border border-green-500/30">
+                    <CheckCircle className="w-8 h-8 text-green-400" />
+                  </div>
+                  <div className="absolute inset-0 animate-ping">
+                    <div className="w-16 h-16 rounded-xl bg-green-500/20 flex items-center justify-center">
+                      <CheckCircle className="w-8 h-8 text-green-500 opacity-30" />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Request Approved!</h3>
-              <p className="text-gray-400 mb-6">
+              <h3 className="text-2xl font-bold text-white mb-2">Request Approved!</h3>
+              <p className="text-gray-400 mb-8">
                 Your withdrawal has been approved and funds will be sent to your wallet shortly.
               </p>
-              <Button
+              <button
                 onClick={onClose}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg"
+                className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all shadow-lg shadow-green-500/20"
               >
                 Close
-              </Button>
+              </button>
             </div>
           )}
 
           {/* REJECTED STATE */}
           {requestStatus === 'rejected' && (
             <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
-                <XCircle className="w-8 h-8 text-red-400" />
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-xl bg-red-500/20 flex items-center justify-center border border-red-500/30">
+                    <XCircle className="w-8 h-8 text-red-400" />
+                  </div>
+                  <div className="absolute inset-0 animate-ping">
+                    <div className="w-16 h-16 rounded-xl bg-red-500/20 flex items-center justify-center">
+                      <XCircle className="w-8 h-8 text-red-500 opacity-30" />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Request Rejected</h3>
-              <p className="text-gray-400 mb-6">
+              <h3 className="text-2xl font-bold text-white mb-2">Request Rejected</h3>
+              <p className="text-gray-400 mb-8">
                 Your withdrawal request was rejected. Please contact support for more information.
               </p>
-              <Button
+              <button
                 onClick={onClose}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg"
+                className="px-8 py-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-xl font-semibold transition-all shadow-lg shadow-red-500/20"
               >
                 Close
-              </Button>
+              </button>
             </div>
           )}
         </div>

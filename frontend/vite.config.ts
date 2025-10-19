@@ -74,6 +74,10 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      '/conversion-rate': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
 })
