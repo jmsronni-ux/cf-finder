@@ -117,6 +117,47 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 required
               />
             </div>
+
+            {/* QR Code Placeholder */}
+            <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg p-6">
+              <div className="w-48 h-48 bg-gradient-to-br from-white/10 to-white/5 rounded-lg flex items-center justify-center border border-white/20 mb-3">
+                <div className="text-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2 text-gray-400">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                  <p className="text-gray-500 text-xs">QR Code Placeholder</p>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm">Scan to get wallet address</p>
+            </div>
+
+            {/* Wallet Address */}
+            <div className="space-y-2">
+              <label className="text-sm text-gray-400 font-medium">Wallet Address</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8"
+                  readOnly
+                  className="w-full bg-white/5 text-white px-4 py-3 rounded-lg border border-white/10 text-sm font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8');
+                    toast.success('Wallet address copied!');
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-purple-300 transition-colors text-sm font-medium"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="text-gray-500 text-xs">Send your top-up amount to this address</p>
+            </div>
+
           <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
             <p className="text-sm text-purple-300">
               <strong>Note:</strong> Your request will be reviewed by an administrator. You'll be notified once it's processed.
