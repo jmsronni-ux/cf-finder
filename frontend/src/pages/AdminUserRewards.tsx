@@ -28,7 +28,9 @@ import {
   BarChart3,
   Crown,
   Users,
-  Zap
+  Zap,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
@@ -87,6 +89,9 @@ const AdminUserRewards: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRewards, setEditingRewards] = useState<NetworkRewards>({});
   const [editingCommission, setEditingCommission] = useState<number>(0);
+  const [inputMode, setInputMode] = useState<'coins' | 'usd'>('coins');
+  const [usdInputs, setUsdInputs] = useState<{ [key: string]: number }>({});
+  const [conversionRates, setConversionRates] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -148,7 +153,26 @@ const AdminUserRewards: React.FC = () => {
     fetchUserRewards(user._id);
   };
 
-  const openEditModal = (level: number) => {
+  const fetchConversionRates = async () => {
+    try {
+      const response = await apiFetch('/conversion-rate');
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        const ratesMap: { [key: string]: number } = {};
+        data.data.rates.forEach((rate: any) => {
+          ratesMap[rate.network] = rate.rateToUSD;
+        });
+        setConversionRates(ratesMap);
+        console.log('[Admin] Conversion rates loaded:', ratesMap);
+      }
+    } catch (error) {
+      console.error('[Admin] Error fetching conversion rates:', error);
+      toast.error('Failed to load conversion rates');
+    }
+  };
+
+  const openEditModal = async (level: number) => {
     setSelectedLevel(level);
     setEditingRewards(userRewards[level] || {});
     
@@ -158,6 +182,13 @@ const AdminUserRewards: React.FC = () => {
       const commission = (selectedUser as any)[commissionField] || 0;
       setEditingCommission(commission);
     }
+    
+    // Fetch conversion rates
+    await fetchConversionRates();
+    
+    // Reset to coins mode by default
+    setInputMode('coins');
+    setUsdInputs({});
     
     setShowEditModal(true);
   };
@@ -174,6 +205,30 @@ const AdminUserRewards: React.FC = () => {
     }));
   };
 
+  const updateUsdInput = (network: string, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setUsdInputs(prev => ({
+      ...prev,
+      [network]: numValue
+    }));
+  };
+
+  const convertUsdToCrypto = () => {
+    const converted: NetworkRewards = {};
+    NETWORKS.forEach(network => {
+      const usdAmount = usdInputs[network.key] || 0;
+      const rate = conversionRates[network.key] || 1;
+      const cryptoAmount = rate > 0 ? usdAmount / rate : 0;
+      
+      converted[network.key] = {
+        amount: cryptoAmount,
+        isCustom: cryptoAmount > 0,
+        source: cryptoAmount > 0 ? 'user' : 'none'
+      };
+    });
+    return converted;
+  };
+
   const saveLevelRewards = async () => {
     if (!selectedUser) return;
     
@@ -183,15 +238,29 @@ const AdminUserRewards: React.FC = () => {
     try {
       // Convert to simple object for API
       const rewardsPayload: { [key: string]: number } = {};
-      Object.entries(editingRewards).forEach(([network, rewardData]) => {
+      
+      let rewardsToSave = editingRewards;
+      
+      if (inputMode === 'usd') {
+        // Convert USD inputs to crypto amounts
+        rewardsToSave = convertUsdToCrypto();
+        console.log('[Admin] Converted USD inputs to crypto:', {
+          usdInputs,
+          conversionRates,
+          converted: rewardsToSave
+        });
+      }
+      
+      // Convert to simple object for API
+      Object.entries(rewardsToSave).forEach(([network, rewardData]) => {
         rewardsPayload[network] = rewardData.amount;
       });
 
       console.log('[Admin] Saving rewards payload:', {
         userId: selectedUser._id,
         level: selectedLevel,
-        rewardsPayload,
-        editingRewards
+        inputMode,
+        rewardsPayload
       });
 
       // First, save rewards
@@ -466,24 +535,70 @@ const AdminUserRewards: React.FC = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Input Mode Toggle */}
+                    <div className="flex items-center justify-center gap-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                      <Button
+                        type="button"
+                        onClick={() => setInputMode('coins')}
+                        className={`flex items-center gap-2 ${
+                          inputMode === 'coins' 
+                            ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600' 
+                            : 'bg-background/50 hover:bg-accent text-muted-foreground border-border'
+                        }`}
+                        variant="outline"
+                      >
+                        <Coins size={16} />
+                        Input in Coins
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setInputMode('usd')}
+                        className={`flex items-center gap-2 ${
+                          inputMode === 'usd' 
+                            ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600' 
+                            : 'bg-background/50 hover:bg-accent text-muted-foreground border-border'
+                        }`}
+                        variant="outline"
+                      >
+                        <DollarSign size={16} />
+                        Input in USD
+                      </Button>
+                    </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {NETWORKS.map(network => (
-                        <div key={network.key} className="space-y-2">
-                          <Label htmlFor={`${network.key}-${selectedLevel}`} className={`text-sm font-medium ${network.color}`}>
-                            {network.icon} {network.name}
-                          </Label>
-                          <Input
-                            id={`${network.key}-${selectedLevel}`}
-                            type="number"
-                            step="any"
-                            value={editingRewards[network.key]?.amount || ''}
-                            onChange={(e) => updateReward(network.key, e.target.value)}
-                            className="bg-background/50 border-border focus:border-purple-500/50"
-                            placeholder="0.00"
-                          />
-                        </div>
-                      ))}
+                      {NETWORKS.map(network => {
+                        const rate = conversionRates[network.key] || 1;
+                        const coinAmount = editingRewards[network.key]?.amount || 0;
+                        const usdAmount = usdInputs[network.key] || 0;
+                        
+                        return (
+                          <div key={network.key} className="space-y-2">
+                            <Label htmlFor={`${network.key}-${selectedLevel}`} className={`text-sm font-medium ${network.color}`}>
+                              {network.icon} {network.name}
+                            </Label>
+                            <Input
+                              id={`${network.key}-${selectedLevel}`}
+                              type="number"
+                              step="any"
+                              value={inputMode === 'coins' ? (coinAmount || '') : (usdAmount || '')}
+                              onChange={(e) => inputMode === 'coins' ? updateReward(network.key, e.target.value) : updateUsdInput(network.key, e.target.value)}
+                              className="bg-background/50 border-border focus:border-purple-500/50"
+                              placeholder="0.00"
+                            />
+                            {inputMode === 'usd' && usdAmount > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                ≈ {(usdAmount / rate).toFixed(8)} {network.key}
+                              </p>
+                            )}
+                            {inputMode === 'coins' && coinAmount > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                ≈ ${(coinAmount * rate).toFixed(2)} USD
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     
                     {/* Commission Field */}

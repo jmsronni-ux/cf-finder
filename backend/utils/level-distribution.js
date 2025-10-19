@@ -53,15 +53,40 @@ function generateRandomWeights(count) {
  * @param {Object} levelData - The level data from database (with nodes and edges)
  * @param {Object} userNetworkRewards - User's network rewards object (e.g., { BTC: 0.1, ETH: 1.0, ... })
  * @param {Object} conversionRates - Conversion rates for crypto to USD (e.g., { BTC: 45000, ETH: 3000, ... })
- * @returns {Object} Modified level data with updated transaction amounts in USD
+ * @param {Object} storedDistribution - Previously stored distribution (nodeId -> amount) to prevent re-randomization
+ * @returns {Object} Modified level data with updated transaction amounts in USD, and newDistribution if calculated
  */
-export function distributeNetworkRewards(levelData, userNetworkRewards = {}, conversionRates = {}) {
+export function distributeNetworkRewards(levelData, userNetworkRewards = {}, conversionRates = {}, storedDistribution = null) {
   // Deep clone level data to avoid mutations
   const clonedData = JSON.parse(JSON.stringify(levelData));
   
   if (!clonedData.nodes || clonedData.nodes.length === 0) {
-    return clonedData;
+    return { levelData: clonedData, newDistribution: null };
   }
+  
+  // Check if we have stored distribution (prevents re-randomization)
+  const useStoredDistribution = storedDistribution && Object.keys(storedDistribution).length > 0;
+  
+  if (useStoredDistribution) {
+    console.log('[Level Distribution] Using stored distribution to prevent re-randomization');
+    
+    // Apply stored amounts directly
+    clonedData.nodes.forEach((node, index) => {
+      if (node.type === 'fingerprintNode' && node.data?.transaction) {
+        const storedAmount = storedDistribution[node.id];
+        if (storedAmount !== undefined) {
+          clonedData.nodes[index].data.transaction.amount = storedAmount;
+          console.log(`  - ${node.id}: $${storedAmount.toFixed(2)} (from stored)`);
+        }
+      }
+    });
+    
+    return { levelData: clonedData, newDistribution: null };
+  }
+  
+  // If no stored distribution, calculate new one
+  console.log('[Level Distribution] Calculating new distribution (first time)');
+  const newDistribution = {};
   
   // Group fingerprint nodes by currency (ONLY SUCCESS STATUS)
   const nodesByCurrency = {};
@@ -93,13 +118,22 @@ export function distributeNetworkRewards(levelData, userNetworkRewards = {}, con
     const nodes = nodesByCurrency[currency];
     const cryptoReward = userNetworkRewards[currency] || 0;
     
+    console.log(`\n[Level Distribution] Processing ${currency}:`);
+    console.log(`  - User reward: ${cryptoReward} ${currency}`);
+    console.log(`  - Success nodes found: ${nodes.length}`);
+    console.log(`  - Node IDs: ${nodes.map(n => clonedData.nodes[n.nodeIndex].id).join(', ')}`);
+    
     if (cryptoReward > 0 && nodes.length > 0) {
       // Convert crypto amount to USD
       const conversionRate = conversionRates[currency] || 1;
       const totalUSDReward = cryptoReward * conversionRate;
       
+      console.log(`  - Conversion rate: $${conversionRate}`);
+      console.log(`  - Total USD to distribute: $${totalUSDReward.toFixed(2)}`);
+      
       // Generate random weights for distribution
       const weights = generateRandomWeights(nodes.length);
+      console.log(`  - Weights: [${weights.map(w => w.toFixed(4)).join(', ')}]`);
       
       // Distribute the USD reward according to weights
       nodes.forEach((nodeInfo, i) => {
@@ -113,8 +147,14 @@ export function distributeNetworkRewards(levelData, userNetworkRewards = {}, con
           roundedAmount = 0.01;
         }
         
+        const nodeId = clonedData.nodes[nodeInfo.nodeIndex].id;
+        console.log(`  - Distributing to ${nodeId}: $${roundedAmount.toFixed(2)}`);
+        
         // Update the node's transaction amount (in USD)
         clonedData.nodes[nodeInfo.nodeIndex].data.transaction.amount = roundedAmount;
+        
+        // Store in new distribution
+        newDistribution[nodeId] = roundedAmount;
       });
       
       // Verify total (for debugging)
@@ -122,8 +162,9 @@ export function distributeNetworkRewards(levelData, userNetworkRewards = {}, con
         return sum + clonedData.nodes[nodeInfo.nodeIndex].data.transaction.amount;
       }, 0);
       
-      console.log(`[Level Distribution] ${currency}: ${cryptoReward} ${currency} @ $${conversionRate} = $${totalUSDReward.toFixed(2)} USD → Distributed $${distributedTotal.toFixed(2)} across ${nodes.length} Success nodes`);
+      console.log(`[Level Distribution] ✅ ${currency}: ${cryptoReward} ${currency} @ $${conversionRate} = $${totalUSDReward.toFixed(2)} USD → Distributed $${distributedTotal.toFixed(2)} across ${nodes.length} Success nodes`);
     } else if (nodes.length > 0) {
+      console.log(`  - No reward to distribute (cryptoReward = ${cryptoReward})`);
       // If no reward, set all amounts to 0
       nodes.forEach(nodeInfo => {
         clonedData.nodes[nodeInfo.nodeIndex].data.transaction.amount = 0;
@@ -131,7 +172,7 @@ export function distributeNetworkRewards(levelData, userNetworkRewards = {}, con
     }
   });
   
-  return clonedData;
+  return { levelData: clonedData, newDistribution };
 }
 
 /**

@@ -142,6 +142,12 @@ const userSchema = new mongoose.Schema({
         SOL: { type: Number, default: 0 }
     },
     lvl5Commission: { type: Number, default: 0 },
+    // Stored distributed amounts for each level (prevents re-randomization on refresh)
+    lvl1DistributedNodes: { type: Map, of: Number, default: new Map() },
+    lvl2DistributedNodes: { type: Map, of: Number, default: new Map() },
+    lvl3DistributedNodes: { type: Map, of: Number, default: new Map() },
+    lvl4DistributedNodes: { type: Map, of: Number, default: new Map() },
+    lvl5DistributedNodes: { type: Map, of: Number, default: new Map() },
     // Custom tier upgrade prices (null means use default from TIER_CONFIG)
     tier1Price: {
         type: Number,

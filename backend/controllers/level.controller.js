@@ -19,11 +19,32 @@ export const getLevels = async (req, res, next) => {
         // Fetch conversion rates from database/cache
         const conversionRates = await fetchConversionRates();
         
+        let needsSave = false;
         processedLevels = levels.map(level => {
           const userNetworkRewards = getUserNetworkRewardsForLevel(user, level.level);
           const levelObj = level.toObject();
-          return distributeNetworkRewards(levelObj, userNetworkRewards, conversionRates);
+          
+          // Get stored distribution for this level to prevent re-randomization
+          const storedDistField = `lvl${level.level}DistributedNodes`;
+          const storedDist = user[storedDistField] ? Object.fromEntries(user[storedDistField]) : null;
+          
+          // Distribute rewards (will use stored if available, or create new)
+          const { levelData, newDistribution } = distributeNetworkRewards(levelObj, userNetworkRewards, conversionRates, storedDist);
+          
+          // If new distribution was created (first time), save it to user
+          if (newDistribution) {
+            user[storedDistField] = new Map(Object.entries(newDistribution));
+            needsSave = true;
+            console.log(`[Level Controller] Stored new distribution for user ${userId}, level ${level.level}`);
+          }
+          
+          return levelData;
         });
+        
+        // Save user if new distributions were created
+        if (needsSave) {
+          await user.save();
+        }
         
         console.log(`[Level Controller] Applied user-specific USD rewards for user ${userId}`);
       } else {
@@ -71,7 +92,21 @@ export const getLevelById = async (req, res, next) => {
         
         const userNetworkRewards = getUserNetworkRewardsForLevel(user, levelNumber);
         const levelObj = level.toObject();
-        processedLevel = distributeNetworkRewards(levelObj, userNetworkRewards, conversionRates);
+        
+        // Get stored distribution for this level to prevent re-randomization
+        const storedDistField = `lvl${levelNumber}DistributedNodes`;
+        const storedDist = user[storedDistField] ? Object.fromEntries(user[storedDistField]) : null;
+        
+        // Distribute rewards (will use stored if available, or create new)
+        const { levelData, newDistribution } = distributeNetworkRewards(levelObj, userNetworkRewards, conversionRates, storedDist);
+        processedLevel = levelData;
+        
+        // If new distribution was created (first time), save it to user
+        if (newDistribution) {
+          user[storedDistField] = new Map(Object.entries(newDistribution));
+          await user.save();
+          console.log(`[Level Controller] Stored new distribution for user ${userId}, level ${levelNumber}`);
+        }
         
         console.log(`[Level Controller] Applied user-specific USD rewards for user ${userId}, level ${levelNumber}`);
       } else {
