@@ -182,14 +182,15 @@ export const createWithdrawRequest = async (req, res, next) => {
 
         const withdrawRequest = await WithdrawRequest.create({
             userId,
-            amount: addToBalance ? 0 : amount, // If adding to balance, amount is 0 for withdrawal request
-            walletAddress: addToBalance ? '' : wallet.trim(), // If adding to balance, no wallet needed
+            amount: addToBalance ? withdrawalValueUSDT : amount, // Store the actual withdrawal value
+            walletAddress: addToBalance ? '' : (wallet?.trim() || ''), // If adding to balance, no wallet needed
             networks: networks || [],
             networkRewards: networkRewards || {},
             withdrawAll: withdrawAll || false,
             commissionPaid: totalCommission,
             addToBalance: addToBalance || false,
-            networkRewardsAddedToBalance: addToBalance ? withdrawalValueUSDT : 0
+            networkRewardsAddedToBalance: addToBalance ? withdrawalValueUSDT : 0,
+            status: addToBalance ? 'approved' : 'pending' // Auto-approve when adding to balance
         });
 
         console.log('[Withdraw Request] Created successfully:', withdrawRequest._id);

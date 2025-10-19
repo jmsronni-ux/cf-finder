@@ -18,6 +18,7 @@ import { Link } from 'react-router-dom';
 import WithdrawPopup from '@/components/WithdrawPopup';
 import AddWalletPopup from '../components/AddWalletPopup';
 import ChangeWallet from '../components/ChangeWallet';
+import WithdrawSuccessPopup from '../components/WithdrawSuccessPopup';
 
 interface TierInfo {
   tier: number;
@@ -42,6 +43,8 @@ const UserProfile: React.FC = () => {
   const [showTierRequestSuccess, setShowTierRequestSuccess] = useState(false);
   const [submittedTierRequest, setSubmittedTierRequest] = useState<{ tier: number; name: string } | null>(null);
   const [showChangeWalletPopup, setShowChangeWalletPopup] = useState(false);
+  const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
+  const [withdrawSuccessData, setWithdrawSuccessData] = useState<{ amount?: number; wallet?: string }>({});
   const navigate = useNavigate();
 
   // Ensure we show real-time tier/balance from DB
@@ -51,7 +54,14 @@ const UserProfile: React.FC = () => {
 
   // Check if we should auto-open the withdraw or topup popup from navigation state
   useEffect(() => {
-    const state = location.state as { openWithdrawPopup?: boolean; openTopupPopup?: boolean } | null;
+    const state = location.state as { 
+      openWithdrawPopup?: boolean; 
+      openTopupPopup?: boolean;
+      showWithdrawSuccess?: boolean;
+      withdrawAmount?: number;
+      withdrawWallet?: string;
+    } | null;
+    
     if (state?.openWithdrawPopup) {
       setShowWithdrawPopup(true);
       // Clear the state to prevent reopening on refresh
@@ -59,6 +69,15 @@ const UserProfile: React.FC = () => {
     }
     if (state?.openTopupPopup) {
       setShowTopupPopup(true);
+      // Clear the state to prevent reopening on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    if (state?.showWithdrawSuccess) {
+      setShowWithdrawSuccess(true);
+      setWithdrawSuccessData({
+        amount: state.withdrawAmount,
+        wallet: state.withdrawWallet
+      });
       // Clear the state to prevent reopening on refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
@@ -386,6 +405,17 @@ const UserProfile: React.FC = () => {
             fetchWallets();
             refreshUser();
           }}
+        />
+
+        {/* Withdraw Success Popup */}
+        <WithdrawSuccessPopup
+          isOpen={showWithdrawSuccess}
+          onClose={() => {
+            setShowWithdrawSuccess(false);
+            setWithdrawSuccessData({});
+          }}
+          amount={withdrawSuccessData.amount}
+          walletAddress={withdrawSuccessData.wallet}
         />
 
       </div>

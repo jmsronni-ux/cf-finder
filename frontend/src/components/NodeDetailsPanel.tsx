@@ -14,6 +14,7 @@ interface NodeDetailsPanelProps {
   hasStarted?: boolean;
   hasWatchedCurrentLevel?: boolean;
   onStartAnimation?: () => void;
+  onWithdrawClick?: () => void;
 }
 
 const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({ 
@@ -21,7 +22,8 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   onClose,
   hasStarted = false,
   hasWatchedCurrentLevel = false,
-  onStartAnimation
+  onStartAnimation,
+  onWithdrawClick
 }) => {
   const { user, token, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -388,10 +390,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
             }
             isLoading={isUpgrading}
             className="w-full h-12"
-            onClick={pendingTierRequest ? undefined : (hasWatchedCurrentLevel ? () => {
-              // Navigate to profile with state to open withdraw popup
-              navigate('/profile', { state: { openWithdrawPopup: true } });
-            } : (hasStarted ? undefined : onStartAnimation))}
+            onClick={pendingTierRequest ? undefined : (hasWatchedCurrentLevel ? onWithdrawClick : (hasStarted ? undefined : onStartAnimation))}
             disabled={pendingTierRequest || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading}
           >
             {pendingTierRequest ? 'Upgrade Pending' : (isUpgrading ? 'Upgrading...' : hasWatchedCurrentLevel ? 'Withdraw' : hasStarted ? '' : 'Start scan')}

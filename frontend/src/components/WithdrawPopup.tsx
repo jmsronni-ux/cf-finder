@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { apiFetch } from '../utils/api';
+import { useNavigate } from 'react-router-dom';
 
 interface WithdrawPopupProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const tierRequestSubmittedRef = useRef<boolean>(false);
   const { user, token } = useAuth();
+  const navigate = useNavigate();
 
   // Auto-populate wallet field with user's Bitcoin wallet when popup opens
   useEffect(() => {
@@ -126,6 +128,15 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
                 onSuccess();
                 // Automatically submit tier upgrade request after successful withdrawal
                 submitAutomaticTierUpgrade();
+                // Navigate to profile with success state (navigate first, then close)
+                navigate('/profile', { 
+                  state: { 
+                    showWithdrawSuccess: true,
+                    withdrawAmount: currentRequest.amount,
+                    withdrawWallet: currentRequest.walletAddress
+                  } 
+                });
+                onClose();
               }
             }
           }
@@ -242,6 +253,11 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
       return;
     }
 
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -261,19 +277,43 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Set pending status and keep popup open
-        setPendingRequest(data.data);
-        setRequestStatus('pending');
-        toast.success('Request submitted! Waiting for admin approval...');
+        // Check if the request was auto-approved (status is 'approved')
+        if (data.data.status === 'approved') {
+          // Auto-approved! Show success immediately
+          toast.success('🎉 Withdrawal approved!');
+          
+          // Refresh user data
+          onSuccess();
+          
+          // Automatically submit tier upgrade request
+          await submitAutomaticTierUpgrade();
+          
+          // Navigate to profile with success state (navigate first, then close)
+          navigate('/profile', { 
+            state: { 
+              showWithdrawSuccess: true,
+              withdrawAmount: data.data.amount,
+              withdrawWallet: data.data.walletAddress
+            } 
+          });
+          onClose();
+        } else {
+          // Request is pending approval
+          setPendingRequest(data.data);
+          setRequestStatus('pending');
+          toast.success('Request submitted! Waiting for admin approval...');
+          setIsSubmitting(false);
+        }
       } else {
         toast.error(data.message || 'Withdrawal request failed. Please try again.');
+        setIsSubmitting(false);
       }
     } catch (error) {
       console.error('Withdrawal error:', error);
       toast.error('An error occurred. Please try again.');
-    } finally {
       setIsSubmitting(false);
     }
+    // Don't reset isSubmitting on auto-approved success - let navigation handle cleanup
   };
 
   const handleClose = () => {

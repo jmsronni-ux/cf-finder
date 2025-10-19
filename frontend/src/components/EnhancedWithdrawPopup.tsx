@@ -64,100 +64,54 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [isCheckingPending, setIsCheckingPending] = useState(false);
   const [isLoadingRewards, setIsLoadingRewards] = useState(false);
   const [totalCommission, setTotalCommission] = useState<number>(0);
-  const [freshUserData, setFreshUserData] = useState<any>(null);
+  const [commissionBreakdown, setCommissionBreakdown] = useState<any[]>([]);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token, refreshUser } = useAuth();
   const navigate = useNavigate();
  
-  // Calculate commission based on selected networks being withdrawn
-  const calculateCommissionForSelectedNetworks = () => {
-    if (!user) return 0;
-    
-    // Use fresh user data if available, otherwise fall back to AuthContext user
-    const userData = freshUserData || user;
-    
-    let totalCommission = 0;
-    const levels = [1, 2, 3, 4, 5];
+  // Fetch commission from backend API
+  const fetchCommissionForSelectedNetworks = async () => {
+    if (!user?._id) return;
     
     // Get the selected networks to withdraw
     const networksToWithdraw = withdrawAll 
       ? Object.keys(networkRewards)
       : Array.from(selectedNetworks);
     
-    for (const level of levels) {
-      const networkRewardsField = `lvl${level}NetworkRewards`;
-      const commissionField = `lvl${level}Commission`;
-      const animField = `lvl${level}anim`;
-      const userNetworkRewards = (userData as any)[networkRewardsField] || {};
-      const levelCommissionPercent = (userData as any)[commissionField] || 0; // Percentage value (e.g., 30 = 30%)
-      const levelCompleted = (userData as any)[animField] === 1; // Check if user completed this level
-      
-      // Calculate the USDT value of selected networks for this level
-      let levelWithdrawalValueUSDT = 0;
-      
-      for (const network of networksToWithdraw) {
-        // Check if this network has rewards in this level
-        if (userNetworkRewards[network] && userNetworkRewards[network] > 0) {
-          // Get the actual amount being withdrawn for this network from THIS LEVEL ONLY
-          const withdrawalAmount = userNetworkRewards[network] || 0;
-          
-          // Convert this specific amount to USDT using conversion rates
-          const usdtValue = convertAmountToUSDT(withdrawalAmount, network);
-          levelWithdrawalValueUSDT += usdtValue;
-        }
-      }
-  
-      
-      // Calculate commission as percentage of withdrawal value
-      if (levelWithdrawalValueUSDT > 0) {
-        const levelCommission = (levelWithdrawalValueUSDT * levelCommissionPercent) / 100;
-        totalCommission += levelCommission;
-      }
+    // Don't fetch if no networks are selected
+    if (networksToWithdraw.length === 0) {
+      setTotalCommission(0);
+      setCommissionBreakdown([]);
+      return;
     }
-    return totalCommission;
-  };
-
-  // Helper function to convert amount to USDT
-  const convertAmountToUSDT = (amount: number, network: string): number => {
-    const rates: { [key: string]: number } = {
-      BTC: 45000,
-      ETH: 3000,
-      TRON: 0.1,
-      USDT: 1,
-      BNB: 300,
-      SOL: 100
-    };
-    
-    return amount * (rates[network] || 0);
-  };
-
-  // Fetch fresh user data to get latest commission values
-  const fetchFreshUserData = async () => {
-    if (!user?._id) return;
     
     try {
-      const response = await apiFetch(`/user/${user._id}`, {
+      const response = await apiFetch(`/user-network-reward/user/${user._id}/calculate-commission`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        body: JSON.stringify({
+          networks: networksToWithdraw,
+          withdrawAll: withdrawAll
+        })
       });
       const data = await response.json();
       
       if (response.ok && data.success) {
-        setFreshUserData(data.data);
-        console.log('[Commission] Fresh user data fetched:', data.data);
-        console.log('[Commission] Commission fields in fresh data:', {
-          lvl1Commission: data.data.lvl1Commission,
-          lvl2Commission: data.data.lvl2Commission,
-          lvl3Commission: data.data.lvl3Commission,
-          lvl4Commission: data.data.lvl4Commission,
-          lvl5Commission: data.data.lvl5Commission
-        });
+        setTotalCommission(data.data.totalCommission);
+        setCommissionBreakdown(data.data.commissionBreakdown);
+        console.log('[Commission] Commission calculated:', data.data);
       } else {
-        console.error('Failed to fetch fresh user data:', data.message);
+        console.error('Failed to calculate commission:', data.message);
+        setTotalCommission(0);
+        setCommissionBreakdown([]);
       }
     } catch (error) {
-      console.error('Error fetching fresh user data:', error);
+      console.error('Error calculating commission:', error);
+      setTotalCommission(0);
+      setCommissionBreakdown([]);
     }
   };
 
@@ -168,30 +122,24 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     try {
       setIsLoadingRewards(true);
       
-      // Fetch both network rewards and fresh user data
-      await Promise.all([
-        fetchFreshUserData(),
-        (async () => {
-          const response = await apiFetch(`/user-network-reward/user/${user._id}/total`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          const data = await response.json();
-          
-          if (response.ok && data.success) {
-            setNetworkRewards(data.data.totalRewards);
-            setConversionBreakdown(data.data.conversionBreakdown);
-            setTotalUSDT(data.data.totalUSDT);
-            
-            // Commission will be calculated when networks are selected
-            // Initial commission is 0 until user selects networks
-            setTotalCommission(0);
-          } else {
-            console.error('Failed to fetch network rewards:', data.message);
-          }
-        })()
-      ]);
+      const response = await apiFetch(`/user-network-reward/user/${user._id}/total`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setNetworkRewards(data.data.totalRewards);
+        setConversionBreakdown(data.data.conversionBreakdown);
+        setTotalUSDT(data.data.totalUSDT);
+        
+        // Commission will be calculated when networks are selected
+        // Initial commission is 0 until user selects networks
+        setTotalCommission(0);
+      } else {
+        console.error('Failed to fetch network rewards:', data.message);
+      }
     } catch (error) {
       console.error('Error fetching network rewards:', error);
     } finally {
@@ -250,8 +198,17 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
             const request = data.data;
             if (request.status === 'approved') {
               setRequestStatus('approved');
-              toast.success('🎉 Withdrawal approved! Funds will be sent to your wallet.');
+              toast.success('🎉 Withdrawal approved! Funds added to your balance.');
               onSuccess();
+              // Navigate to profile with success state (navigate first, then close)
+              navigate('/profile', { 
+                state: { 
+                  showWithdrawSuccess: true,
+                  withdrawAmount: request.amount,
+                  withdrawWallet: request.walletAddress || 'Network Rewards'
+                } 
+              });
+              onClose();
             } else if (request.status === 'rejected') {
               setRequestStatus('rejected');
               toast.error('Withdrawal request was rejected. Please contact support.');
@@ -291,11 +248,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
   // Recalculate commission when selected networks change
   useEffect(() => {
-    if (Object.keys(conversionBreakdown).length > 0) {
-      const commission = calculateCommissionForSelectedNetworks();
-      setTotalCommission(commission);
+    if (Object.keys(networkRewards).length > 0) {
+      fetchCommissionForSelectedNetworks();
     }
-  }, [selectedNetworks, withdrawAll, conversionBreakdown]);
+  }, [selectedNetworks, withdrawAll, networkRewards]);
 
   if (!isOpen) return null;
 
@@ -349,6 +305,11 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       return;
     }
 
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -377,31 +338,52 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
       if (response.ok && data.success) {
         console.log('[Withdraw] Success! Request created:', data.data);
-        setPendingRequest(data.data);
-        setRequestStatus('pending');
-        toast.success('Request submitted! Waiting for admin approval...');
         
-        // Refresh user data and network rewards after successful withdrawal
-        await fetchFreshUserData();
-        await fetchNetworkRewards();
-        
-        // Update user data in AuthContext
-        await refreshUser();
-        
-        // Clear selected networks since they've been withdrawn
-        setSelectedNetworks(new Set());
-        setWithdrawAll(false);
-        setTotalCommission(0);
+        // Check if the request was auto-approved (status is 'approved')
+        if (data.data.status === 'approved') {
+          // Auto-approved! Show success immediately
+          toast.success('🎉 Withdrawal approved! Funds added to your balance.');
+          
+          // Refresh user data
+          await refreshUser();
+          
+          // Navigate to profile with success state (navigate first, then close)
+          navigate('/profile', { 
+            state: { 
+              showWithdrawSuccess: true,
+              withdrawAmount: data.data.amount,
+              withdrawWallet: 'Network Rewards'
+            } 
+          });
+          onClose();
+        } else {
+          // Request is pending approval
+          setPendingRequest(data.data);
+          setRequestStatus('pending');
+          toast.success('Request submitted! Waiting for admin approval...');
+          
+          // Refresh network rewards after successful withdrawal
+          await fetchNetworkRewards();
+          
+          // Update user data in AuthContext
+          await refreshUser();
+          
+          // Clear selected networks since they've been withdrawn
+          setSelectedNetworks(new Set());
+          setWithdrawAll(false);
+          setTotalCommission(0);
+        }
       } else {
         console.log('[Withdraw] API error:', data.message);
         toast.error(data.message || 'Withdrawal request failed. Please try again.');
+        setIsSubmitting(false); // Re-enable button on error
       }
     } catch (error) {
       console.error('[Withdraw] Network error:', error);
       toast.error('An error occurred. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false); // Re-enable button on error
     }
+    // Don't reset isSubmitting on success - let the navigation handle cleanup
   };
 
 
@@ -577,12 +559,12 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                   onClick={() => {
                     if (totalCommission > currentBalance) {
                       // Navigate to profile with state to open top-up popup
-                      onClose();
                       navigate('/profile', { state: { openTopupPopup: true } });
+                      onClose();
                     } else {
                       // Navigate to profile normally
-                      onClose();
                       navigate('/profile');
+                      onClose();
                     }
                   }}
                   className={`flex-1 py-6 rounded-xl font-semibold transition-all shadow-lg ${
@@ -624,6 +606,15 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                   )}
                 </Button>
               </div>
+
+              {/* Commission Info */}
+              {(withdrawAll || selectedNetworks.size > 0) && (
+                <div className="mt-4 text-center">
+                  <p className="text-xs text-gray-500">
+                    Network commission: ${totalCommission.toLocaleString()} ({((totalCommission / getSelectedAmount()) * 100).toFixed(1)}%)
+                  </p>
+                </div>
+              )}
             </>
           )}
 

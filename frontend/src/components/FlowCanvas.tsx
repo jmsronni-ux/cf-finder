@@ -742,6 +742,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                 startAnimation();
               }
             }}
+            onWithdrawClick={() => {
+              setShowCompletionPopup(!showCompletionPopup);
+            }}
           />
         )}
         

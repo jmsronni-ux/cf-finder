@@ -6,7 +6,8 @@ import {
   setUserLevelRewards,
   deleteUserNetworkReward,
   getAllUsersNetworkRewards,
-  getUserTotalNetworkRewards
+  getUserTotalNetworkRewards,
+  calculateNetworkCommission
 } from '../controllers/user-network-reward.controller.js';
 import authMiddleware, { adminMiddleware } from '../middlewares/auth.middleware.js';
 
@@ -17,6 +18,9 @@ router.get('/user/:userId', authMiddleware, getUserNetworkRewards);
 
 // Get user's total network rewards across all levels
 router.get('/user/:userId/total', authMiddleware, getUserTotalNetworkRewards);
+
+// Calculate commission for selected networks
+router.post('/user/:userId/calculate-commission', authMiddleware, calculateNetworkCommission);
 
 // Get user's rewards for specific level
 router.get('/user/:userId/level/:level', authMiddleware, getUserLevelRewards);

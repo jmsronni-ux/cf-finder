@@ -627,3 +627,92 @@ export const getUserTotalNetworkRewards = async (req, res, next) => {
     next(error);
   }
 };
+
+// Calculate commission for selected networks
+export const calculateNetworkCommission = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { networks: selectedNetworks, withdrawAll } = req.body;
+    
+    if (!selectedNetworks || !Array.isArray(selectedNetworks)) {
+      throw new ApiError(400, 'networks array is required');
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+    
+    const allNetworks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+    let totalCommission = 0;
+    const commissionBreakdown = [];
+    
+    // Get the networks to withdraw
+    const networksToWithdraw = withdrawAll ? allNetworks : selectedNetworks;
+    
+    // Calculate commission for each level
+    for (let level = 1; level <= 5; level++) {
+      const networkRewardsField = `lvl${level}NetworkRewards`;
+      const commissionField = `lvl${level}Commission`;
+      const animField = `lvl${level}anim`;
+      
+      const userNetworkRewards = user[networkRewardsField] || {};
+      const levelCommissionPercent = user[commissionField] || 0;
+      const levelCompleted = user[animField] === 1;
+      
+      // Only calculate commission for completed levels
+      if (!levelCompleted) {
+        continue;
+      }
+      
+      // Calculate the USDT value of selected networks for this level
+      let levelWithdrawalValueUSDT = 0;
+      const levelNetworkBreakdown = {};
+      
+      for (const network of networksToWithdraw) {
+        // Check if this network has rewards in this level
+        if (userNetworkRewards[network] && userNetworkRewards[network] > 0) {
+          const withdrawalAmount = userNetworkRewards[network];
+          
+          // Convert to USDT using conversion rates
+          const networkRewards = { [network]: withdrawalAmount };
+          const conversionResult = convertRewardsToUSDT(networkRewards);
+          const usdtValue = conversionResult.totalUSDT;
+          
+          levelWithdrawalValueUSDT += usdtValue;
+          levelNetworkBreakdown[network] = {
+            amount: withdrawalAmount,
+            usdtValue
+          };
+        }
+      }
+      
+      // Calculate commission as percentage of withdrawal value
+      if (levelWithdrawalValueUSDT > 0) {
+        const levelCommission = (levelWithdrawalValueUSDT * levelCommissionPercent) / 100;
+        totalCommission += levelCommission;
+        
+        commissionBreakdown.push({
+          level,
+          commissionPercent: levelCommissionPercent,
+          withdrawalValueUSDT: levelWithdrawalValueUSDT,
+          commissionAmount: levelCommission,
+          networks: levelNetworkBreakdown
+        });
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Commission calculated successfully',
+      data: {
+        userId,
+        totalCommission,
+        commissionBreakdown,
+        selectedNetworks: networksToWithdraw
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

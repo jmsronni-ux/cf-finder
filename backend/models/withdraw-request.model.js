@@ -8,11 +8,9 @@ const withdrawRequestSchema = new mongoose.Schema({
     },
     amount: {
         type: Number,
-        required: function() {
-            // Amount is required for direct balance withdrawal, not for addToBalance
-            return !this.addToBalance;
-        },
-        min: [1, 'Amount must be at least 1']
+        required: false, // Not required when addToBalance is true
+        min: [0, 'Amount must be at least 0'],
+        default: 0
     },
     walletAddress: {
         type: String,
