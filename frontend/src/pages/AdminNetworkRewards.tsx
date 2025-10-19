@@ -160,13 +160,15 @@ const AdminNetworkRewards: React.FC = () => {
   };
 
   const calculateTotalRewards = () => {
-    let total = 0;
+    let totalUSDT = 0;
     Object.values(rewards).forEach((levelRewards: NetworkRewards) => {
-      Object.values(levelRewards).forEach((amount: number) => {
-        total += amount;
+      Object.entries(levelRewards).forEach(([network, cryptoAmount]) => {
+        // Convert crypto amount to USDT for proper summation
+        const usdtValue = convertCryptoToUSDT(cryptoAmount, network, ratesMap);
+        totalUSDT += usdtValue;
       });
     });
-    return total;
+    return totalUSDT;
   };
 
   useEffect(() => {
@@ -204,8 +206,8 @@ const AdminNetworkRewards: React.FC = () => {
                         <DollarSign className="w-6 h-6 text-green-500" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Total Rewards</p>
-                        <p className="text-2xl font-bold text-green-400">{calculateTotalRewards().toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground">Total Rewards (USDT)</p>
+                        <p className="text-2xl font-bold text-green-400">${calculateTotalRewards().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -379,9 +381,15 @@ const AdminNetworkRewards: React.FC = () => {
                         <div className="mt-6 pt-4 border-t border-border">
                           <div className="flex items-center gap-2">
                             <Zap className="w-4 h-4 text-yellow-500" />
-                            <span className="text-sm text-muted-foreground">Total for Level {level}:</span>
+                            <span className="text-sm text-muted-foreground">Total for Level {level} (USDT):</span>
                             <span className="font-bold text-yellow-400">
-                              {Object.values(rewards[level] || {}).reduce((sum, amount) => sum + amount, 0).toFixed(3)}
+                              ${(() => {
+                                let total = 0;
+                                Object.entries(rewards[level] || {}).forEach(([network, cryptoAmount]) => {
+                                  total += convertCryptoToUSDT(cryptoAmount, network, ratesMap);
+                                });
+                                return total.toFixed(2);
+                              })()}
                             </span>
                           </div>
                         </div>
