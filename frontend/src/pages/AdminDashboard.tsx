@@ -162,6 +162,14 @@ const AdminDashboard: React.FC = () => {
       color: 'bg-teal-600/50 hover:bg-teal-700 border-teal-600',
       route: '/admin/reward-analytics',
       stats: 'Analytics'
+    },
+    {
+      title: 'Conversion Rates',
+      description: 'Manage cryptocurrency to USD conversion rates',
+      icon: <DollarSign className="w-6 h-6" />,
+      color: 'bg-emerald-600/50 hover:bg-emerald-700 border-emerald-600',
+      route: '/admin/conversion-rates',
+      stats: 'USD Rates'
     }
   ];
 

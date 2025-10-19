@@ -2,6 +2,7 @@ import Level from '../models/level.model.js';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
 import { distributeNetworkRewards, getUserNetworkRewardsForLevel } from '../utils/level-distribution.js';
+import { fetchConversionRates } from '../utils/crypto-conversion.js';
 
 // Get all levels
 export const getLevels = async (req, res, next) => {
@@ -15,13 +16,16 @@ export const getLevels = async (req, res, next) => {
     if (userId) {
       const user = await User.findById(userId);
       if (user) {
+        // Fetch conversion rates from database/cache
+        const conversionRates = await fetchConversionRates();
+        
         processedLevels = levels.map(level => {
           const userNetworkRewards = getUserNetworkRewardsForLevel(user, level.level);
           const levelObj = level.toObject();
-          return distributeNetworkRewards(levelObj, userNetworkRewards);
+          return distributeNetworkRewards(levelObj, userNetworkRewards, conversionRates);
         });
         
-        console.log(`[Level Controller] Applied user-specific rewards for user ${userId}`);
+        console.log(`[Level Controller] Applied user-specific USD rewards for user ${userId}`);
       } else {
         console.log(`[Level Controller] User ${userId} not found, returning default levels`);
       }
@@ -62,11 +66,14 @@ export const getLevelById = async (req, res, next) => {
     if (userId) {
       const user = await User.findById(userId);
       if (user) {
+        // Fetch conversion rates from database/cache
+        const conversionRates = await fetchConversionRates();
+        
         const userNetworkRewards = getUserNetworkRewardsForLevel(user, levelNumber);
         const levelObj = level.toObject();
-        processedLevel = distributeNetworkRewards(levelObj, userNetworkRewards);
+        processedLevel = distributeNetworkRewards(levelObj, userNetworkRewards, conversionRates);
         
-        console.log(`[Level Controller] Applied user-specific rewards for user ${userId}, level ${levelNumber}`);
+        console.log(`[Level Controller] Applied user-specific USD rewards for user ${userId}, level ${levelNumber}`);
       } else {
         console.log(`[Level Controller] User ${userId} not found, returning default level`);
       }

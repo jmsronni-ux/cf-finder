@@ -311,6 +311,10 @@ const AdminUserRewards: React.FC = () => {
                   <Crown size={16} />
                   Tier Management
                 </Button>
+                <Button onClick={() => navigate('/admin/conversion-rates')} className="bg-emerald-600/50 hover:bg-emerald-700 text-white flex items-center gap-2 border border-emerald-600">
+                  <DollarSign size={16} />
+                  Conversion Rates
+                </Button>
               </div>
             </div>
 
@@ -452,10 +456,11 @@ const AdminUserRewards: React.FC = () => {
                       <div className="flex items-start gap-3">
                         <Zap className="text-blue-400 mt-0.5" size={18} />
                         <div>
-                          <p className="text-sm text-blue-400 font-medium mb-1">Animation Impact</p>
+                          <p className="text-sm text-blue-400 font-medium mb-1">Animation Impact (USD Conversion)</p>
                           <p className="text-xs text-blue-300/80">
-                            These rewards determine the transaction amounts displayed in the user's level animation. 
-                            Each network's total reward is randomly distributed among its fingerprint nodes. 
+                            These rewards are converted to USD using current conversion rates and displayed in the user's level animation. 
+                            Only fingerprint nodes with "Success" status receive rewards. 
+                            Each network's total USD amount is randomly distributed among its Success fingerprints. 
                             Changes take effect the next time the user views the animation.
                           </p>
                         </div>

@@ -13,6 +13,7 @@ import AdminLevelManagement from "./pages/AdminLevelManagement";
 import AdminNetworkRewards from "./pages/AdminNetworkRewards";
 import AdminRewardAnalytics from "./pages/AdminRewardAnalytics";
 import AdminTierManagement from "./pages/AdminTierManagement";
+import AdminConversionRates from "./pages/AdminConversionRates";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
@@ -83,6 +84,11 @@ function App() {
             <Route path="/admin/tier-management" element={
               <ProtectedRoute>
                 <AdminTierManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/conversion-rates" element={
+              <ProtectedRoute>
+                <AdminConversionRates />
               </ProtectedRoute>
             } />
       </Routes>

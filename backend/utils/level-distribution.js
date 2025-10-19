@@ -49,12 +49,13 @@ function generateRandomWeights(count) {
 }
 
 /**
- * Distributes network rewards among fingerprint nodes
+ * Distributes network rewards among fingerprint nodes with Success status
  * @param {Object} levelData - The level data from database (with nodes and edges)
  * @param {Object} userNetworkRewards - User's network rewards object (e.g., { BTC: 0.1, ETH: 1.0, ... })
- * @returns {Object} Modified level data with updated transaction amounts
+ * @param {Object} conversionRates - Conversion rates for crypto to USD (e.g., { BTC: 45000, ETH: 3000, ... })
+ * @returns {Object} Modified level data with updated transaction amounts in USD
  */
-export function distributeNetworkRewards(levelData, userNetworkRewards = {}) {
+export function distributeNetworkRewards(levelData, userNetworkRewards = {}, conversionRates = {}) {
   // Deep clone level data to avoid mutations
   const clonedData = JSON.parse(JSON.stringify(levelData));
   
@@ -62,12 +63,16 @@ export function distributeNetworkRewards(levelData, userNetworkRewards = {}) {
     return clonedData;
   }
   
-  // Group fingerprint nodes by currency
+  // Group fingerprint nodes by currency (ONLY SUCCESS STATUS)
   const nodesByCurrency = {};
   
   clonedData.nodes.forEach((node, index) => {
-    // Only process fingerprint nodes with transaction data
-    if (node.type === 'fingerprintNode' && node.data && node.data.transaction) {
+    // Only process fingerprint nodes with transaction data AND Success status
+    if (node.type === 'fingerprintNode' && 
+        node.data && 
+        node.data.transaction && 
+        node.data.transaction.status === 'Success') {
+      
       const currency = node.data.transaction.currency;
       const normalizedCurrency = normalizeCurrency(currency);
       
@@ -77,44 +82,38 @@ export function distributeNetworkRewards(levelData, userNetworkRewards = {}) {
       
       nodesByCurrency[normalizedCurrency].push({
         nodeIndex: index,
-        originalAmount: node.data.transaction.amount
+        originalAmount: node.data.transaction.amount,
+        status: node.data.transaction.status
       });
     }
   });
   
-  // Distribute rewards for each currency
+  // Distribute rewards for each currency (converted to USD)
   Object.keys(nodesByCurrency).forEach(currency => {
     const nodes = nodesByCurrency[currency];
-    const totalReward = userNetworkRewards[currency] || 0;
+    const cryptoReward = userNetworkRewards[currency] || 0;
     
-    if (totalReward > 0 && nodes.length > 0) {
+    if (cryptoReward > 0 && nodes.length > 0) {
+      // Convert crypto amount to USD
+      const conversionRate = conversionRates[currency] || 1;
+      const totalUSDReward = cryptoReward * conversionRate;
+      
       // Generate random weights for distribution
       const weights = generateRandomWeights(nodes.length);
       
-      // Distribute the total reward according to weights
+      // Distribute the USD reward according to weights
       nodes.forEach((nodeInfo, i) => {
-        const distributedAmount = totalReward * weights[i];
+        const distributedUSD = totalUSDReward * weights[i];
         
-        // Round to appropriate decimal places based on currency
-        let roundedAmount;
-        if (currency === 'BTC' || currency === 'ETH' || currency === 'BNB' || currency === 'SOL') {
-          // Cryptocurrencies: round to 4 decimal places
-          roundedAmount = Math.round(distributedAmount * 10000) / 10000;
-        } else {
-          // USDT, TRON: round to 2 decimal places
-          roundedAmount = Math.round(distributedAmount * 100) / 100;
+        // Round to 2 decimal places for USD
+        let roundedAmount = Math.round(distributedUSD * 100) / 100;
+        
+        // Ensure amount is at least 0.01 USD if total > 0
+        if (roundedAmount === 0 && totalUSDReward > 0) {
+          roundedAmount = 0.01;
         }
         
-        // Ensure amount is at least 0.0001 for crypto or 0.01 for others if total > 0
-        if (roundedAmount === 0 && totalReward > 0) {
-          if (currency === 'BTC' || currency === 'ETH' || currency === 'BNB' || currency === 'SOL') {
-            roundedAmount = 0.0001;
-          } else {
-            roundedAmount = 0.01;
-          }
-        }
-        
-        // Update the node's transaction amount
+        // Update the node's transaction amount (in USD)
         clonedData.nodes[nodeInfo.nodeIndex].data.transaction.amount = roundedAmount;
       });
       
@@ -123,7 +122,7 @@ export function distributeNetworkRewards(levelData, userNetworkRewards = {}) {
         return sum + clonedData.nodes[nodeInfo.nodeIndex].data.transaction.amount;
       }, 0);
       
-      console.log(`[Level Distribution] ${currency}: Total reward ${totalReward}, Distributed ${distributedTotal.toFixed(4)} across ${nodes.length} nodes`);
+      console.log(`[Level Distribution] ${currency}: ${cryptoReward} ${currency} @ $${conversionRate} = $${totalUSDReward.toFixed(2)} USD → Distributed $${distributedTotal.toFixed(2)} across ${nodes.length} Success nodes`);
     } else if (nodes.length > 0) {
       // If no reward, set all amounts to 0
       nodes.forEach(nodeInfo => {
