@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -22,8 +22,7 @@ import {
   TrendingUp,
   UserCheck,
   Shield,
-  Zap,
-  Upload
+  Zap
 } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
@@ -44,8 +43,6 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [uploadingLevel, setUploadingLevel] = useState<number | null>(null);
-  const levelFileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -99,65 +96,6 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickUpload = (levelNumber: number) => {
-    levelFileInputRefs.current[levelNumber]?.click();
-  };
-
-  const handleLevelFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, levelNumber: number) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const jsonData = JSON.parse(e.target?.result as string);
-        
-        // Validate the JSON structure
-        if (!jsonData.nodes || !Array.isArray(jsonData.nodes)) {
-          throw new Error('Invalid JSON: missing or invalid nodes array');
-        }
-        if (!jsonData.edges || !Array.isArray(jsonData.edges)) {
-          throw new Error('Invalid JSON: missing or invalid edges array');
-        }
-
-        // Automatically upload to database
-        setUploadingLevel(levelNumber);
-        
-        const response = await apiFetch(`/level/${levelNumber}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            name: `Level ${levelNumber}`,
-            description: `Animation level ${levelNumber}`,
-            nodes: jsonData.nodes,
-            edges: jsonData.edges
-          })
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          toast.success(`Level ${levelNumber} updated successfully! (${jsonData.nodes.length} nodes, ${jsonData.edges.length} edges)`);
-          // Reset file input
-          if (levelFileInputRefs.current[levelNumber]) {
-            levelFileInputRefs.current[levelNumber]!.value = '';
-          }
-        } else {
-          toast.error(data.message || 'Failed to update level');
-        }
-      } catch (error) {
-        console.error('Error uploading level:', error);
-        toast.error(error instanceof Error ? error.message : 'Invalid JSON file. Please check the format.');
-      } finally {
-        setUploadingLevel(null);
-      }
-    };
-    reader.readAsText(file);
   };
 
   const adminFeatures = [
@@ -347,7 +285,7 @@ const AdminDashboard: React.FC = () => {
             {/* Quick Actions */}
             <div className="mt-10">
               <MagicBadge title="Quick Actions" className="mb-6" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button 
                   onClick={() => navigate('/admin/tier-management')}
                   className="bg-yellow-600/50 hover:bg-yellow-700 text-white flex items-center gap-2 border border-yellow-600 h-16"
@@ -366,56 +304,10 @@ const AdminDashboard: React.FC = () => {
                   <Settings size={20} />
                   <div className="text-left">
                     <div className="font-semibold">Level Management</div>
-                    <div className="text-xs opacity-80">Full level control</div>
+                    <div className="text-xs opacity-80">View & download levels</div>
                   </div>
                 </Button>
               </div>
-
-              <MagicBadge title="Quick Level Upload" className="mb-6" />
-              <Card className="border border-border rounded-xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-blue-400">
-                    <Upload className="w-5 h-5" />
-                    Upload Level JSONs Directly
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">Click a level button to upload its JSON file instantly</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    {[1, 2, 3, 4, 5].map(level => (
-                      <div key={level}>
-                        <input
-                          ref={(el) => { levelFileInputRefs.current[level] = el; }}
-                          type="file"
-                          accept=".json"
-                          onChange={(e) => handleLevelFileUpload(e, level)}
-                          className="hidden"
-                        />
-                        <Button
-                          onClick={() => handleQuickUpload(level)}
-                          disabled={uploadingLevel === level}
-                          className="w-full bg-blue-600/50 hover:bg-blue-700 text-white flex flex-col items-center justify-center gap-2 border border-blue-600 h-20"
-                        >
-                          {uploadingLevel === level ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                              <span className="text-xs">Uploading...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="w-5 h-5" />
-                              <div>
-                                <div className="font-semibold">Level {level}</div>
-                                <div className="text-xs opacity-80">Upload JSON</div>
-                              </div>
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </MaxWidthWrapper>
