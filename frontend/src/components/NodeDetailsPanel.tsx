@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import InsufficientBalancePopup from './InsufficientBalancePopup';
 import { apiFetch } from '../utils/api';
+import { useConversionRates } from '../hooks/useConversionRates';
 
 interface NodeDetailsPanelProps {
   selectedNode: any;
@@ -29,6 +30,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const [showInsufficientBalancePopup, setShowInsufficientBalancePopup] = useState(false);
   const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState({ requiredAmount: 0, tierName: '' });
   const [pendingTierRequest, setPendingTierRequest] = useState<boolean>(false);
+  const { ratesMap } = useConversionRates();
 
   // Fetch pending tier requests
   React.useEffect(() => {
@@ -220,6 +222,11 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                     <div className="text-xl font-bold text-white font-mono">
                       {transaction.amount ? Number(transaction.amount).toFixed(0) : '0'} USD
                     </div>
+                    {transaction.currency && ratesMap[transaction.currency] && (
+                      <div className="text-sm text-gray-400 mt-1 font-mono">
+                        ≈ {(Number(transaction.amount) / ratesMap[transaction.currency]).toFixed(8)} {transaction.currency}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
