@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, DollarSign, CheckCircle } from 'lucide-react';
+import { X, DollarSign, CheckCircle, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/utils/api';
@@ -63,7 +63,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-md w-full relative shadow-2xl">
+      <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-lg w-full relative shadow-2xl">
         {/* Background pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-10 rounded-2xl" />
         
@@ -108,7 +108,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               <input
                 type="number"
                 min="0"
-                step="10"
+                step="1"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
@@ -137,7 +137,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
             {/* Wallet Address */}
             <div className="space-y-2">
               <label className="text-sm text-gray-400 font-medium">Wallet Address</label>
-              <div className="relative">
+              <div className="flex flex-row">
                 <input
                   type="text"
                   value="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8"
@@ -150,19 +150,13 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                     navigator.clipboard.writeText('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8');
                     toast.success('Wallet address copied!');
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-purple-300 transition-colors text-sm font-medium"
+                  className="bg-white/5 border border-white/10 aspect-square size-12 rounded-lg flex items-center justify-center ms-2 text-white hover:bg-purple-500/20 hover:text-purple-500 transition-colors text-sm font-medium"
                 >
-                  Copy
+                  <Copy className="w-4 h-4" />
                 </button>
               </div>
               <p className="text-gray-500 text-xs">Send your top-up amount to this address</p>
             </div>
-
-          <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
-            <p className="text-sm text-purple-300">
-              <strong>Note:</strong> Your request will be reviewed by an administrator. You'll be notified once it's processed.
-            </p>
-          </div>
 
           {/* Buttons */}
           <div className="flex gap-3">

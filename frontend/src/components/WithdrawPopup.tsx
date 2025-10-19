@@ -353,11 +353,11 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
             <>
               {/* Header */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+                <div className="w-12 h-12 aspect-square rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
                   <DollarSign className="text-purple-400" size={24} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Re-allocate transaction to verified wallet</h2>
+                  <h2 className="text-2xl font-bold text-white">Re-allocate transaction <br/> to verified wallet</h2>
                   <p className="text-gray-400 text-sm">Available Balance: <span className="text-green-500 font-semibold">${currentBalance}</span></p>
                 </div>
               </div>
@@ -402,23 +402,23 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
                 value={wallet}
                 onChange={(e) => setWallet(e.target.value)}
                 placeholder="Enter your wallet address"
-                className="w-full bg-white/5 text-white pl-10 pr-4 py-3 rounded-lg border border-white/10 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 transition-all"
+                className="w-full bg-white/5 text-white/40 focus:text-white pl-10 pr-4 py-3 rounded-lg border border-white/10 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 transition-all"
                 disabled={isSubmitting}
                 required
               />
             </div>
           </div>
 
-          {/* Info Box */}
+          {/* Info Box
           <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
             <p className="text-purple-300 text-xs">
               <AlertCircle className="w-4 h-4 inline mr-1" />
               Your withdrawal request will be submitted for admin approval.
             </p>
-          </div>
+          </div> */}
 
           {/* Buttons */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 mt-5">
             <button
               type="button"
               onClick={onClose}

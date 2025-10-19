@@ -290,7 +290,7 @@ const UserProfile: React.FC = () => {
                         className="w-full bg-transparent text-white border-[0.5px] border-white/35 hover:bg-white/10 flex items-center justify-center gap-2"
                       >
                         <Wallet className="w-4 h-4" />
-                        Re-allocate transaction to verified wallet
+                        Withdraw Funds
                       </Button>
                     </div>
                   </CardContent>

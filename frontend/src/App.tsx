@@ -16,11 +16,13 @@ import AdminConversionRates from "./pages/AdminConversionRates";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
+import { Toaster } from "sonner";
 
 function App() {
 
   return (
     <AuthProvider>
+      <Toaster position="top-right" richColors />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<RegisterPage />} />
