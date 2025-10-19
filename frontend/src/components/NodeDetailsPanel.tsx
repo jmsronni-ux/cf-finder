@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText } from 'lucide-react';
+import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet } from 'lucide-react';
 import { PulsatingButton } from './ui/pulsating-button';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,6 +30,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const [showInsufficientBalancePopup, setShowInsufficientBalancePopup] = useState(false);
   const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState({ requiredAmount: 0, tierName: '' });
   const [pendingTierRequest, setPendingTierRequest] = useState<boolean>(false);
+  const [wallets, setWallets] = useState<{ btc?: string; eth?: string; tron?: string; usdtErc20?: string } | null>(null);
   const { ratesMap } = useConversionRates();
 
   // Fetch pending tier requests
@@ -88,6 +89,33 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
     
     fetchNextTierInfo();
   }, [token, user?.tier]);
+
+  // Fetch user wallets
+  React.useEffect(() => {
+    const fetchWallets = async () => {
+      if (!token) return;
+      try {
+        const res = await apiFetch('/user/me/wallets', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const json = await res.json();
+        if (res.ok && json?.success !== false) {
+          setWallets({
+            btc: json?.data?.btc || '',
+            eth: json?.data?.eth || '',
+            tron: json?.data?.tron || '',
+            usdtErc20: json?.data?.usdtErc20 || ''
+          });
+        }
+      } catch (e) {
+        console.error('Failed to fetch wallets', e);
+      }
+    };
+    fetchWallets();
+  }, [token]);
 
   // Handle upgrade button click
   const handleUpgradeClick = async () => {
@@ -149,8 +177,19 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   // Early return after all hooks
   if (!selectedNode) return null;
 
+  // Detect if this is the user/center node
+  const isUserNode = selectedNode.id === 'center' || selectedNode.type === 'accountNode';
+
   const hasTransaction = selectedNode.data.transaction;
   const transaction = selectedNode.data.transaction || {};
+
+  // Get wallets that have been added (non-empty)
+  const verifiedWallets = wallets ? [
+    { name: 'Bitcoin (BTC)', address: wallets.btc, icon: '₿', color: 'text-orange-400' },
+    { name: 'Ethereum (ETH)', address: wallets.eth, icon: 'Ξ', color: 'text-blue-400' },
+    { name: 'Tron (TRON)', address: wallets.tron, icon: 'T', color: 'text-red-400' },
+    { name: 'USDT ERC20', address: wallets.usdtErc20, icon: '₮', color: 'text-green-400' }
+  ].filter(wallet => wallet.address && wallet.address.trim() !== '') : [];
 
   // Get status icon and color
   const getStatusDisplay = (status: string) => {
@@ -197,14 +236,73 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 relative z-10">
           <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
-            <FileText className="text-purple-400" size={24} />
+            {isUserNode ? (
+              <User className="text-purple-400" size={24} />
+            ) : (
+              <FileText className="text-purple-400" size={24} />
+            )}
           </div>
-          <h2 className="text-xl font-bold text-white">Transaction Details</h2>
+          <h2 className="text-xl font-bold text-white">
+            {isUserNode ? 'Account Details' : 'Transaction Details'}
+          </h2>
         </div>
 
         {/* Content */}
         <div className="space-y-4 relative z-10 max-h-[calc(100vh-16rem)] overflow-y-auto">
-          {hasTransaction ? (
+          {isUserNode ? (
+            /* User Node Content */
+            <>
+              {/* Username */}
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+                <div className="relative">
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 text-purple-400">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div className="pl-8">
+                    <div className="text-xs text-gray-400 mb-1">Username</div>
+                    <div className="text-lg font-bold text-white">
+                      {user?.name || 'User'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Verified Wallets */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Wallet className="w-4 h-4 text-gray-400" />
+                  <h3 className="text-sm font-semibold text-gray-300">Verified Wallets</h3>
+                </div>
+                
+                {verifiedWallets.length > 0 ? (
+                  <div className="space-y-2">
+                    {verifiedWallets.map((wallet, index) => (
+                      <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <div className="flex items-start gap-3">
+                          <div className={`text-xl font-bold ${wallet.color} mt-0.5`}>
+                            {wallet.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs text-gray-400 mb-1">{wallet.name}</div>
+                            <div className="text-xs font-mono text-white break-all">
+                              {wallet.address}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                    <p className="text-gray-400 text-sm text-center">
+                      No wallets added yet
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : hasTransaction ? (
+            /* Transaction Node Content */
             <>
               {/* Status Badge */}
               <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${statusDisplay.bgColor} ${statusDisplay.borderColor}`}>
