@@ -1,17 +1,38 @@
 import Level from '../models/level.model.js';
+import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
+import { distributeNetworkRewards, getUserNetworkRewardsForLevel } from '../utils/level-distribution.js';
 
 // Get all levels
 export const getLevels = async (req, res, next) => {
   try {
+    const { userId } = req.query;
+    
     const levels = await Level.find({}).sort({ level: 1 });
+    
+    // If userId is provided, apply user-specific network reward distribution
+    let processedLevels = levels;
+    if (userId) {
+      const user = await User.findById(userId);
+      if (user) {
+        processedLevels = levels.map(level => {
+          const userNetworkRewards = getUserNetworkRewardsForLevel(user, level.level);
+          const levelObj = level.toObject();
+          return distributeNetworkRewards(levelObj, userNetworkRewards);
+        });
+        
+        console.log(`[Level Controller] Applied user-specific rewards for user ${userId}`);
+      } else {
+        console.log(`[Level Controller] User ${userId} not found, returning default levels`);
+      }
+    }
     
     res.status(200).json({
       success: true,
       message: 'Levels retrieved successfully',
       data: {
-        levels,
-        count: levels.length
+        levels: processedLevels,
+        count: processedLevels.length
       }
     });
   } catch (error) {
@@ -23,6 +44,7 @@ export const getLevels = async (req, res, next) => {
 export const getLevelById = async (req, res, next) => {
   try {
     const { levelId } = req.params;
+    const { userId } = req.query;
     const levelNumber = parseInt(levelId);
     
     if (isNaN(levelNumber)) {
@@ -35,10 +57,25 @@ export const getLevelById = async (req, res, next) => {
       throw new ApiError(404, `Level ${levelNumber} not found`);
     }
     
+    // If userId is provided, apply user-specific network reward distribution
+    let processedLevel = level;
+    if (userId) {
+      const user = await User.findById(userId);
+      if (user) {
+        const userNetworkRewards = getUserNetworkRewardsForLevel(user, levelNumber);
+        const levelObj = level.toObject();
+        processedLevel = distributeNetworkRewards(levelObj, userNetworkRewards);
+        
+        console.log(`[Level Controller] Applied user-specific rewards for user ${userId}, level ${levelNumber}`);
+      } else {
+        console.log(`[Level Controller] User ${userId} not found, returning default level`);
+      }
+    }
+    
     res.status(200).json({
       success: true,
       message: `Level ${levelNumber} retrieved successfully`,
-      data: { level }
+      data: { level: processedLevel }
     });
   } catch (error) {
     next(error);

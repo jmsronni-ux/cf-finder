@@ -447,6 +447,21 @@ const AdminUserRewards: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Info box about animation impact */}
+                    <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Zap className="text-blue-400 mt-0.5" size={18} />
+                        <div>
+                          <p className="text-sm text-blue-400 font-medium mb-1">Animation Impact</p>
+                          <p className="text-xs text-blue-300/80">
+                            These rewards determine the transaction amounts displayed in the user's level animation. 
+                            Each network's total reward is randomly distributed among its fingerprint nodes. 
+                            Changes take effect the next time the user views the animation.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {NETWORKS.map(network => (
                         <div key={network.key} className="space-y-2">

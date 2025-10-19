@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LevelData {
   level: number;
@@ -26,6 +27,7 @@ export const useLevelData = (): UseLevelDataReturn => {
   const [levels, setLevels] = useState<LevelData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const fetchLevels = async () => {
     try {
@@ -33,7 +35,14 @@ export const useLevelData = (): UseLevelDataReturn => {
       setLoading(true);
       setError(null);
       
-      const response = await apiFetch(`/level?t=${Date.now()}`);
+      // Build URL with userId if user is logged in
+      let url = `/level?t=${Date.now()}`;
+      if (user && user._id) {
+        url += `&userId=${user._id}`;
+        console.log('[useLevelData] Fetching levels with userId:', user._id);
+      }
+      
+      const response = await apiFetch(url);
       console.log('[useLevelData] Response status:', response.status);
       const data = await response.json();
       console.log('[useLevelData] Response data:', data);
@@ -58,7 +67,7 @@ export const useLevelData = (): UseLevelDataReturn => {
 
   useEffect(() => {
     fetchLevels();
-  }, []);
+  }, [user?._id]); // Refetch when user changes
 
   return {
     levels,
