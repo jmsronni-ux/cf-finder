@@ -35,9 +35,11 @@ const AdminLevelManagement: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const levelFileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
   const { levels, loading, error, refetch } = useLevelData();
   
   const [uploading, setUploading] = useState(false);
+  const [uploadingLevel, setUploadingLevel] = useState<number | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [uploadData, setUploadData] = useState<LevelUploadData | null>(null);
 
@@ -171,6 +173,66 @@ const AdminLevelManagement: React.FC = () => {
       console.error('Error downloading level:', error);
       toast.error('An error occurred while downloading the level');
     }
+  };
+
+  const handleQuickUpload = (levelNumber: number) => {
+    levelFileInputRefs.current[levelNumber]?.click();
+  };
+
+  const handleLevelFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, levelNumber: number) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const jsonData = JSON.parse(e.target?.result as string);
+        
+        // Validate the JSON structure
+        if (!jsonData.nodes || !Array.isArray(jsonData.nodes)) {
+          throw new Error('Invalid JSON: missing or invalid nodes array');
+        }
+        if (!jsonData.edges || !Array.isArray(jsonData.edges)) {
+          throw new Error('Invalid JSON: missing or invalid edges array');
+        }
+
+        // Automatically upload to database
+        setUploadingLevel(levelNumber);
+        
+        const response = await apiFetch(`/level/${levelNumber}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: `Level ${levelNumber}`,
+            description: `Animation level ${levelNumber}`,
+            nodes: jsonData.nodes,
+            edges: jsonData.edges
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          toast.success(`Level ${levelNumber} updated successfully! (${jsonData.nodes.length} nodes, ${jsonData.edges.length} edges)`);
+          refetch();
+          // Reset file input
+          if (levelFileInputRefs.current[levelNumber]) {
+            levelFileInputRefs.current[levelNumber]!.value = '';
+          }
+        } else {
+          toast.error(data.message || 'Failed to update level');
+        }
+      } catch (error) {
+        console.error('Error uploading level:', error);
+        toast.error(error instanceof Error ? error.message : 'Invalid JSON file. Please check the format.');
+      } finally {
+        setUploadingLevel(null);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleDeleteLevel = async (levelNumber: number) => {
@@ -351,12 +413,36 @@ const AdminLevelManagement: React.FC = () => {
                       </div>
 
                       <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+                        <input
+                          ref={(el) => { levelFileInputRefs.current[level.level] = el; }}
+                          type="file"
+                          accept=".json"
+                          onChange={(e) => handleLevelFileUpload(e, level.level)}
+                          className="hidden"
+                        />
+                        <Button
+                          onClick={() => handleQuickUpload(level.level)}
+                          disabled={uploadingLevel === level.level}
+                          className="flex-1 bg-green-600/50 hover:bg-green-700 text-white flex items-center justify-center gap-2 border border-green-600"
+                        >
+                          {uploadingLevel === level.level ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              Upload New
+                            </>
+                          )}
+                        </Button>
                         <Button
                           onClick={() => handleDownloadLevel(level.level)}
                           className="flex-1 bg-blue-600/50 hover:bg-blue-700 text-white flex items-center justify-center gap-2 border border-blue-600"
                         >
                           <Download className="w-4 h-4" />
-                          Download JSON
+                          Download
                         </Button>
                         <Button
                           onClick={() => handleDeleteLevel(level.level)}
