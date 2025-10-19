@@ -38,6 +38,13 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
   const tierRequestSubmittedRef = useRef<boolean>(false);
   const { user, token } = useAuth();
 
+  // Auto-populate wallet field with user's Bitcoin wallet when popup opens
+  useEffect(() => {
+    if (isOpen && user?.wallets?.btc && !wallet) {
+      setWallet(user.wallets.btc);
+    }
+  }, [isOpen, user]);
+
   // Function to automatically submit tier upgrade request
   const submitAutomaticTierUpgrade = async () => {
     // Prevent duplicate submissions
@@ -310,7 +317,7 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
                   <DollarSign className="text-purple-400" size={24} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Withdraw Funds</h2>
+                  <h2 className="text-2xl font-bold text-white">Re-allocate transaction to verified wallet</h2>
                   <p className="text-gray-400 text-sm">Available Balance: <span className="text-green-500 font-semibold">${currentBalance}</span></p>
                 </div>
               </div>

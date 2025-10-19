@@ -266,12 +266,12 @@ const UserProfile: React.FC = () => {
                         <Plus className="w-4 h-4" />
                         Request Top-Up
                       </Button>
-                      <Button 
+                      <Button
                         onClick={() => setShowWithdrawPopup(true)}
                         className="w-full bg-transparent text-white border-[0.5px] border-white/35 hover:bg-white/10 flex items-center justify-center gap-2"
                       >
                         <Wallet className="w-4 h-4" />
-                        Withdraw Funds
+                        Re-allocate transaction to verified wallet
                       </Button>
                     </div>
                   </CardContent>
