@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, DollarSign, CheckCircle, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +13,31 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8');
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
   const { token } = useAuth();
+
+  // Fetch global settings when popup opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchGlobalSettings();
+    }
+  }, [isOpen]);
+
+  const fetchGlobalSettings = async () => {
+    try {
+      const response = await apiFetch('/global-settings');
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setWalletAddress(data.data.topupWalletAddress || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8');
+        setQrCodeUrl(data.data.topupQrCodeUrl || '');
+      }
+    } catch (error) {
+      console.error('Error fetching global settings:', error);
+      // Use default values on error
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,19 +142,48 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               />
             </div>
 
-            {/* QR Code Placeholder */}
+            {/* QR Code */}
             <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg p-6">
-              <div className="w-48 h-48 bg-gradient-to-br from-white/10 to-white/5 rounded-lg flex items-center justify-center border border-white/20 mb-3">
-                <div className="text-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2 text-gray-400">
-                    <rect x="3" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect>
-                    <rect x="3" y="14" width="7" height="7"></rect>
-                  </svg>
-                  <p className="text-gray-500 text-xs">QR Code Placeholder</p>
+              {qrCodeUrl ? (
+                <div className="w-48 h-48 rounded-lg flex items-center justify-center border border-white/20 mb-3 overflow-hidden bg-white">
+                  <img 
+                    src={qrCodeUrl} 
+                    alt="QR Code" 
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      // Fallback to placeholder if image fails to load
+                      e.currentTarget.style.display = 'none';
+                      const placeholder = e.currentTarget.parentElement?.querySelector('.qr-placeholder');
+                      if (placeholder) {
+                        (placeholder as HTMLElement).style.display = 'block';
+                      }
+                    }}
+                  />
+                  <div className="qr-placeholder" style={{ display: 'none' }}>
+                    <div className="text-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2 text-gray-400">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                      </svg>
+                      <p className="text-gray-500 text-xs">Invalid QR Code</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="w-48 h-48 bg-gradient-to-br from-white/10 to-white/5 rounded-lg flex items-center justify-center border border-white/20 mb-3">
+                  <div className="text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2 text-gray-400">
+                      <rect x="3" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="14" width="7" height="7"></rect>
+                      <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <p className="text-gray-500 text-xs">QR Code Placeholder</p>
+                  </div>
+                </div>
+              )}
               <p className="text-gray-400 text-sm">Scan to get wallet address</p>
             </div>
 
@@ -140,14 +193,14 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               <div className="flex flex-row">
                 <input
                   type="text"
-                  value="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8"
+                  value={walletAddress}
                   readOnly
                   className="w-full bg-white/5 text-white px-4 py-3 rounded-lg border border-white/10 text-sm font-mono"
                 />
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8');
+                    navigator.clipboard.writeText(walletAddress);
                     toast.success('Wallet address copied!');
                   }}
                   className="bg-white/5 border border-white/10 aspect-square size-12 rounded-lg flex items-center justify-center ms-2 text-white hover:bg-purple-500/20 hover:text-purple-500 transition-colors text-sm font-medium"

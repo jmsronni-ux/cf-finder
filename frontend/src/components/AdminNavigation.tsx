@@ -12,7 +12,8 @@ import {
   DollarSign,
   Network,
   ChevronRight,
-  Home
+  Home,
+  Settings
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -84,6 +85,13 @@ const AdminNavigation: React.FC = () => {
       icon: <Network className="w-5 h-5" />,
       description: 'Network reward settings',
       color: 'from-orange-500 to-orange-600'
+    },
+    {
+      name: 'Global Settings',
+      path: '/admin/global-settings',
+      icon: <Settings className="w-5 h-5" />,
+      description: 'System-wide settings',
+      color: 'from-purple-500 to-purple-600'
     }
   ];
 

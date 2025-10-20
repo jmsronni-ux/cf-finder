@@ -13,6 +13,7 @@ import AdminLevelManagement from "./pages/AdminLevelManagement";
 import AdminNetworkRewards from "./pages/AdminNetworkRewards";
 import AdminTierManagement from "./pages/AdminTierManagement";
 import AdminConversionRates from "./pages/AdminConversionRates";
+import AdminGlobalSettings from "./pages/AdminGlobalSettings";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -84,6 +85,11 @@ function App() {
             <Route path="/admin/conversion-rates" element={
               <ProtectedRoute>
                 <AdminConversionRates />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/global-settings" element={
+              <ProtectedRoute>
+                <AdminGlobalSettings />
               </ProtectedRoute>
             } />
       </Routes>
