@@ -147,7 +147,7 @@ export const getAllUsersWithRewards = async (req, res, next) => {
         }
 
         const users = await User.find()
-            .select('name email balance tier lvl1reward lvl2reward lvl3reward lvl4reward lvl5reward lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim wallets createdAt')
+            .select('name email balance tier lvl1reward lvl2reward lvl3reward lvl4reward lvl5reward lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim lvl1Commission lvl2Commission lvl3Commission lvl4Commission lvl5Commission wallets createdAt')
             .sort({ createdAt: -1 });
         
         // Import wallet balance utility

@@ -56,6 +56,11 @@ interface UserData {
   createdAt: string;
   customRewardsCount: number;
   totalRewardsCount: number;
+  lvl1Commission?: number;
+  lvl2Commission?: number;
+  lvl3Commission?: number;
+  lvl4Commission?: number;
+  lvl5Commission?: number;
 }
 
 const NETWORKS = [
@@ -144,6 +149,28 @@ const AdminUserRewards: React.FC = () => {
     } catch (error) {
       console.error('Error fetching user rewards:', error);
       setUserRewards({});
+    }
+  };
+
+  const refetchUserData = async (userId: string) => {
+    try {
+      const response = await apiFetch(`/user/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Update selectedUser with fresh data including commission
+        setSelectedUser(data.data);
+        // Also update the user in the users array
+        setUsers(prevUsers => 
+          prevUsers.map(u => u._id === userId ? data.data : u)
+        );
+      }
+    } catch (error) {
+      console.error('Error refetching user data:', error);
     }
   };
 
@@ -248,7 +275,8 @@ const AdminUserRewards: React.FC = () => {
       if (response.ok && data.success && commissionResponse.ok && commissionData.success) {
         toast.success(`Level ${selectedLevel} rewards and commission updated for ${selectedUser.name}!`);
         setShowEditModal(false);
-        fetchUserRewards(selectedUser._id); // Refresh data
+        fetchUserRewards(selectedUser._id); // Refresh rewards data
+        await refetchUserData(selectedUser._id); // Refresh user data including commission
       } else {
         console.error('Rewards response:', data);
         console.error('Commission response:', commissionData);
@@ -401,6 +429,21 @@ const AdminUserRewards: React.FC = () => {
                                 </div>
                               );
                             })}
+                          </div>
+                          
+                          {/* Commission Display */}
+                          <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/30 rounded flex items-center justify-between">
+                            <span className="text-sm font-medium text-orange-400 flex items-center gap-1">
+                              <DollarSign size={14} />
+                              Commission
+                            </span>
+                            <span className="text-sm font-semibold text-orange-300">
+                              {(() => {
+                                const commissionField = `lvl${level}Commission` as keyof UserData;
+                                const commission = selectedUser[commissionField];
+                                return commission ? `${commission}%` : 'Not set';
+                              })()}
+                            </span>
                           </div>
                         </div>
                       ))}
