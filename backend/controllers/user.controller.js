@@ -277,6 +277,15 @@ export const adminChangeUserTier = async (req, res, next) => {
         // Log the tier change
         console.log(`[Admin Tier Change] Admin ${adminId} changing user ${userId} from tier ${oldTier} to tier ${newTier}. Reason: ${reason || 'No reason provided'}`);
 
+        // Reset animation flags for the current tier level and all levels above
+        // This ensures users can watch the tier animation again when they get that tier
+        // Tier 1 unlocks Level 1, Tier 2 unlocks Level 2, etc.
+        for (let level = newTier; level <= 5; level++) {
+            const animField = `lvl${level}anim`;
+            user[animField] = 0;
+            console.log(`[Admin Tier Change] Reset ${animField} to 0 (can watch animation again at tier ${level})`);
+        }
+
         // Update user's tier
         user.tier = newTier;
         user.updatedAt = new Date();

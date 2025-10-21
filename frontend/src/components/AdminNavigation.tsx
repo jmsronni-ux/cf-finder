@@ -8,6 +8,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   UserCog,
+  UserPlus,
   Layers,
   DollarSign,
   Network,
@@ -64,6 +65,13 @@ const AdminNavigation: React.FC = () => {
       icon: <UserCog className="w-5 h-5" />,
       description: 'Tier upgrade requests',
       color: 'from-indigo-500 to-indigo-600'
+    },
+    {
+      name: 'Registration Requests',
+      path: '/admin/registration-requests',
+      icon: <UserPlus className="w-5 h-5" />,
+      description: 'New user registrations',
+      color: 'from-blue-500 to-cyan-500'
     },
     {
       name: 'Level Management',

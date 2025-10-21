@@ -54,7 +54,13 @@ const HomePage = () => {
                         <div className="flex items-center justify-center whitespace-nowrap gap-4 z-50">
                             <Button asChild>
                                 <Link to={"/login"} className="flex items-center">
-                                Start My Verification
+                                Sign In
+                                    <ArrowRightIcon className="w-4 h-4 ml-2" />
+                                </Link>
+                            </Button>
+                            <Button asChild variant="outline">
+                                <Link to={"/register"} className="flex items-center">
+                                Register
                                     <ArrowRightIcon className="w-4 h-4 ml-2" />
                                 </Link>
                             </Button>
@@ -473,10 +479,16 @@ const HomePage = () => {
                             <p className="text-muted-foreground mt-6 max-w-md mx-auto">
                                 Experience the cutting-edge solution that helps you recover lost funds with ease. Trust our expert team to restore your crypto assets securely and efficiently.
                             </p>
-                            <div className="mt-6">
+                            <div className="mt-6 flex gap-4">
                                 <Link to={"/login"}>
                                     <Button>
-                                        Start My Verification
+                                        Sign In
+                                        <ArrowRightIcon className="w-4 h-4 ml-2" />
+                                    </Button>
+                                </Link>
+                                <Link to={"/register"}>
+                                    <Button variant="outline">
+                                        Register
                                         <ArrowRightIcon className="w-4 h-4 ml-2" />
                                     </Button>
                                 </Link>

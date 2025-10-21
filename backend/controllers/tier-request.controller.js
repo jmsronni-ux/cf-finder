@@ -166,6 +166,14 @@ export const approveTierRequest = async (req, res, next) => {
             throw new ApiError(400, "User's current tier is already equal to or higher than requested tier");
         }
 
+        // Reset animation flags for the current tier level and all levels above
+        // This ensures users can watch the tier animation again when they get that tier
+        // Tier 1 unlocks Level 1, Tier 2 unlocks Level 2, etc.
+        for (let level = tierRequest.requestedTier; level <= 5; level++) {
+            const animField = `lvl${level}anim`;
+            user[animField] = 0;
+        }
+
         // Update user's tier
         user.tier = tierRequest.requestedTier;
         user.updatedAt = new Date();

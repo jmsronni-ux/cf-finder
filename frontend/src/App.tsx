@@ -3,12 +3,14 @@ import { Route, Routes } from 'react-router-dom'
 import './utils/clearUserCache.js'
 import HomePage from './pages/HomePage'
 import RegisterPage from './pages/RegisterPage'
+import SignupPage from './pages/SignupPage'
 import Dashboard from "./pages/Dashboard";
 import UserProfile from "./pages/UserProfile";
 import AdminTopupRequests from "./pages/AdminTopupRequests";
 import AdminUserRewards from "./pages/AdminUserRewards";
 import AdminWithdrawRequests from "./pages/AdminWithdrawRequests";
 import AdminTierRequests from "./pages/AdminTierRequests";
+import AdminRegistrationRequests from "./pages/AdminRegistrationRequests";
 import AdminLevelManagement from "./pages/AdminLevelManagement";
 import AdminNetworkRewards from "./pages/AdminNetworkRewards";
 import AdminTierManagement from "./pages/AdminTierManagement";
@@ -27,6 +29,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<RegisterPage />} />
+        <Route path="/register" element={<SignupPage />} />
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
@@ -65,6 +68,11 @@ function App() {
         <Route path="/admin/tier-requests" element={
           <ProtectedRoute>
             <AdminTierRequests />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/registration-requests" element={
+          <ProtectedRoute>
+            <AdminRegistrationRequests />
           </ProtectedRoute>
         } />
         <Route path="/admin/level-management" element={

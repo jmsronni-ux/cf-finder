@@ -104,9 +104,17 @@ export const setUserTier = async (req, res, next) => {
         
         const tierInfo = getTierInfo(tier);
         
+        // Reset animation flags for the current tier level and all levels above
+        // This ensures users can watch the tier animation again when they get that tier
+        // Tier 1 unlocks Level 1, Tier 2 unlocks Level 2, etc.
+        const updateFields = { tier, updatedAt: new Date() };
+        for (let level = tier; level <= 5; level++) {
+            updateFields[`lvl${level}anim`] = 0;
+        }
+        
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { tier, updatedAt: new Date() },
+            updateFields,
             { new: true }
         );
         

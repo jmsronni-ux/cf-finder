@@ -22,6 +22,7 @@ import topupRequestRouter from './routes/topup-request.routes.js';
 import withdrawRequestRouter from './routes/withdraw-request.routes.js';
 import tierRequestRouter from './routes/tier-request.routes.js';
 import globalSettingsRouter from './routes/global-settings.routes.js';
+import registrationRequestRouter from './routes/registration-request.routes.js';
 import connectDB from './database/mongodb.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 import arcjetMiddleware from './middlewares/arcjet.middleware.js';
@@ -124,6 +125,7 @@ app.use('/topup-request', topupRequestRouter);
 app.use('/withdraw-request', withdrawRequestRouter);
 app.use('/tier-request', tierRequestRouter);
 app.use('/global-settings', globalSettingsRouter);
+app.use('/registration-request', registrationRequestRouter);
 app.use(arcjetMiddleware);
 
 // Root route
