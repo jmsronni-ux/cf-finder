@@ -82,6 +82,10 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      '/registration-request': {
+        target: 'https://localhost:3000',
+        changeOrigin: true,
+      }
     },
   },
 })

@@ -511,36 +511,44 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                       const amount = networkRewards[network.key] || 0;
                       const breakdown = conversionBreakdown[network.key];
                       const isSelected = selectedNetworks.has(network.key);
-                      
-                      if (amount === 0) return null;
+                      const hasAmount = amount > 0;
                       
                       return (
                         <div
                           key={network.key}
-                          onClick={() => !withdrawAll && handleNetworkToggle(network.key)}
-                          className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                            withdrawAll
+                          onClick={() => hasAmount && !withdrawAll && handleNetworkToggle(network.key)}
+                          className={`relative p-3 rounded-xl border-2 transition-all ${
+                            !hasAmount
+                              ? 'opacity-40 cursor-not-allowed bg-green-500/5 border-green-500/20'
+                              : withdrawAll
                               ? 'opacity-50 cursor-not-allowed bg-white/5 border-white/10'
                               : isSelected
-                              ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/10'
-                              : 'bg-white/5 border-white/10 hover:border-white/20'
+                              ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/10 cursor-pointer'
+                              : 'bg-white/5 border-white/10 hover:border-white/20 cursor-pointer'
                           }`}
                         >
                           <div className="flex items-start justify-between mb-3">
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${
-                              isSelected && !withdrawAll
+                              !hasAmount
+                                ? 'bg-green-500/20 border-green-500/30'
+                                : isSelected && !withdrawAll
                                 ? 'bg-green-500 border-green-400'
                                 : 'bg-white/5 border-white/20'
                             }`}>
-                              {isSelected && !withdrawAll && <Check className="w-5 h-5 text-white" />}
+                              {!hasAmount && <Check className="w-5 h-5 text-green-500/50" />}
+                              {isSelected && !withdrawAll && hasAmount && <Check className="w-5 h-5 text-white" />}
                             </div>
-                            <img src={network.icon} alt={network.name} className="w-6 h-6" />
+                            <img 
+                              src={network.icon} 
+                              alt={network.name} 
+                              className={`w-6 h-6 ${!hasAmount ? 'opacity-50' : ''}`} 
+                            />
                           </div>
                           <div>
-                            <div className="text-sm text-gray-300 mb-2">
+                            <div className={`text-sm mb-2 ${!hasAmount ? 'text-gray-500' : 'text-gray-300'}`}>
                               {amount.toLocaleString()} {network.key}
                             </div>
-                            <div className="text-xs text-gray-400">
+                            <div className={`text-xs ${!hasAmount ? 'text-gray-600' : 'text-gray-400'}`}>
                               ${breakdown?.usdt.toLocaleString() || '0'} USDT
                             </div>
                           </div>

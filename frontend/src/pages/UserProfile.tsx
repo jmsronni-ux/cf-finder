@@ -276,7 +276,7 @@ const UserProfile: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col">
-                    <p className="text-3xl font-bold mb-4 text-foreground">${user.balance}</p>
+                    <p className="text-3xl font-bold mb-4 text-foreground">${user.balance.toFixed(0)}</p>
                     <div className="space-y-2 mt-auto">
                       <Button 
                         onClick={() => setShowTopupPopup(true)}

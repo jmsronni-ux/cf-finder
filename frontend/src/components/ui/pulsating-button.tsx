@@ -92,7 +92,7 @@ export const PulsatingButton = React.forwardRef<
         return (
           <span className="flex items-center gap-2 font-medium">
             <Wallet className="w-4 h-4" />
-            Allocate Funds
+            Re-Allocate Funds
           </span>
         );
       }

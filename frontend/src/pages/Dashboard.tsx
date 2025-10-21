@@ -286,7 +286,7 @@ const Dashboard = () => {
 
             <ResizableHandle withHandle className="bg-gradient-to-r from-gray-500/20 via-primary/10 h-[0.5px] to-gray-500/20" />
 
-            <ResizablePanel minSize={6} defaultSize={10} maxSize={50} className="relative">
+            <ResizablePanel minSize={6} defaultSize={40} maxSize={50} className="relative">
                 <div className="flex flex-col h-full">
                     {/* top bar */}
                     <div className="p-4 border-b border-gray-500/20 w-full flex flex-row justify-between items-center">
