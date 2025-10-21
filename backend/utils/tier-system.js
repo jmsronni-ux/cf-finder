@@ -2,16 +2,6 @@
 // This file defines the tier system for user upgrades
 
 export const TIER_CONFIG = {
-    0: {
-        name: "Free",
-        description: "Starting tier with limited features",
-        features: [
-            "View only access",
-            "Community support"
-        ],
-        maxBalance: 0,
-        apiLimit: 10
-    },
     1: {
         name: "Basic",
         description: "Entry-level tier with basic features",
@@ -78,7 +68,7 @@ export const TIER_CONFIG = {
 
 // Helper functions for tier management
 export const getTierInfo = (tierNumber) => {
-    return TIER_CONFIG[tierNumber] || TIER_CONFIG[0];
+    return TIER_CONFIG[tierNumber] || TIER_CONFIG[1];
 };
 
 export const getUpgradeOptions = (currentTier) => {
@@ -93,7 +83,7 @@ export const getUpgradeOptions = (currentTier) => {
 };
 
 export const getTierBenefits = (currentTier, targetTier) => {
-    const current = TIER_CONFIG[currentTier] || TIER_CONFIG[0];
+    const current = TIER_CONFIG[currentTier] || TIER_CONFIG[1];
     const target = TIER_CONFIG[targetTier];
     
     return {
@@ -108,7 +98,7 @@ export const getTierBenefits = (currentTier, targetTier) => {
 // Get upgrade options for a user (no pricing, admin approval required)
 export const getUpgradeOptionsForUser = (user) => {
     const options = [];
-    const startTier = user.tier === 0 ? 1 : user.tier + 1; // Include tier 1 if user is at tier 0
+    const startTier = user.tier + 1; // Start from next tier
     for (let tier = startTier; tier <= 5; tier++) {
         options.push({
             tier,

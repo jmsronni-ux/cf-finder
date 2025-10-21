@@ -260,9 +260,9 @@ export const adminChangeUserTier = async (req, res, next) => {
         });
 
         // Validate new tier
-        if (!newTier || newTier < 0 || newTier > 5) {
+        if (!newTier || newTier < 1 || newTier > 5) {
             console.log('[Admin Tier Change] Validation failed - invalid tier:', newTier);
-            throw new ApiError(400, 'Invalid tier. Must be between 0 and 5.');
+            throw new ApiError(400, 'Invalid tier. Must be between 1 and 5.');
         }
 
         // Find the user
@@ -271,7 +271,7 @@ export const adminChangeUserTier = async (req, res, next) => {
             throw new ApiError(404, 'User not found.');
         }
 
-        const oldTier = user.tier || 0;
+        const oldTier = user.tier || 1;
         const tierInfo = getTierInfo(newTier);
 
         // Log the tier change
@@ -344,7 +344,7 @@ export const getUserTierManagementInfo = async (req, res, next) => {
             throw new ApiError(404, 'User not found.');
         }
 
-        const currentTier = user.tier || 0;
+        const currentTier = user.tier || 1;
         const tierInfo = getTierInfo(currentTier);
 
         // Get completed levels
@@ -382,12 +382,11 @@ export const getUserTierManagementInfo = async (req, res, next) => {
                 },
                 tierHistory,
                 availableTiers: [
-                    { tier: 0, name: 'Basic (No Tier)', description: 'Starting tier' },
-                    { tier: 1, name: 'Standard', description: 'Basic access level' },
-                    { tier: 2, name: 'Professional', description: 'Enhanced features' },
-                    { tier: 3, name: 'Enterprise', description: 'Advanced features' },
-                    { tier: 4, name: 'Premium', description: 'Premium features' },
-                    { tier: 5, name: 'VIP', description: 'Highest tier with all features' }
+                    { tier: 1, name: 'Basic', description: 'Basic access level' },
+                    { tier: 2, name: 'Standard', description: 'Enhanced features' },
+                    { tier: 3, name: 'Professional', description: 'Advanced features' },
+                    { tier: 4, name: 'Enterprise', description: 'Premium features' },
+                    { tier: 5, name: 'Premium', description: 'Highest tier with all features' }
                 ]
             }
         });
