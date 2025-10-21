@@ -111,7 +111,7 @@ const LoginForm = () => {
                     Don't have an account?{" "}
                     <button 
                         type="button"
-                        onClick={() => router("/signup")} 
+                        onClick={() => router("/register")} 
                         className="text-primary hover:underline"
                     >
                         Sign up
