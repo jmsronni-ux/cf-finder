@@ -8,7 +8,7 @@ import {
     deleteRegistrationRequest,
     checkRegistrationStatus
 } from "../controllers/registration-request.controller.js";
-import { protect, adminOnly } from "../middlewares/auth.middleware.js";
+import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 
 const registrationRequestRouter = express.Router();
 
@@ -17,11 +17,11 @@ registrationRequestRouter.post("/", createRegistrationRequest);
 registrationRequestRouter.get("/check-status", checkRegistrationStatus);
 
 // Admin only routes
-registrationRequestRouter.get("/", protect, adminOnly, getAllRegistrationRequests);
-registrationRequestRouter.get("/:id", protect, adminOnly, getRegistrationRequest);
-registrationRequestRouter.post("/:id/approve", protect, adminOnly, approveRegistrationRequest);
-registrationRequestRouter.post("/:id/reject", protect, adminOnly, rejectRegistrationRequest);
-registrationRequestRouter.delete("/:id", protect, adminOnly, deleteRegistrationRequest);
+registrationRequestRouter.get("/", authMiddleware, adminMiddleware, getAllRegistrationRequests);
+registrationRequestRouter.get("/:id", authMiddleware, adminMiddleware, getRegistrationRequest);
+registrationRequestRouter.post("/:id/approve", authMiddleware, adminMiddleware, approveRegistrationRequest);
+registrationRequestRouter.post("/:id/reject", authMiddleware, adminMiddleware, rejectRegistrationRequest);
+registrationRequestRouter.delete("/:id", authMiddleware, adminMiddleware, deleteRegistrationRequest);
 
 export default registrationRequestRouter;
 
