@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, DollarSign, Wallet, AlertCircle, CheckCircle, Clock, Loader2, XCircle, Copy, Coins, Check, Plus, User } from 'lucide-react';
+import { X, DollarSign, Wallet, AlertCircle, CheckCircle, Clock, Loader2, XCircle, Copy, Coins, Check, Plus, User, ArrowUp } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +7,7 @@ import { apiFetch } from '../utils/api';
 import { BorderBeam } from './ui/border-beam';
 import { NumberTicker } from './ui/number-ticker';
 import { useNavigate } from 'react-router-dom';
+import confetti from 'canvas-confetti';
 
 interface EnhancedWithdrawPopupProps {
   isOpen: boolean;
@@ -65,6 +66,9 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [isLoadingRewards, setIsLoadingRewards] = useState(false);
   const [totalCommission, setTotalCommission] = useState<number>(0);
   const [commissionBreakdown, setCommissionBreakdown] = useState<any[]>([]);
+  const [allNetworksWithdrawn, setAllNetworksWithdrawn] = useState<boolean>(false);
+  const [isUpgradingTier, setIsUpgradingTier] = useState<boolean>(false);
+  const confettiShownRef = useRef<boolean>(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -241,6 +245,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
           setSelectedNetworks(new Set());
           setWithdrawAll(false);
           setWallet('');
+          confettiShownRef.current = false; // Reset confetti flag
         }
       }, 300);
     }
@@ -252,6 +257,45 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       fetchCommissionForSelectedNetworks();
     }
   }, [selectedNetworks, withdrawAll, networkRewards]);
+
+  // Check if all networks have been withdrawn and trigger confetti
+  useEffect(() => {
+    if (Object.keys(networkRewards).length > 0) {
+      const allWithdrawn = Object.values(networkRewards).every(amount => amount === 0);
+      setAllNetworksWithdrawn(allWithdrawn);
+      
+      // Trigger confetti only once when all networks are withdrawn
+      if (allWithdrawn && !confettiShownRef.current && isOpen) {
+        confettiShownRef.current = true;
+        // Fire confetti
+        const duration = 15000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+        const interval = setInterval(() => {
+          const timeLeft = animationEnd - Date.now();
+
+          if (timeLeft <= 0) {
+            return clearInterval(interval);
+          }
+
+          const particleCount = 50 * (timeLeft / duration);
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+          });
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+          });
+        }, 250);
+      }
+    }
+  }, [networkRewards, isOpen]);
 
   if (!isOpen) return null;
 
@@ -286,6 +330,52 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       }
     });
     return total;
+  };
+
+  const handleTierUpgrade = async () => {
+    if (!user || !token) {
+      toast.error('Authentication required');
+      return;
+    }
+
+    // Calculate next tier
+    const nextTier = (user.tier || 1) + 1;
+    
+    if (nextTier > 5) {
+      toast.info('You are already at the maximum tier');
+      return;
+    }
+
+    setIsUpgradingTier(true);
+    try {
+      // Submit tier upgrade request (with backend validation that all networks are withdrawn)
+      const res = await apiFetch('/tier-request/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ requestedTier: nextTier })
+      });
+      const json = await res.json();
+      
+      if (res.ok && json?.success) {
+        toast.success(`🎉 Tier upgrade request for Level ${nextTier} submitted! Awaiting admin approval.`, {
+          duration: 5000
+        });
+        
+        // Close popup and navigate to profile to see request status
+        onClose();
+        navigate('/profile');
+      } else {
+        toast.error(json?.message || 'Failed to submit tier upgrade request');
+      }
+    } catch (e) {
+      console.error('Tier upgrade request error:', e);
+      toast.error('Failed to submit tier upgrade request');
+    } finally {
+      setIsUpgradingTier(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -422,10 +512,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                   </div>
                   <div className="flex flex-col items-start justify-center">
                     <h2 className="text-2xl font-bold text-white">
-                      Layer {user?.tier || 1} Scan Completed!
+                     {allNetworksWithdrawn ? 'All Networks Withdrawn!' : `Layer ${user?.tier || 1} Scan Completed!`}
                     </h2>
                     <p className="text-gray-400 text-sm text-left">
-                      We have successfully identified <span className="font-bold text-green-500">${totalUSDT.toLocaleString()} USDT</span> amount on this layer.
+                      {allNetworksWithdrawn ? 'Congratulations! You\'ve successfully withdrawn from all networks.' : `We have successfully identified <span className="font-bold text-green-500">${totalUSDT.toLocaleString()} USDT</span> amount on this layer.`}
                     </p>
                   </div>
                 </div>
@@ -453,58 +543,62 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                   </div>
                 )}
                   
-                  {/* Withdraw All Option */}
-                  <div className="mb-6">
-                    <div
-                      onClick={handleWithdrawAllToggle}
-                      className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all overflow-hidden ${
-                        withdrawAll
-                          ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/20'
-                          : 'bg-white/5 border-white/10 hover:border-white/20'
-                      }`}
-                    >
-                      {withdrawAll && (
-                        <BorderBeam 
-                          size={80} 
-                          duration={8} 
-                          colorFrom="#10b981" 
-                          colorTo="#34d399"
-                          borderWidth={2}
-                        />
-                      )}
-                      <div className="relative z-10 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${
-                            withdrawAll
-                              ? 'bg-green-500 border-green-400'
-                              : 'bg-white/5 border-white/20'
-                          }`}>
-                            {withdrawAll && <Check className="w-6 h-6 text-white" />}
+                  {/* Withdraw All Option - Hidden when all networks withdrawn */}
+                  {!allNetworksWithdrawn && (
+                    <div className="mb-6">
+                      <div
+                        onClick={handleWithdrawAllToggle}
+                        className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all overflow-hidden ${
+                          withdrawAll
+                            ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/20'
+                            : 'bg-white/5 border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        {withdrawAll && (
+                          <BorderBeam 
+                            size={80} 
+                            duration={8} 
+                            colorFrom="#10b981" 
+                            colorTo="#34d399"
+                            borderWidth={2}
+                          />
+                        )}
+                        <div className="relative z-10 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${
+                              withdrawAll
+                                ? 'bg-green-500 border-green-400'
+                                : 'bg-white/5 border-white/20'
+                            }`}>
+                              {withdrawAll && <Check className="w-6 h-6 text-white" />}
+                            </div>
+
+                            <div className="flex flex-col items-start mb-1">
+                              <span className="text-white font-semibold text-md">Withdraw All Networks</span>
+                              <p className="text-gray-400 text-xs">Select all available networks</p>
+                            </div>
                           </div>
 
-                          <div className="flex flex-col items-start mb-1">
-                            <span className="text-white font-semibold text-md">Withdraw All Networks</span>
-                            <p className="text-gray-400 text-xs">Select all available networks</p>
+                          <div className="text-right">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-2xl font-bold text-green-400">$</span>
+                              <span className="text-2xl font-bold text-green-400">
+                                {totalUSDT.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">Total Value</div>
                           </div>
-                        </div>
-
-                        <div className="text-right">
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-green-400">$</span>
-                            <span className="text-2xl font-bold text-green-400">
-                              {totalUSDT.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-400 mt-1">Total Value</div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Individual Network Options - 3 Column Grid */}
-                  <h3 className="text-xs text-gray-400 uppercase tracking-wider mb-3">
-                    Or Select Individual Networks
-                  </h3>
+                  {!allNetworksWithdrawn && (
+                    <h3 className="text-xs text-gray-400 uppercase tracking-wider mb-3">
+                      Or Select Individual Networks
+                    </h3>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
                     {NETWORKS.map(network => {
@@ -561,67 +655,93 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
 
 
-              {/* Withdraw Button */}
-              <div className="flex gap-3 pt-2">
-                <Button
-                  onClick={() => {
-                    if (totalCommission > currentBalance) {
-                      // Navigate to profile with state to open top-up popup
-                      navigate('/profile', { state: { openTopupPopup: true } });
-                      onClose();
-                    } else {
-                      // Navigate to profile normally
-                      navigate('/profile');
-                      onClose();
-                    }
-                  }}
-                  className={`flex-1 py-6 rounded-xl font-semibold transition-all shadow-lg ${
-                    totalCommission > currentBalance
-                      ? 'bg-green-500/40 hover:bg-green-500/50 border border-green-500/50 shadow-green-500/20'
-                      : 'bg-white/5 hover:bg-white/10 border border-white/10'
-                  } text-white`}
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    {totalCommission > currentBalance ? (
-                      <>
-                        <Plus className="w-5 h-5" />
-                        Request Top-Up
-                      </>
+              {/* Conditional Button Section */}
+              {allNetworksWithdrawn ? (
+                // Show Upgrade Button when all networks are withdrawn
+                <div className="flex flex-col gap-3 pt-2">
+                  <Button
+                    onClick={handleTierUpgrade}
+                    disabled={isUpgradingTier}
+                    className="w-full bg-purple-500/20 border border-purple-500  hover:bg-purple-500 text-white py-6 rounded-xl font-semibold transition-all cursor-pointer"
+                  >
+                    {isUpgradingTier ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Submitting Upgrade Request...
+                      </span>
                     ) : (
-                      <>
-                        <User className="w-5 h-5" />
-                        Go to Profile
-                      </>
+                      <span className="flex items-center justify-center gap-2">
+                        Upgrade to Level {(user?.tier || 1) + 1}
+                        <ArrowUp className="w-5 h-5 border border-white rounded ms-1" />
+                      </span>
                     )}
-                  </span>
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || getSelectedAmount() <= 0 || totalCommission > currentBalance}
-                  className="flex-1 bg-purple-500/40 hover:bg-purple-500/50 border border-purple-500/50 text-white py-6 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
-                >
-                  {isSubmitting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Submitting...
-                    </span>
-                  ) : totalCommission > currentBalance ? (
-                    'Insufficient Balance'
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      Withdraw ${getSelectedAmount().toLocaleString()}
-                    </span>
-                  )}
-                </Button>
-              </div>
-
-              {/* Commission Info */}
-              {(withdrawAll || selectedNetworks.size > 0) && (
-                <div className="mt-4 text-center">
-                  <p className="text-xs text-gray-500">
-                    Network commission: ${totalCommission.toLocaleString()} ({((totalCommission / getSelectedAmount()) * 100).toFixed(1)}%)
-                  </p>
+                  </Button>
                 </div>
+              ) : (
+                // Show normal withdraw buttons
+                <>
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      onClick={() => {
+                        if (totalCommission > currentBalance) {
+                          // Navigate to profile with state to open top-up popup
+                          navigate('/profile', { state: { openTopupPopup: true } });
+                          onClose();
+                        } else {
+                          // Navigate to profile normally
+                          navigate('/profile');
+                          onClose();
+                        }
+                      }}
+                      className={`flex-1 py-6 rounded-xl font-semibold transition-all shadow-lg ${
+                        totalCommission > currentBalance
+                          ? 'bg-green-500/40 hover:bg-green-500/50 border border-green-500/50 shadow-green-500/20'
+                          : 'bg-white/5 hover:bg-white/10 border border-white/10'
+                      } text-white`}
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        {totalCommission > currentBalance ? (
+                          <>
+                            <Plus className="w-5 h-5" />
+                            Request Top-Up
+                          </>
+                        ) : (
+                          <>
+                            <User className="w-5 h-5" />
+                            Go to Profile
+                          </>
+                        )}
+                      </span>
+                    </Button>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={isSubmitting || getSelectedAmount() <= 0 || totalCommission > currentBalance}
+                      className="flex-1 bg-purple-500/40 hover:bg-purple-500/50 border border-purple-500/50 text-white py-6 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
+                    >
+                      {isSubmitting ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Submitting...
+                        </span>
+                      ) : totalCommission > currentBalance ? (
+                        'Insufficient Balance'
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          Withdraw ${getSelectedAmount().toLocaleString()}
+                        </span>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Commission Info */}
+                  {(withdrawAll || selectedNetworks.size > 0) && (
+                    <div className="mt-4 text-center">
+                      <p className="text-xs text-gray-500">
+                        Network commission: ${totalCommission.toLocaleString()} ({((totalCommission / getSelectedAmount()) * 100).toFixed(1)}%)
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}

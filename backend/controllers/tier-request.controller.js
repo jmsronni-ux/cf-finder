@@ -38,29 +38,37 @@ export const createTierRequest = async (req, res, next) => {
             throw new ApiError(400, "You already have a pending request for this tier");
         }
 
-        // Check withdrawal requirements - user must have withdrawn all completed level rewards
-        const completedLevels = [];
+        // NEW CHECK: Verify all network rewards from ALL completed levels have been withdrawn
+        const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+        const levelsWithRemainingRewards = [];
+        
+        // Check all completed levels (levels where animation has been watched)
         for (let level = 1; level <= user.tier; level++) {
             const animField = `lvl${level}anim`;
-            if (user[animField] === 1) {
-                completedLevels.push(level);
+            const levelCompleted = user[animField] === 1;
+            
+            if (levelCompleted) {
+                const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
+                const levelNetworkRewards = user[levelNetworkRewardsField] || {};
+                
+                // Check if any network has remaining balance for this level
+                const remainingNetworks = networks.filter(network => {
+                    const amount = levelNetworkRewards[network] || 0;
+                    return amount > 0;
+                });
+                
+                if (remainingNetworks.length > 0) {
+                    levelsWithRemainingRewards.push({
+                        level,
+                        networks: remainingNetworks
+                    });
+                }
             }
         }
 
-        if (completedLevels.length > 0) {
-            // Check withdrawal requests for completed levels
-            const withdrawalRequests = await WithdrawalRequest.find({
-                userId,
-                level: { $in: completedLevels },
-                status: { $in: ['completed'] }
-            });
-
-            const levelsWithWithdrawals = withdrawalRequests.map(req => req.level);
-            const levelsWithoutWithdrawals = completedLevels.filter(level => !levelsWithWithdrawals.includes(level));
-
-            if (levelsWithoutWithdrawals.length > 0) {
-                throw new ApiError(400, `You must withdraw rewards from completed levels before upgrading: ${levelsWithoutWithdrawals.join(', ')}. Please request withdrawals for these levels first.`);
-            }
+        if (levelsWithRemainingRewards.length > 0) {
+            const levelsList = levelsWithRemainingRewards.map(l => `Level ${l.level} (${l.networks.join(', ')})`).join('; ');
+            throw new ApiError(400, `You must withdraw all network rewards before upgrading. Remaining: ${levelsList}`);
         }
 
         // Create the tier request
