@@ -153,9 +153,15 @@ const UserProfile: React.FC = () => {
   useEffect(() => {
     if (token) {
       fetchWallets();
-      fetchVerificationStatus();
     }
   }, [token]);
+
+  // Refetch verification status when wallets change
+  useEffect(() => {
+    if (token && wallets) {
+      fetchVerificationStatus();
+    }
+  }, [wallets, token]);
 
   // Submit wallet verification request
   const handleVerifyWallet = async () => {
@@ -206,11 +212,16 @@ const UserProfile: React.FC = () => {
       });
       const json = await res.json();
       if (res.ok && json?.success) {
-        // Find the latest verification request for BTC wallet
-        const btcRequest = json.data.requests?.find((req: WalletVerificationRequest) => 
-          req.walletType === 'btc'
-        );
-        setVerificationRequest(btcRequest || null);
+        // Find the latest verification request for the current BTC wallet address
+        const currentBtcWallet = wallets?.btc;
+        if (currentBtcWallet) {
+          const btcRequest = json.data.requests?.find((req: WalletVerificationRequest) => 
+            req.walletType === 'btc' && req.walletAddress === currentBtcWallet
+          );
+          setVerificationRequest(btcRequest || null);
+        } else {
+          setVerificationRequest(null);
+        }
       }
     } catch (e) {
       console.error('Failed to fetch verification status', e);
@@ -447,9 +458,28 @@ const UserProfile: React.FC = () => {
                               )}
                             </div>
                             {verificationRequest.status === 'rejected' && verificationRequest.rejectionReason && (
-                              <p className="text-xs text-red-400 mt-1">
-                                Reason: {verificationRequest.rejectionReason}
-                              </p>
+                              <div className="mt-2">
+                                <p className="text-xs text-red-400 mb-2">
+                                  <strong>Rejection Reason:</strong> {verificationRequest.rejectionReason}
+                                </p>
+                                <Button
+                                  onClick={handleVerifyWallet}
+                                  disabled={submittingVerification}
+                                  className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-600/50 flex items-center justify-center gap-2 text-xs py-2"
+                                >
+                                  {submittingVerification ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      Submitting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      Request New Verification
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                             )}
                           </div>
                         ) : (

@@ -118,17 +118,27 @@ export const updateMyWallets = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'No valid wallet fields provided' });
         }
 
+        // Reset wallet verification status when wallets are updated
+        update.walletVerified = false;
+        
         const updated = await User.findByIdAndUpdate(
             req.user._id,
             { $set: update },
             { new: true, runValidators: true }
-        ).select('wallets');
+        ).select('wallets walletVerified');
 
         if (!updated) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        res.status(200).json({ success: true, message: 'Wallets updated', data: updated.wallets || {} });
+        res.status(200).json({ 
+            success: true, 
+            message: 'Wallets updated. Wallet verification status has been reset.', 
+            data: { 
+                wallets: updated.wallets || {},
+                walletVerified: updated.walletVerified
+            }
+        });
     } catch (error) {
         console.error('Error updating wallets:', error);
         next(error);
