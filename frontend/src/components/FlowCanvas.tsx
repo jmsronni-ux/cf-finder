@@ -647,12 +647,19 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                   : hasStarted 
                     ? undefined 
                     : () => {
+                        // Check wallet verification before starting animation
+                        if (!user?.walletVerified) {
+                          toast.error('Please verify your wallet before starting the animation', {
+                            description: 'Go to your profile to request wallet verification'
+                          });
+                          return;
+                        }
                         resetPendingStatus(); // Reset pending timers before starting animation
                         setAnimationStartedForLevel(currentLevel); // Track which level animation is starting for
                         startAnimation();
                       }
             }
-            disabled={pendingTierRequest || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading}
+            disabled={pendingTierRequest || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading || (!user?.walletVerified && !hasWatchedCurrentLevel && hasPaidForCurrentLevel)}
         >
             {pendingTierRequest 
               ? 'Upgrade Pending' 

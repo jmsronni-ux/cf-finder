@@ -14,7 +14,8 @@ import {
   Network,
   ChevronRight,
   Home,
-  Settings
+  Settings,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -72,6 +73,13 @@ const AdminNavigation: React.FC = () => {
       icon: <UserPlus className="w-5 h-5" />,
       description: 'New user registrations',
       color: 'from-blue-500 to-cyan-500'
+    },
+    {
+      name: 'Wallet Verifications',
+      path: '/admin/wallet-verifications',
+      icon: <ShieldCheck className="w-5 h-5" />,
+      description: 'Verify user wallets',
+      color: 'from-teal-500 to-teal-600'
     },
     {
       name: 'Level Management',

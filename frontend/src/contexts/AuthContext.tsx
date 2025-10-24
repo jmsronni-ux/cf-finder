@@ -28,6 +28,7 @@ interface User {
     usdtErc20?: string;
     custom?: { chain: string; address: string }[];
   };
+  walletVerified?: boolean;
 }
 
 interface AuthContextType {

@@ -72,6 +72,15 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token, refreshUser } = useAuth();
   const navigate = useNavigate();
+
+  // Check wallet verification on popup open
+  useEffect(() => {
+    if (isOpen && !user?.walletVerified) {
+      toast.error('Wallet verification required', {
+        description: 'Please verify your wallet before making withdrawal requests'
+      });
+    }
+  }, [isOpen, user?.walletVerified]);
  
   // Fetch commission from backend API
   const fetchCommissionForSelectedNetworks = async () => {
@@ -380,6 +389,14 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check wallet verification first
+    if (!user?.walletVerified) {
+      toast.error('Wallet verification required', {
+        description: 'Please verify your wallet in your profile before making withdrawal requests'
+      });
+      return;
+    }
     
     const withdrawAmount = getSelectedAmount();
     
@@ -715,7 +732,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                     </Button>
                     <Button
                       onClick={handleSubmit}
-                      disabled={isSubmitting || getSelectedAmount() <= 0 || totalCommission > currentBalance}
+                      disabled={isSubmitting || getSelectedAmount() <= 0 || totalCommission > currentBalance || !user?.walletVerified}
                       className="flex-1 bg-purple-500/40 hover:bg-purple-500/50 border border-purple-500/50 text-white py-6 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
                     >
                       {isSubmitting ? (

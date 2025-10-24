@@ -390,7 +390,15 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
             }
             isLoading={isUpgrading}
             className="w-full h-12"
-            onClick={pendingTierRequest ? undefined : (hasWatchedCurrentLevel ? onWithdrawClick : (hasStarted ? undefined : onStartAnimation))}
+            onClick={pendingTierRequest ? undefined : (hasWatchedCurrentLevel ? onWithdrawClick : (hasStarted ? undefined : () => {
+              if (!user?.walletVerified) {
+                toast.error('Please verify your wallet before starting', {
+                  description: 'Go to your profile to request wallet verification'
+                });
+                return;
+              }
+              onStartAnimation?.();
+            }))}
             disabled={pendingTierRequest || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading}
           >
             {pendingTierRequest ? 'Upgrade Pending' : (isUpgrading ? 'Upgrading...' : hasWatchedCurrentLevel ? 'Withdraw' : hasStarted ? '' : 'Start scan')}

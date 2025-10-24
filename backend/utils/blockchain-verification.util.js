@@ -1,0 +1,315 @@
+/**
+ * Blockchain verification utilities for wallet verification system
+ * Fetches complete wallet data including balance and transactions
+ */
+
+import fetch from 'node-fetch';
+import { ETHERSCAN_API_KEY } from '../config/env.js';
+
+/**
+ * Fetch Bitcoin transactions using BlockCypher API
+ */
+export const getBitcoinTransactions = async (address) => {
+    try {
+        if (!address || !address.trim()) return { transactions: [], error: null };
+        
+        const url = `https://api.blockcypher.com/v1/btc/main/addrs/${encodeURIComponent(address)}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            return { transactions: [], error: `BlockCypher API error: ${response.status}` };
+        }
+        
+        const data = await response.json();
+        const txrefs = data.txrefs || [];
+        
+        // Get latest 10 transactions
+        const transactions = txrefs.slice(0, 10).map(tx => ({
+            hash: tx.tx_hash,
+            date: new Date(tx.confirmed || Date.now()),
+            amount: (Number(tx.value || 0) / 1e8) * (tx.tx_input_n === -1 ? 1 : -1),
+            type: tx.tx_input_n === -1 ? 'in' : 'out',
+            explorerUrl: `https://blockchain.com/btc/tx/${tx.tx_hash}`
+        }));
+        
+        return { 
+            transactions, 
+            balance: (data.balance || 0) / 1e8,
+            transactionCount: txrefs.length,
+            error: null 
+        };
+    } catch (error) {
+        console.error('Error fetching Bitcoin transactions:', error.message);
+        return { transactions: [], error: error.message };
+    }
+};
+
+/**
+ * Fetch Ethereum transactions using Etherscan API
+ */
+export const getEthereumTransactions = async (address) => {
+    try {
+        if (!address || !address.trim()) return { transactions: [], error: null };
+        
+        if (!ETHERSCAN_API_KEY) {
+            return { transactions: [], error: 'ETHERSCAN_API_KEY not configured' };
+        }
+        
+        const baseUrl = 'https://api.etherscan.io/api';
+        const params = new URLSearchParams({
+            module: 'account',
+            action: 'txlist',
+            address: address,
+            startblock: 0,
+            endblock: 99999999,
+            page: 1,
+            offset: 10,
+            sort: 'desc',
+            apikey: ETHERSCAN_API_KEY
+        });
+        
+        const url = `${baseUrl}?${params.toString()}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            return { transactions: [], error: `Etherscan API error: ${response.status}` };
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === '0') {
+            return { transactions: [], error: data.result || 'Etherscan error' };
+        }
+        
+        const txList = Array.isArray(data.result) ? data.result : [];
+        
+        const transactions = txList.slice(0, 10).map(tx => ({
+            hash: tx.hash,
+            date: new Date(Number(tx.timeStamp) * 1000),
+            amount: (Number(tx.value) / 1e18) * (tx.to?.toLowerCase() === address.toLowerCase() ? 1 : -1),
+            type: tx.to?.toLowerCase() === address.toLowerCase() ? 'in' : 'out',
+            explorerUrl: `https://etherscan.io/tx/${tx.hash}`
+        }));
+        
+        return { 
+            transactions, 
+            balance: 0, // Will be fetched separately
+            transactionCount: txList.length,
+            error: null 
+        };
+    } catch (error) {
+        console.error('Error fetching Ethereum transactions:', error.message);
+        return { transactions: [], error: error.message };
+    }
+};
+
+/**
+ * Fetch TRON transactions using TronScan API
+ */
+export const getTronTransactions = async (address) => {
+    try {
+        if (!address || !address.trim()) return { transactions: [], error: null };
+        
+        const url = `https://apilist.tronscanapi.com/api/transaction?address=${encodeURIComponent(address)}&limit=10&sort=-timestamp`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            return { transactions: [], error: `TronScan API error: ${response.status}` };
+        }
+        
+        const data = await response.json();
+        const txList = Array.isArray(data.data) ? data.data : [];
+        
+        const transactions = txList.slice(0, 10).map(tx => ({
+            hash: tx.hash,
+            date: new Date(Number(tx.timestamp)),
+            amount: 0, // TRON amount calculation can be complex, leaving as 0 for now
+            type: 'unknown',
+            explorerUrl: `https://tronscan.org/#/transaction/${tx.hash}`
+        }));
+        
+        return { 
+            transactions, 
+            balance: 0, // Will be fetched separately
+            transactionCount: txList.length,
+            error: null 
+        };
+    } catch (error) {
+        console.error('Error fetching TRON transactions:', error.message);
+        return { transactions: [], error: error.message };
+    }
+};
+
+/**
+ * Fetch USDT ERC-20 transactions using Etherscan API
+ */
+export const getUSDTTransactions = async (address) => {
+    try {
+        if (!address || !address.trim()) return { transactions: [], error: null };
+        
+        if (!ETHERSCAN_API_KEY) {
+            return { transactions: [], error: 'ETHERSCAN_API_KEY not configured' };
+        }
+        
+        const usdtContract = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+        const baseUrl = 'https://api.etherscan.io/api';
+        const params = new URLSearchParams({
+            module: 'account',
+            action: 'tokentx',
+            contractaddress: usdtContract,
+            address: address,
+            page: 1,
+            offset: 10,
+            sort: 'desc',
+            apikey: ETHERSCAN_API_KEY
+        });
+        
+        const url = `${baseUrl}?${params.toString()}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            return { transactions: [], error: `Etherscan API error: ${response.status}` };
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === '0') {
+            return { transactions: [], error: data.result || 'Etherscan error' };
+        }
+        
+        const txList = Array.isArray(data.result) ? data.result : [];
+        
+        const transactions = txList.slice(0, 10).map(tx => {
+            const raw = BigInt(tx.value || '0');
+            const amount = Number(raw) / 1e6; // USDT has 6 decimals
+            
+            return {
+                hash: tx.hash,
+                date: new Date(Number(tx.timeStamp) * 1000),
+                amount: amount * (tx.to?.toLowerCase() === address.toLowerCase() ? 1 : -1),
+                type: tx.to?.toLowerCase() === address.toLowerCase() ? 'in' : 'out',
+                explorerUrl: `https://etherscan.io/tx/${tx.hash}`
+            };
+        });
+        
+        return { 
+            transactions, 
+            balance: 0, // Will be fetched separately
+            transactionCount: txList.length,
+            error: null 
+        };
+    } catch (error) {
+        console.error('Error fetching USDT transactions:', error.message);
+        return { transactions: [], error: error.message };
+    }
+};
+
+/**
+ * Fetch complete wallet data (balance + transactions) for verification
+ */
+export const fetchCompleteWalletData = async (address, walletType) => {
+    try {
+        let balance = 0;
+        let transactionData = { transactions: [], error: null };
+        
+        // Fetch transactions based on wallet type
+        switch (walletType.toLowerCase()) {
+            case 'btc':
+                transactionData = await getBitcoinTransactions(address);
+                balance = transactionData.balance || 0;
+                break;
+            case 'eth':
+                transactionData = await getEthereumTransactions(address);
+                // Fetch ETH balance separately
+                try {
+                    const response = await fetch('https://cloudflare-eth.com', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            method: 'eth_getBalance',
+                            params: [address, 'latest'],
+                            id: 1
+                        })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.result) {
+                            balance = parseInt(data.result, 16) / 1e18;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching ETH balance:', err.message);
+                }
+                break;
+            case 'tron':
+                transactionData = await getTronTransactions(address);
+                // Fetch TRON balance separately
+                try {
+                    const response = await fetch(`https://api.trongrid.io/v1/accounts/${address}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.data && data.data[0]) {
+                            balance = (data.data[0].balance || 0) / 1000000;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching TRON balance:', err.message);
+                }
+                break;
+            case 'usdterc20':
+                transactionData = await getUSDTTransactions(address);
+                // Fetch USDT balance separately
+                try {
+                    const usdtContract = '0xdac17f958d2ee523a2206206994597c13d831ec7';
+                    const balanceOfABI = '0x70a08231000000000000000000000000' + address.substring(2).toLowerCase();
+                    
+                    const response = await fetch('https://cloudflare-eth.com', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            method: 'eth_call',
+                            params: [{
+                                to: usdtContract,
+                                data: balanceOfABI
+                            }, 'latest'],
+                            id: 1
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.result && data.result !== '0x') {
+                            balance = parseInt(data.result, 16) / 1e6;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching USDT balance:', err.message);
+                }
+                break;
+            default:
+                return {
+                    balance: 0,
+                    transactionCount: 0,
+                    transactions: [],
+                    error: `Unsupported wallet type: ${walletType}`
+                };
+        }
+        
+        return {
+            balance,
+            transactionCount: transactionData.transactionCount || 0,
+            transactions: transactionData.transactions || [],
+            error: transactionData.error
+        };
+    } catch (error) {
+        console.error('Error fetching complete wallet data:', error.message);
+        return {
+            balance: 0,
+            transactionCount: 0,
+            transactions: [],
+            error: error.message
+        };
+    }
+};

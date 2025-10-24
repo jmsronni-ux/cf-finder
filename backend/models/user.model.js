@@ -180,6 +180,10 @@ const userSchema = new mongoose.Schema({
                 address: { type: String, trim: true }
             }
         ]
+    },
+    walletVerified: {
+        type: Boolean,
+        default: false
     }
 });
 

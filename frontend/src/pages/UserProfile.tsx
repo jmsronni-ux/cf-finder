@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon } from 'lucide-react';
+import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import EnhancedWithdrawPopup from '../components/EnhancedWithdrawPopup';
@@ -19,6 +19,7 @@ import WithdrawPopup from '@/components/WithdrawPopup';
 import AddWalletPopup from '../components/AddWalletPopup';
 import ChangeWallet from '../components/ChangeWallet';
 import WithdrawSuccessPopup from '../components/WithdrawSuccessPopup';
+import { WalletVerificationRequest } from '../types/wallet-verification';
 
 interface TierInfo {
   tier: number;
@@ -45,6 +46,9 @@ const UserProfile: React.FC = () => {
   const [showChangeWalletPopup, setShowChangeWalletPopup] = useState(false);
   const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
   const [withdrawSuccessData, setWithdrawSuccessData] = useState<{ amount?: number; wallet?: string }>({});
+  const [verificationRequest, setVerificationRequest] = useState<WalletVerificationRequest | null>(null);
+  const [loadingVerification, setLoadingVerification] = useState(false);
+  const [submittingVerification, setSubmittingVerification] = useState(false);
   const navigate = useNavigate();
 
   // Ensure we show real-time tier/balance from DB
@@ -144,6 +148,76 @@ const UserProfile: React.FC = () => {
     fetchTierOptions();
     fetchPendingRequests();
   }, [token, user?.tier]); // Refetch when tier changes
+
+  // Fetch wallets and verification status
+  useEffect(() => {
+    if (token) {
+      fetchWallets();
+      fetchVerificationStatus();
+    }
+  }, [token]);
+
+  // Submit wallet verification request
+  const handleVerifyWallet = async () => {
+    if (!wallets?.btc) {
+      toast.error('No wallet address found');
+      return;
+    }
+
+    setSubmittingVerification(true);
+    try {
+      const res = await apiFetch('/wallet-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          walletAddress: wallets.btc,
+          walletType: 'btc'
+        })
+      });
+
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        toast.success('Verification request submitted! Admin will review your wallet shortly.');
+        fetchVerificationStatus();
+      } else {
+        toast.error(json.message || 'Failed to submit verification request');
+      }
+    } catch (e) {
+      console.error('Failed to submit verification request', e);
+      toast.error('An error occurred while submitting verification request');
+    } finally {
+      setSubmittingVerification(false);
+    }
+  };
+
+  // Fetch wallet verification status
+  const fetchVerificationStatus = async () => {
+    if (!token) return;
+    try {
+      setLoadingVerification(true);
+      const res = await apiFetch('/wallet-verification/my-requests', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        // Find the latest verification request for BTC wallet
+        const btcRequest = json.data.requests?.find((req: WalletVerificationRequest) => 
+          req.walletType === 'btc'
+        );
+        setVerificationRequest(btcRequest || null);
+      }
+    } catch (e) {
+      console.error('Failed to fetch verification status', e);
+    } finally {
+      setLoadingVerification(false);
+    }
+  };
 
   const fetchWallets = async () => {
     if (!token) return;
@@ -346,15 +420,65 @@ const UserProfile: React.FC = () => {
                     <p className="text-sm text-foreground w-full border border-border rounded-md p-2"><strong className="me-4">Phone:</strong> {user.phone || 'Not provided'}</p>
                     
                     
-                    {/* Change Wallet Button - Only show if BTC wallet exists */}
+                    {/* Wallet Verification Status */}
                     {wallets?.btc && (
-                      <Button 
-                        onClick={() => setShowChangeWalletPopup(true)}
-                        className="mt-2 w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2"
-                      >
-                        <Wallet className="w-4 h-4" />
-                        Change Wallet
-                      </Button>
+                      <div className="mt-2 space-y-2">
+                        {verificationRequest ? (
+                          <div className="w-full border border-border rounded-md p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium">Wallet Verification</span>
+                              {verificationRequest.status === 'pending' && (
+                                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Pending
+                                </Badge>
+                              )}
+                              {verificationRequest.status === 'approved' && (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
+                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                  Verified
+                                </Badge>
+                              )}
+                              {verificationRequest.status === 'rejected' && (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  Rejected
+                                </Badge>
+                              )}
+                            </div>
+                            {verificationRequest.status === 'rejected' && verificationRequest.rejectionReason && (
+                              <p className="text-xs text-red-400 mt-1">
+                                Reason: {verificationRequest.rejectionReason}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <Button 
+                            onClick={handleVerifyWallet}
+                            disabled={submittingVerification}
+                            className="w-full bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50 flex items-center justify-center gap-2"
+                          >
+                            {submittingVerification ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Submitting...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-4 h-4" />
+                                Request Verification
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button 
+                          onClick={() => setShowChangeWalletPopup(true)}
+                          className="w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2"
+                        >
+                          <Wallet className="w-4 h-4" />
+                          Change Wallet
+                        </Button>
+                      </div>
                     )}
                   </CardContent>
                 </Card>

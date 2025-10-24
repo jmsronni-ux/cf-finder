@@ -16,6 +16,7 @@ import AdminNetworkRewards from "./pages/AdminNetworkRewards";
 import AdminTierManagement from "./pages/AdminTierManagement";
 import AdminConversionRates from "./pages/AdminConversionRates";
 import AdminGlobalSettings from "./pages/AdminGlobalSettings";
+import AdminWalletVerifications from "./pages/AdminWalletVerifications";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -73,6 +74,11 @@ function App() {
         <Route path="/admin/registration-requests" element={
           <ProtectedRoute>
             <AdminRegistrationRequests />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/wallet-verifications" element={
+          <ProtectedRoute>
+            <AdminWalletVerifications />
           </ProtectedRoute>
         } />
         <Route path="/admin/level-management" element={
