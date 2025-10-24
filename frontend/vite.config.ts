@@ -78,12 +78,16 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      '/withdraw-request/create': {
+      '/registration-request': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      '/registration-request': {
-        target: 'https://localhost:3000',
+      '/global-settings': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/wallet-verification': {
+        target: 'http://localhost:3000',
         changeOrigin: true,
       }
     },

@@ -75,6 +75,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [completionTotalRewardUSDT, setCompletionTotalRewardUSDT] = useState<number>(0);
   const [isProcessingCompletion, setIsProcessingCompletion] = useState<boolean>(false);
   const [completionPopupShown, setCompletionPopupShown] = useState<boolean>(false);
+  const [hasPendingVerification, setHasPendingVerification] = useState<boolean>(false);
   const navigate = useNavigate();
   
   // Pending status hook
@@ -130,6 +131,18 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     currentLevel,
     isNodePending
   );
+  
+  // Debug logging - AFTER all hooks are initialized
+  useEffect(() => {
+    console.log('=== BUTTON DEBUG ===');
+    console.log('user?.walletVerified:', user?.walletVerified);
+    console.log('user?.isAdmin:', user?.isAdmin);
+    console.log('hasWatchedCurrentLevel:', hasWatchedCurrentLevel);
+    console.log('hasPendingVerification:', hasPendingVerification);
+    console.log('pendingTierRequest:', pendingTierRequest);
+    console.log('hasStarted:', hasStarted);
+    console.log('===================');
+  }, [user?.walletVerified, user?.isAdmin, hasWatchedCurrentLevel, hasPendingVerification, pendingTierRequest, hasStarted]);
   
   // Load level data when currentLevel changes
   useEffect(() => {
@@ -223,6 +236,35 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     };
     fetchPendingRequests();
   }, [token, user?.tier]);
+
+  // Fetch pending wallet verification requests
+  useEffect(() => {
+    const fetchVerificationStatus = async () => {
+      if (!token || user?.walletVerified) {
+        setHasPendingVerification(false);
+        return;
+      }
+      try {
+        const res = await apiFetch('/wallet-verification/my-requests', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const json = await res.json();
+        if (res.ok && json?.success) {
+          // Check if there's a pending verification request for BTC wallet
+          const pending = json.data.requests?.find((req: any) => 
+            req.status === 'pending' && req.walletType === 'btc'
+          );
+          setHasPendingVerification(!!pending);
+        }
+      } catch (e) {
+        console.error('Failed to fetch verification status', e);
+      }
+    };
+    fetchVerificationStatus();
+  }, [token, user?.walletVerified]);
 
   // Fetch next tier upgrade options
   useEffect(() => {
@@ -631,7 +673,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             duration="1.5s"
             variant={
               pendingTierRequest ? "upgradePending" :
-              (hasWatchedCurrentLevel || !hasPaidForCurrentLevel) ? "withdraw" : 
+              hasWatchedCurrentLevel ? "withdraw" :
+              (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
+              (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
               hasStarted ? "loading" : 
               "start"
             }
@@ -640,36 +684,39 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             onClick={
               pendingTierRequest 
                 ? undefined 
-                : (hasWatchedCurrentLevel || !hasPaidForCurrentLevel) 
+                : hasWatchedCurrentLevel
                   ? () => {
                       setShowCompletionPopup(!showCompletionPopup);
                     }
-                  : hasStarted 
-                    ? undefined 
-                    : () => {
-                        // Check wallet verification before starting animation
-                        if (!user?.walletVerified) {
-                          toast.error('Please verify your wallet before starting the animation', {
-                            description: 'Go to your profile to request wallet verification'
-                          });
-                          return;
+                  : (!user?.isAdmin && hasPendingVerification)
+                    ? undefined
+                    : (!user?.isAdmin && !user?.walletVerified)
+                      ? () => {
+                          navigate('/profile');
                         }
-                        resetPendingStatus(); // Reset pending timers before starting animation
-                        setAnimationStartedForLevel(currentLevel); // Track which level animation is starting for
-                        startAnimation();
-                      }
+                      : hasStarted 
+                        ? undefined 
+                        : () => {
+                            resetPendingStatus(); // Reset pending timers before starting animation
+                            setAnimationStartedForLevel(currentLevel); // Track which level animation is starting for
+                            startAnimation();
+                          }
             }
-            disabled={pendingTierRequest || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading || (!user?.walletVerified && !hasWatchedCurrentLevel && hasPaidForCurrentLevel)}
+            disabled={pendingTierRequest || (!user?.isAdmin && hasPendingVerification) || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading}
         >
             {pendingTierRequest 
               ? 'Upgrade Pending' 
               : isUpgrading 
                 ? 'Upgrading...' 
-                : (hasWatchedCurrentLevel || !hasPaidForCurrentLevel) 
-                  ? 'Withdraw' 
-                  : hasStarted 
-                    ? 'Running...' 
-                    : 'Start Animation'}
+                : hasWatchedCurrentLevel
+                  ? 'Withdraw'
+                  : (!user?.isAdmin && hasPendingVerification)
+                    ? 'Verification Pending'
+                    : (!user?.isAdmin && !user?.walletVerified)
+                      ? 'Verify Wallet'
+                      : hasStarted 
+                        ? 'Running...' 
+                        : 'Start Animation'}
         </PulsatingButton>
         
 

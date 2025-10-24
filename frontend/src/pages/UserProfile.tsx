@@ -156,12 +156,12 @@ const UserProfile: React.FC = () => {
     }
   }, [token]);
 
-  // Refetch verification status when wallets change
+  // Fetch verification status when component mounts and wallets are loaded
   useEffect(() => {
-    if (token && wallets) {
+    if (token && wallets?.btc) {
       fetchVerificationStatus();
     }
-  }, [wallets, token]);
+  }, [token, wallets?.btc]); // Only refetch when token changes or BTC wallet address changes
 
   // Periodically check for verification status updates
   useEffect(() => {
@@ -459,7 +459,7 @@ const UserProfile: React.FC = () => {
                       <div className="mt-2 space-y-2">
                         {verificationRequest ? (
                           <div className="w-full border border-border rounded-md p-3">
-                            <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center justify-between">
                               <span className="text-sm font-medium">Wallet Verification</span>
                               {verificationRequest.status === 'pending' && (
                                 <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
@@ -524,13 +524,25 @@ const UserProfile: React.FC = () => {
                             )}
                           </Button>
                         )}
-                        <Button 
-                          onClick={() => setShowChangeWalletPopup(true)}
-                          className="w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2"
-                        >
-                          <Wallet className="w-4 h-4" />
-                          Change Wallet
-                        </Button>
+                        {(!verificationRequest || verificationRequest?.status === 'rejected') && (
+                          <Button 
+                            onClick={() => setShowChangeWalletPopup(true)}
+                            disabled={loadingVerification}
+                            className="w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2 disabled:opacity-50"
+                          >
+                            {loadingVerification ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <Wallet className="w-4 h-4" />
+                                Change Wallet
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </div>
                     )}
                   </CardContent>

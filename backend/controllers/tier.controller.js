@@ -32,6 +32,7 @@ export const getUserTier = async (req, res, next) => {
                     tier: user.tier,
                     balance: user.balance,
                     isAdmin: user.isAdmin,
+                    walletVerified: user.walletVerified,
                     lvl1anim: user.lvl1anim,
                     lvl2anim: user.lvl2anim,
                     lvl3anim: user.lvl3anim,

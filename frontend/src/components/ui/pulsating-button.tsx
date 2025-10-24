@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { Loader2, ArrowRight, Wallet } from "lucide-react";
 
-type ButtonVariant = "start" | "loading" | "upgrade" | "upgradePending" | "withdraw";
+type ButtonVariant = "start" | "loading" | "upgrade" | "upgradePending" | "withdraw" | "verifyWallet" | "verificationPending";
 
 interface PulsatingButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -29,7 +29,7 @@ export const PulsatingButton = React.forwardRef<
     ref,
   ) => {
     // Determine if button should pulse
-    const shouldPulse = variant === "start" || variant === "loading" || variant === "upgradePending";
+    const shouldPulse = variant === "start" || variant === "loading" || variant === "upgradePending" || variant === "verificationPending";
     
     // Get variant-specific styles
     const getVariantStyles = () => {
@@ -38,6 +38,10 @@ export const PulsatingButton = React.forwardRef<
           return "bg-[#4F1F7B] hover:from-purple-700 hover:bg-purple-800 shadow-lg border border-purple-500";
         case "upgradePending":
           return "bg-[#251F11] border border-yellow-500/30 cursor-wait";
+        case "verificationPending":
+          return "bg-[#251F11] border border-yellow-500/30 cursor-wait";
+        case "verifyWallet":
+          return "bg-[#1F4F2B] hover:bg-[#2F6F3B] border border-green-500/50 shadow-lg";
         case "withdraw":
           return "bg-yellow-600/40 hover:bg-yellow-700 border border-yellow-600";
         case "loading":
@@ -79,11 +83,31 @@ export const PulsatingButton = React.forwardRef<
         );
       }
 
+      if (variant === "verificationPending") {
+        return (
+          <span className="flex items-center gap-2">
+            <div className="w-1 h-1 bg-yellow-500 rounded-full animate-ping"></div>
+            <span className="text-sm font-semibold text-yellow-400">
+              {children || 'Verification Pending'}
+            </span>
+          </span>
+        );
+      }
+
       if (variant === "upgrade") {
         return (
           <span className="flex items-center gap-2 font-semibold ps-4">
             {children || 'UPGRADE'}
             <ArrowRight className="w-4 h-4" />
+          </span>
+        );
+      }
+
+      if (variant === "verifyWallet") {
+        return (
+          <span className="flex items-center gap-2 font-semibold">
+            <Wallet className="w-4 h-4" />
+            {children || 'Verify Wallet'}
           </span>
         );
       }
