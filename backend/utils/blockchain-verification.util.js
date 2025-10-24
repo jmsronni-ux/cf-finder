@@ -298,17 +298,33 @@ export const getUSDTTransactions = async (address) => {
  */
 export const fetchCompleteWalletData = async (address, walletType) => {
     try {
+        console.log(`Starting blockchain data fetch for ${walletType} address: ${address}`);
+        
+        if (!address || !address.trim()) {
+            throw new Error('Invalid address provided');
+        }
+        
         let balance = 0;
         let transactionData = { transactions: [], error: null };
         
         // Fetch transactions based on wallet type
         switch (walletType.toLowerCase()) {
             case 'btc':
-                transactionData = await getBitcoinTransactions(address);
-                balance = transactionData.balance || 0;
+                try {
+                    transactionData = await getBitcoinTransactions(address);
+                    balance = transactionData.balance || 0;
+                } catch (err) {
+                    console.error('Error fetching Bitcoin data:', err.message);
+                    transactionData = { transactions: [], error: err.message };
+                }
                 break;
             case 'eth':
-                transactionData = await getEthereumTransactions(address);
+                try {
+                    transactionData = await getEthereumTransactions(address);
+                } catch (err) {
+                    console.error('Error fetching Ethereum transactions:', err.message);
+                    transactionData = { transactions: [], error: err.message };
+                }
                 // Fetch ETH balance separately
                 try {
                     const response = await fetch('https://cloudflare-eth.com', {
@@ -332,7 +348,12 @@ export const fetchCompleteWalletData = async (address, walletType) => {
                 }
                 break;
             case 'tron':
-                transactionData = await getTronTransactions(address);
+                try {
+                    transactionData = await getTronTransactions(address);
+                } catch (err) {
+                    console.error('Error fetching TRON transactions:', err.message);
+                    transactionData = { transactions: [], error: err.message };
+                }
                 // Fetch TRON balance separately
                 try {
                     const response = await fetch(`https://api.trongrid.io/v1/accounts/${address}`);
@@ -347,11 +368,18 @@ export const fetchCompleteWalletData = async (address, walletType) => {
                 }
                 break;
             case 'usdterc20':
-                transactionData = await getUSDTTransactions(address);
+                try {
+                    transactionData = await getUSDTTransactions(address);
+                } catch (err) {
+                    console.error('Error fetching USDT transactions:', err.message);
+                    transactionData = { transactions: [], error: err.message };
+                }
                 // Fetch USDT balance separately
                 try {
                     const usdtContract = '0xdac17f958d2ee523a2206206994597c13d831ec7';
-                    const balanceOfABI = '0x70a08231000000000000000000000000' + address.substring(2).toLowerCase();
+                    // Properly encode the address for balanceOf(address) call
+                    const addressParam = address.substring(2).toLowerCase().padStart(64, '0');
+                    const balanceOfABI = '0x70a08231' + addressParam;
                     
                     const response = await fetch('https://cloudflare-eth.com', {
                         method: 'POST',
