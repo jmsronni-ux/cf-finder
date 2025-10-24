@@ -182,7 +182,14 @@ export const fetchBlockchainData = async (req, res, next) => {
         }
 
         // Fetch fresh blockchain data
+        console.log(`Fetching blockchain data for ${request.walletType} address: ${request.walletAddress}`);
         const blockchainData = await fetchCompleteWalletData(request.walletAddress, request.walletType);
+        console.log('Blockchain data result:', {
+            balance: blockchainData.balance,
+            transactionCount: blockchainData.transactionCount,
+            transactionsLength: blockchainData.transactions?.length || 0,
+            error: blockchainData.error
+        });
 
         // Update the request with fresh data
         request.blockchainData = {

@@ -7,37 +7,126 @@ import fetch from 'node-fetch';
 import { ETHERSCAN_API_KEY } from '../config/env.js';
 
 /**
- * Fetch Bitcoin transactions using BlockCypher API
+ * Fetch Bitcoin transactions using multiple APIs as fallback
  */
 export const getBitcoinTransactions = async (address) => {
     try {
         if (!address || !address.trim()) return { transactions: [], error: null };
         
-        const url = `https://api.blockcypher.com/v1/btc/main/addrs/${encodeURIComponent(address)}`;
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            return { transactions: [], error: `BlockCypher API error: ${response.status}` };
+        // Try BlockCypher API first
+        try {
+            const url = `https://api.blockcypher.com/v1/btc/main/addrs/${encodeURIComponent(address)}`;
+            const response = await fetch(url);
+            
+            if (response.ok) {
+                const data = await response.json();
+                const txrefs = data.txrefs || [];
+                
+                // Get latest 10 transactions
+                const transactions = txrefs.slice(0, 10).map(tx => ({
+                    hash: tx.tx_hash,
+                    date: new Date(tx.confirmed || Date.now()),
+                    amount: (Number(tx.value || 0) / 1e8) * (tx.tx_input_n === -1 ? 1 : -1),
+                    type: tx.tx_input_n === -1 ? 'in' : 'out',
+                    explorerUrl: `https://blockchain.com/btc/tx/${tx.tx_hash}`
+                }));
+                
+                return { 
+                    transactions, 
+                    balance: (data.balance || 0) / 1e8,
+                    transactionCount: txrefs.length,
+                    error: null 
+                };
+            }
+        } catch (blockcypherError) {
+            console.log('BlockCypher API failed, trying Blockchain.info API...');
         }
         
-        const data = await response.json();
-        const txrefs = data.txrefs || [];
+        // Fallback to Blockchain.info API
+        try {
+            const url = `https://blockchain.info/rawaddr/${encodeURIComponent(address)}?limit=10`;
+            const response = await fetch(url);
+            
+            if (response.ok) {
+                const data = await response.json();
+                const txs = data.txs || [];
+                
+                const transactions = txs.map(tx => {
+                    // Calculate amount for this address
+                    let amount = 0;
+                    const outputs = tx.out || [];
+                    const inputs = tx.inputs || [];
+                    
+                    // Check outputs (received)
+                    outputs.forEach(output => {
+                        if (output.addr === address) {
+                            amount += output.value / 1e8;
+                        }
+                    });
+                    
+                    // Check inputs (sent)
+                    inputs.forEach(input => {
+                        if (input.prev_out && input.prev_out.addr === address) {
+                            amount -= input.prev_out.value / 1e8;
+                        }
+                    });
+                    
+                    return {
+                        hash: tx.hash,
+                        date: new Date(tx.time * 1000),
+                        amount: amount,
+                        type: amount > 0 ? 'in' : 'out',
+                        explorerUrl: `https://blockchain.com/btc/tx/${tx.hash}`
+                    };
+                });
+                
+                return { 
+                    transactions, 
+                    balance: (data.final_balance || 0) / 1e8,
+                    transactionCount: data.n_tx || 0,
+                    error: null 
+                };
+            }
+        } catch (blockchainError) {
+            console.log('Blockchain.info API failed, trying Blockstream API...');
+        }
         
-        // Get latest 10 transactions
-        const transactions = txrefs.slice(0, 10).map(tx => ({
-            hash: tx.tx_hash,
-            date: new Date(tx.confirmed || Date.now()),
-            amount: (Number(tx.value || 0) / 1e8) * (tx.tx_input_n === -1 ? 1 : -1),
-            type: tx.tx_input_n === -1 ? 'in' : 'out',
-            explorerUrl: `https://blockchain.com/btc/tx/${tx.tx_hash}`
-        }));
+        // Final fallback to Blockstream API
+        try {
+            const url = `https://blockstream.info/api/address/${encodeURIComponent(address)}`;
+            const response = await fetch(url);
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Get transaction history
+                const txUrl = `https://blockstream.info/api/address/${encodeURIComponent(address)}/txs`;
+                const txResponse = await fetch(txUrl);
+                
+                if (txResponse.ok) {
+                    const txs = await txResponse.json();
+                    const transactions = txs.slice(0, 10).map(tx => ({
+                        hash: tx.txid,
+                        date: new Date(tx.status.block_time * 1000),
+                        amount: 0, // Blockstream doesn't provide amount in this endpoint
+                        type: 'unknown',
+                        explorerUrl: `https://blockstream.info/tx/${tx.txid}`
+                    }));
+                    
+                    return { 
+                        transactions, 
+                        balance: (data.chain_stats?.funded_txo_sum || 0) / 1e8 - (data.chain_stats?.spent_txo_sum || 0) / 1e8,
+                        transactionCount: data.chain_stats?.tx_count || 0,
+                        error: null 
+                    };
+                }
+            }
+        } catch (blockstreamError) {
+            console.error('All Bitcoin APIs failed:', blockstreamError.message);
+        }
         
-        return { 
-            transactions, 
-            balance: (data.balance || 0) / 1e8,
-            transactionCount: txrefs.length,
-            error: null 
-        };
+        return { transactions: [], balance: 0, transactionCount: 0, error: 'All Bitcoin APIs failed' };
+        
     } catch (error) {
         console.error('Error fetching Bitcoin transactions:', error.message);
         return { transactions: [], error: error.message };
