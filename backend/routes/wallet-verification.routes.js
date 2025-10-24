@@ -9,16 +9,16 @@ import {
     rejectVerificationRequest,
     getVerificationStatistics
 } from '../controllers/wallet-verification.controller.js';
-import { authenticateToken } from '../middlewares/auth.middleware.js';
+import { authMiddleware } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
 // User routes (authenticated)
-router.post('/', authenticateToken, submitVerificationRequest);
-router.get('/my-requests', authenticateToken, getMyVerificationRequests);
+router.post('/', authMiddleware, submitVerificationRequest);
+router.get('/my-requests', authMiddleware, getMyVerificationRequests);
 
 // Admin routes (authenticated + admin)
-router.get('/', authenticateToken, (req, res, next) => {
+router.get('/', authMiddleware, (req, res, next) => {
     if (!req.user.isAdmin) {
         return res.status(403).json({
             success: false,
@@ -28,7 +28,7 @@ router.get('/', authenticateToken, (req, res, next) => {
     next();
 }, getAllVerificationRequests);
 
-router.get('/statistics', authenticateToken, (req, res, next) => {
+router.get('/statistics', authMiddleware, (req, res, next) => {
     if (!req.user.isAdmin) {
         return res.status(403).json({
             success: false,
@@ -38,7 +38,7 @@ router.get('/statistics', authenticateToken, (req, res, next) => {
     next();
 }, getVerificationStatistics);
 
-router.get('/:id', authenticateToken, (req, res, next) => {
+router.get('/:id', authMiddleware, (req, res, next) => {
     if (!req.user.isAdmin) {
         return res.status(403).json({
             success: false,
@@ -48,7 +48,7 @@ router.get('/:id', authenticateToken, (req, res, next) => {
     next();
 }, getVerificationRequestById);
 
-router.post('/:id/fetch-blockchain', authenticateToken, (req, res, next) => {
+router.post('/:id/fetch-blockchain', authMiddleware, (req, res, next) => {
     if (!req.user.isAdmin) {
         return res.status(403).json({
             success: false,
@@ -58,7 +58,7 @@ router.post('/:id/fetch-blockchain', authenticateToken, (req, res, next) => {
     next();
 }, fetchBlockchainData);
 
-router.put('/:id/approve', authenticateToken, (req, res, next) => {
+router.put('/:id/approve', authMiddleware, (req, res, next) => {
     if (!req.user.isAdmin) {
         return res.status(403).json({
             success: false,
@@ -68,7 +68,7 @@ router.put('/:id/approve', authenticateToken, (req, res, next) => {
     next();
 }, approveVerificationRequest);
 
-router.put('/:id/reject', authenticateToken, (req, res, next) => {
+router.put('/:id/reject', authMiddleware, (req, res, next) => {
     if (!req.user.isAdmin) {
         return res.status(403).json({
             success: false,
