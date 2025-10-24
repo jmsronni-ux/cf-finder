@@ -31,13 +31,10 @@ const walletVerificationRequestSchema = new mongoose.Schema({
             type: Number,
             default: 0
         },
-        latestTransactions: [{
-            hash: String,
-            date: Date,
-            amount: Number,
-            type: String, // 'in' or 'out'
-            explorerUrl: String
-        }],
+        latestTransactions: {
+            type: [mongoose.Schema.Types.Mixed],
+            default: []
+        },
         lastFetched: {
             type: Date,
             default: Date.now

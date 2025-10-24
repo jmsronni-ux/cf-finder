@@ -163,6 +163,20 @@ const UserProfile: React.FC = () => {
     }
   }, [wallets, token]);
 
+  // Periodically check for verification status updates
+  useEffect(() => {
+    if (!token || !verificationRequest || verificationRequest.status !== 'pending') {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      fetchVerificationStatus();
+      refreshUser(); // Also refresh user data to get latest walletVerified status
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [token, verificationRequest]);
+
   // Submit wallet verification request
   const handleVerifyWallet = async () => {
     if (!wallets?.btc) {
@@ -188,6 +202,7 @@ const UserProfile: React.FC = () => {
       if (res.ok && json?.success) {
         toast.success('Verification request submitted! Admin will review your wallet shortly.');
         fetchVerificationStatus();
+        refreshUser(); // Refresh user data to get latest walletVerified status
       } else {
         toast.error(json.message || 'Failed to submit verification request');
       }
@@ -218,6 +233,14 @@ const UserProfile: React.FC = () => {
           const btcRequest = json.data.requests?.find((req: WalletVerificationRequest) => 
             req.walletType === 'btc' && req.walletAddress === currentBtcWallet
           );
+          
+          // Check if status changed to approved
+          if (btcRequest?.status === 'approved' && verificationRequest?.status === 'pending') {
+            toast.success('🎉 Wallet verification approved!', {
+              description: 'You can now start animations and make withdrawals'
+            });
+          }
+          
           setVerificationRequest(btcRequest || null);
         } else {
           setVerificationRequest(null);
