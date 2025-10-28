@@ -1,6 +1,6 @@
 import TierRequest from "../models/tier-request.model.js";
 import User from "../models/user.model.js";
-import WithdrawalRequest from "../models/withdrawal-request.model.js";
+import WithdrawRequest from "../models/withdraw-request.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { getTierInfo } from "../utils/tier-system.js";
 
@@ -39,30 +39,41 @@ export const createTierRequest = async (req, res, next) => {
         }
 
         // NEW CHECK: Verify all network rewards from ALL completed levels have been withdrawn
+        // by checking approved WithdrawRequest history per level
         const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
         const levelsWithRemainingRewards = [];
-        
-        // Check all completed levels (levels where animation has been watched)
+
         for (let level = 1; level <= user.tier; level++) {
             const animField = `lvl${level}anim`;
             const levelCompleted = user[animField] === 1;
-            
-            if (levelCompleted) {
-                const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
-                const levelNetworkRewards = user[levelNetworkRewardsField] || {};
-                
-                // Check if any network has remaining balance for this level
-                const remainingNetworks = networks.filter(network => {
-                    const amount = levelNetworkRewards[network] || 0;
-                    return amount > 0;
-                });
-                
-                if (remainingNetworks.length > 0) {
-                    levelsWithRemainingRewards.push({
-                        level,
-                        networks: remainingNetworks
-                    });
-                }
+            if (!levelCompleted) {
+                continue;
+            }
+
+            const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
+            const levelNetworkRewards = user[levelNetworkRewardsField] || {};
+
+            // Networks that actually have non-zero rewards for this level
+            const networksWithAmounts = networks.filter(network => {
+                const amount = Number(levelNetworkRewards[network] || 0);
+                return amount > 0;
+            });
+
+            if (networksWithAmounts.length === 0) {
+                continue;
+            }
+
+            // Build set of withdrawn networks for this level from approved requests
+            const approvedRequests = await WithdrawRequest.find({ userId, status: 'approved', level });
+            const withdrawnSet = new Set<string>();
+            approvedRequests.forEach(req => {
+                (req.networks || []).forEach(n => withdrawnSet.add(String(n).toUpperCase()));
+            });
+
+            // Remaining networks are those with amounts but not in withdrawn set
+            const remaining = networksWithAmounts.filter(n => !withdrawnSet.has(n));
+            if (remaining.length > 0) {
+                levelsWithRemainingRewards.push({ level, networks: remaining });
             }
         }
 
