@@ -429,17 +429,19 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     return map;
   }, [nodes, edges]);
 
-  // Apply withdrawn flag to nodes
+  // Apply withdrawn flag to nodes (only for current level)
   const nodesWithSelection = useMemo(() => {
     return nodesWithSelectionBase.map((n: any) => {
       const network = nodeIdToNetwork[n.id];
-      const withdrawn = network ? withdrawnNetworks.has(network) : false;
+      // Only mark as withdrawn if it's from the current level
+      const nodeLevel = n.data?.level ?? 1;
+      const withdrawn = network && nodeLevel === currentLevel ? withdrawnNetworks.has(network) : false;
       return {
         ...n,
         data: { ...n.data, withdrawn },
       };
     });
-  }, [nodesWithSelectionBase, nodeIdToNetwork, withdrawnNetworks]);
+  }, [nodesWithSelectionBase, nodeIdToNetwork, withdrawnNetworks, currentLevel]);
 
   const edgesWithVisibilityBase = mapEdgesWithVisibility({
     edges,
