@@ -922,6 +922,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           isOpen={showCompletionPopup}
           onClose={() => setShowCompletionPopup(false)}
           currentBalance={user?.balance || 0}
+          userData={user}
           onSuccess={async () => {
             // Refresh user data after successful withdrawal
             await refreshUser();

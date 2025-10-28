@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import NetworkReward from "../models/network-reward.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { getTierInfo } from "../utils/tier-system.js";
 import mongoose from "mongoose";
@@ -28,10 +29,29 @@ export const createUser = async (req, res, next) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-        const user = await User.create(req.body, { session });
+        // Get global rewards for all levels
+        const globalRewards = await NetworkReward.find({ isActive: true });
+        
+        // Create user with global rewards populated
+        const userData = { ...req.body };
+        
+        // Populate network rewards for each level with global defaults
+        for (let level = 1; level <= 5; level++) {
+            const levelRewards = {};
+            const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+            
+            for (const network of networks) {
+                const globalReward = globalRewards.find(r => r.level === level && r.network === network);
+                levelRewards[network] = globalReward ? globalReward.rewardAmount : 0;
+            }
+            
+            userData[`lvl${level}NetworkRewards`] = levelRewards;
+        }
+        
+        const user = await User.create(userData, { session });
         await session.commitTransaction();
         session.endSession();
-        res.status(201).json({ success: true, message: "User created successfully", data: user });
+        res.status(201).json({ success: true, message: "User created successfully with global rewards", data: user });
     } catch (error) {
         await session.abortTransaction();
         session.endSession();

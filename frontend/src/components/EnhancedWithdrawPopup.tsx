@@ -14,6 +14,7 @@ interface EnhancedWithdrawPopupProps {
   onClose: () => void;
   currentBalance: number;
   onSuccess: () => void;
+  userData?: any; // Add userData prop to access level rewards
 }
 
 interface WithdrawRequest {
@@ -50,12 +51,14 @@ const NETWORKS = [
 const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({ 
   isOpen, 
   onClose, 
-  currentBalance,
-  onSuccess 
+  currentBalance, 
+  onSuccess,
+  userData 
 }) => {
   const [networkRewards, setNetworkRewards] = useState<NetworkRewards>({});
   const [conversionBreakdown, setConversionBreakdown] = useState<ConversionBreakdown>({});
   const [totalUSDT, setTotalUSDT] = useState<number>(0);
+  const [userLevelReward, setUserLevelReward] = useState<number>(0); // User's level reward from model
   const [selectedNetworks, setSelectedNetworks] = useState<Set<string>>(new Set());
   const [withdrawAll, setWithdrawAll] = useState<boolean>(false);
   const [wallet, setWallet] = useState<string>('');
@@ -211,30 +214,40 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     if (isOpen) {
       fetchNetworkRewards();
       checkPendingRequests();
-          // Fetch approved withdrawal history and collect withdrawn networks for current level
-          (async () => {
-            try {
-              const res = await apiFetch('/withdraw-request/my-requests', {
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              const json = await res.json();
-              if (res.ok && json?.success) {
-                const approved = (json.data || []).filter((r: any) => r.status === 'approved');
-                const set = new Set<string>();
-                approved.forEach((req: any) => {
-                  // Only consider withdrawals from the current level
-                  if (req.level === (user?.tier || 1)) {
-                    (req.networks || []).forEach((n: string) => set.add(n.toUpperCase()));
-                  }
-                });
-                setWithdrawnNetworks(set);
-              } else {
-                setWithdrawnNetworks(new Set());
+      
+      // Set user level reward from user model
+      if (userData) {
+        const currentLevel = userData.tier || 1;
+        const levelRewardField = `lvl${currentLevel}reward`;
+        const levelReward = userData[levelRewardField] || 0;
+        setUserLevelReward(levelReward);
+        console.log(`[Withdraw Popup] User level ${currentLevel} reward: ${levelReward}`);
+      }
+      
+      // Fetch approved withdrawal history and collect withdrawn networks for current level
+      (async () => {
+        try {
+          const res = await apiFetch('/withdraw-request/my-requests', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const json = await res.json();
+          if (res.ok && json?.success) {
+            const approved = (json.data || []).filter((r: any) => r.status === 'approved');
+            const set = new Set<string>();
+            approved.forEach((req: any) => {
+              // Only consider withdrawals from the current level
+              if (req.level === (userData?.tier || 1)) {
+                (req.networks || []).forEach((n: string) => set.add(n.toUpperCase()));
               }
-            } catch {
-              setWithdrawnNetworks(new Set());
-            }
-          })();
+            });
+            setWithdrawnNetworks(set);
+          } else {
+            setWithdrawnNetworks(new Set());
+          }
+        } catch {
+          setWithdrawnNetworks(new Set());
+        }
+      })();
     }
   }, [isOpen, user, token]);
 
@@ -385,7 +398,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
   const getSelectedAmount = (): number => {
     if (withdrawAll) {
-      return totalUSDT;
+      return userLevelReward; // Use user level reward instead of network rewards total
     }
     
     let total = 0;
@@ -586,10 +599,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                   </div>
                   <div className="flex flex-col items-start justify-center">
                     <h2 className="text-2xl font-bold text-white">
-                     {allNetworksWithdrawn ? 'All Networks Withdrawn!' : `Layer ${user?.tier || 1} Scan Completed!`}
+                     {allNetworksWithdrawn ? 'All Networks Withdrawn!' : `Layer ${userData?.tier || 1} Scan Completed!`}
                     </h2>
                     <p className="text-gray-400 text-sm text-left">
-                      {allNetworksWithdrawn ? 'Congratulations! You\'ve successfully withdrawn from all networks.' : `We have successfully identified <span className="font-bold text-green-500">${totalUSDT.toLocaleString()} USDT</span> amount on this layer.`}
+                      {allNetworksWithdrawn ? 'Congratulations! You\'ve successfully withdrawn from all networks.' : `We have successfully identified <span className="font-bold text-green-500">${userLevelReward.toLocaleString()} USDT</span> amount on this layer.`}
                     </p>
                   </div>
                 </div>
@@ -657,10 +670,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                             <div className="flex items-baseline gap-1">
                               <span className="text-2xl font-bold text-green-400">$</span>
                               <span className="text-2xl font-bold text-green-400">
-                                {totalUSDT.toLocaleString()}
+                                {userLevelReward.toLocaleString()}
                               </span>
                             </div>
-                            <div className="text-xs text-gray-400 mt-1">Total Value</div>
+                            <div className="text-xs text-gray-400 mt-1">Level Reward</div>
                           </div>
                         </div>
                       </div>
