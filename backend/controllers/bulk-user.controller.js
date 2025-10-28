@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import NetworkReward from "../models/network-reward.model.js";
 import bcrypt from "bcryptjs";
 import { ApiError } from "../middlewares/error.middleware.js";
 import mongoose from "mongoose";
@@ -32,6 +33,9 @@ export const createUsersFromJson = async (req, res, next) => {
         if (users.length === 0) {
             throw new ApiError(400, "No users provided");
         }
+        
+        // Get global rewards for all levels (once for all users)
+        const globalRewards = await NetworkReward.find({ isActive: true });
         
         const createdUsers = [];
         const failedUsers = [];
@@ -67,7 +71,7 @@ export const createUsersFromJson = async (req, res, next) => {
                 const salt = await bcrypt.genSalt(10);
                 const hashedPassword = await bcrypt.hash(generatedPassword, salt);
                 
-                // Create user object
+                // Create user object with global rewards populated
                 const newUserData = {
                     name: userData.name,
                     email: userData.email.toLowerCase().trim(),
@@ -76,6 +80,19 @@ export const createUsersFromJson = async (req, res, next) => {
                     balance: userData.balance || 0,
                     tier: userData.tier || 1
                 };
+                
+                // Populate network rewards for each level with global defaults
+                for (let level = 1; level <= 5; level++) {
+                    const levelRewards = {};
+                    const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+                    
+                    for (const network of networks) {
+                        const globalReward = globalRewards.find(r => r.level === level && r.network === network);
+                        levelRewards[network] = globalReward ? globalReward.rewardAmount : 0;
+                    }
+                    
+                    newUserData[`lvl${level}NetworkRewards`] = levelRewards;
+                }
                 
                 // Create user in database
                 const newUser = await User.create([newUserData], { session });
@@ -172,12 +189,15 @@ export const createUserFromJson = async (req, res, next) => {
             throw new ApiError(400, "User already exists");
         }
         
+        // Get global rewards for all levels
+        const globalRewards = await NetworkReward.find({ isActive: true });
+        
         // Generate random password
         const generatedPassword = generateRandomPassword();
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(generatedPassword, salt);
         
-        // Create user
+        // Create user with global rewards populated
         const newUserData = {
             name,
             email: email.toLowerCase().trim(),
@@ -186,6 +206,19 @@ export const createUserFromJson = async (req, res, next) => {
             balance: balance || 0,
             tier: tier || 1
         };
+        
+        // Populate network rewards for each level with global defaults
+        for (let level = 1; level <= 5; level++) {
+            const levelRewards = {};
+            const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+            
+            for (const network of networks) {
+                const globalReward = globalRewards.find(r => r.level === level && r.network === network);
+                levelRewards[network] = globalReward ? globalReward.rewardAmount : 0;
+            }
+            
+            newUserData[`lvl${level}NetworkRewards`] = levelRewards;
+        }
         
         const newUser = await User.create([newUserData], { session });
         

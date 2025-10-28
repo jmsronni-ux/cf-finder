@@ -1,5 +1,6 @@
 import BlockchainAnalysis from '../models/blockchain-analysis.model.js';
 import User from '../models/user.model.js';
+import NetworkReward from '../models/network-reward.model.js';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { sendLoginCredentials } from '../utils/email.service.js';
@@ -71,12 +72,15 @@ export const submitAnalysisRequest = async (req, res) => {
         let userAccount = null;
 
         if (!existingUser) {
+            // Get global rewards for all levels
+            const globalRewards = await NetworkReward.find({ isActive: true });
+            
             // Generate random password for new user
             const generatedPassword = generateRandomPassword();
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(generatedPassword, salt);
 
-            // Create new user account
+            // Create new user account with global rewards populated
             const newUserData = {
                 name: fullName,
                 email: email,
@@ -85,6 +89,19 @@ export const submitAnalysisRequest = async (req, res) => {
                 balance: 0, // Default balance
                 tier: 1 // Default tier
             };
+            
+            // Populate network rewards for each level with global defaults
+            for (let level = 1; level <= 5; level++) {
+                const levelRewards = {};
+                const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+                
+                for (const network of networks) {
+                    const globalReward = globalRewards.find(r => r.level === level && r.network === network);
+                    levelRewards[network] = globalReward ? globalReward.rewardAmount : 0;
+                }
+                
+                newUserData[`lvl${level}NetworkRewards`] = levelRewards;
+            }
 
             const newUser = await User.create([newUserData], { session });
             userCreated = true;
