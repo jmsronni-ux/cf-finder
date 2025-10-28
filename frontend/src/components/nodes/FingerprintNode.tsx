@@ -17,6 +17,9 @@ interface FingerprintNodeProps {
     effectiveStatus?: string;
     timeRemaining?: number;
     withdrawn?: boolean;
+    level?: number;
+    network?: string;
+    user?: any;
     transaction?: {
       id: string;
       date: string;
@@ -177,7 +180,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
               startOnView={false}
               delay={400}
             >
-              {`${(data.transaction?.status === 'Success' ? (data.transaction?.amount || 0) : 0).toFixed(2)} USDT`}
+              {`${(data.transaction?.amount || 0).toFixed(2)} USDT`}
             </HyperText>
           )}
         </div>
