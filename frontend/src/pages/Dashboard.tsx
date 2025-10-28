@@ -336,7 +336,6 @@ const Dashboard = () => {
                                 level={currentLevel}
                                 user={user}
                                 transactions={transactions}
-                                levelTotalUSDT={Number((user as any)?.[`lvl${currentLevel}reward`] || 0)}
                                 currency="USDT"
                                 shouldAnimate={progress > 0 && progress < 100}
                               />
