@@ -16,6 +16,7 @@ interface AnimatedCounterProps {
   duration?: number;
   currency?: string;
   className?: string;
+  levelTotalUSDT?: number;
 }
 
 interface DigitProps {
@@ -50,7 +51,8 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   transactions = [],
   duration = 800, 
   currency = "USD",
-  className = ""
+  className = "",
+  levelTotalUSDT
 }) => {
   const [displayValue, setDisplayValue] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
@@ -58,10 +60,7 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   const prevTargetRef = useRef(0);
   const stepIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Generate a random multiplier between 3 and 4 for each level
-  const transactionMultiplier = useMemo(() => {
-    return 3 + Math.random(); // Random number between 3.0 and 4.0
-  }, [level]);
+  // Removed random transaction multiplier to ensure accurate totals
 
   // Get the full reward for current level from database
   const fullLevelReward = useMemo(() => {
@@ -71,15 +70,14 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
     return typeof reward === 'number' ? reward : 0;
   }, [user, level]);
 
-  // Get the full next level reward (2-3x bigger to show incentive)
+  // Get the full next level reward
   const fullNextLevelReward = useMemo(() => {
     if (!user || level >= 5) return 0; // No next level if at max
     const nextLevel = level + 1;
     const rewardKey = `lvl${nextLevel}reward` as keyof typeof user;
     const reward = user[rewardKey];
     const baseReward = typeof reward === 'number' ? reward : 0;
-    // Multiply by 2.5 to make it 2.5x bigger (between 2-3x)
-    return baseReward * 2.5;
+    return baseReward;
   }, [user, level]);
 
   // Calculate the target value based on type
@@ -88,17 +86,15 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
       const reward = (fullLevelReward * progress) / 100;
       return reward;
     } else if (type === 'levelTotal') {
-      const currentReward = (fullLevelReward * progress) / 100;
+      if (typeof levelTotalUSDT === 'number') {
+        return levelTotalUSDT;
+      }
       const baseAmount = transactions
         .filter((tx: any) => tx.status === 'Success')
-        .reduce((sum: number, tx: any) => sum + tx.amount, 0);
-      
-      const multipliedAmount = baseAmount * transactionMultiplier;
-      const minAmount = currentReward * 1.5;
-      
-      return Math.max(multipliedAmount, minAmount);
+        .reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
+      return baseAmount;
     } else if (type === 'nextLevelReward') {
-      return (fullNextLevelReward * progress) / 100;
+      return fullNextLevelReward;
     }
     return 0;
   };
@@ -185,7 +181,7 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
       }
       setIsRolling(false);
     };
-  }, [progress, fullLevelReward, fullNextLevelReward, transactions, transactionMultiplier, type, level, duration, displayValue]);
+  }, [progress, fullLevelReward, fullNextLevelReward, transactions, levelTotalUSDT, type, level, duration, displayValue]);
 
   // Convert number to array of digits without leading zeros
   const getDigits = (num: number) => {

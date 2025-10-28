@@ -54,7 +54,11 @@ export const useNetworkRewards = (): UseNetworkRewardsReturn => {
 
   const getTotalRewardForLevel = (level: number): number => {
     const levelRewards = rewards[level] || {};
-    return Object.values(levelRewards).reduce((sum, amount) => sum + amount, 0);
+    // Convert to USDT using default rates (since backend summary doesn't convert)
+    const defaultRates = { BTC: 45000, ETH: 3000, TRON: 0.1, USDT: 1, BNB: 300, SOL: 100 };
+    return Object.entries(levelRewards).reduce((sum, [network, amount]) => {
+      return sum + (amount * (defaultRates[network as keyof typeof defaultRates] || 1));
+    }, 0);
   };
 
   const getNetworkReward = (level: number, network: string): number => {

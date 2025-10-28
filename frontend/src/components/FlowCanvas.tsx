@@ -29,6 +29,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { createChildNode, canDeleteNode, validateNodeDeletion } from './helpers/nodeOperations';
 import { computeAllowedNodeIds, mapNodesWithState, mapEdgesWithVisibility } from './helpers/visibilityHelpers';
+import { CheckCircle } from 'lucide-react';
 
 
 interface FlowCanvasProps {
@@ -77,6 +78,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [completionPopupShown, setCompletionPopupShown] = useState<boolean>(false);
   const [hasPendingVerification, setHasPendingVerification] = useState<boolean>(false);
   const navigate = useNavigate();
+
+  
   
   // Pending status hook
   const { 
@@ -89,6 +92,19 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Sync current level from DB (user tier)
   const { user, markAnimationWatched, refreshUser, token } = useAuth();
+  // Track per-level user rewards to detect withdrawn networks
+  const [userLevelRewards, setUserLevelRewards] = useState<{ [network: string]: number }>({});
+  useEffect(() => {
+    (async () => {
+      if (!user?._id) return;
+      try {
+        const rewards = await getUserLevelRewards(user._id, currentLevel);
+        setUserLevelRewards(rewards || {});
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, [user?._id, currentLevel]);
   
   // Sync completed levels from DB animation flags
   useEffect(() => {
@@ -348,7 +364,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   // Compute allowed visibility and map nodes/edges with state
   const { allowedVisible, nodeById } = computeAllowedNodeIds(nodes, edges, currentLevel, user);
   
-  const nodesWithSelection = mapNodesWithState({
+  const nodesWithSelectionBase = mapNodesWithState({
     nodes,
     selectedNode,
     isNodeVisible,
@@ -360,7 +376,53 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     allowedVisible,
   });
 
-  const edgesWithVisibility = mapEdgesWithVisibility({
+  // Determine withdrawn networks: check if user has any remaining rewards for this level
+  const withdrawnNetworks = useMemo(() => {
+    const result = new Set<string>();
+    // For now, we'll mark networks as withdrawn if they have very low amounts (< 0.01 USDT)
+    // This is a placeholder - proper withdrawal tracking would need backend support
+    Object.entries(userLevelRewards).forEach(([network, amount]) => {
+      if (amount < 0.01) {
+        result.add(network.toUpperCase());
+      }
+    });
+    return result;
+  }, [userLevelRewards]);
+
+  // Map node id -> network code
+  const nodeIdToNetwork = useMemo(() => {
+    const map: Record<string, string> = {};
+    // Crypto node ids to network codes
+    const cryptoMap: Record<string, string> = {
+      btc: 'BTC', eth: 'ETH', sol: 'SOL', usdt: 'USDT', bnb: 'BNB', trx: 'TRON'
+    };
+    nodes.forEach((n: any) => {
+      const code = cryptoMap[n.id as keyof typeof cryptoMap];
+      if (code) map[n.id] = code;
+    });
+    // Fingerprint nodes inherit from their source crypto
+    edges.forEach((e: any) => {
+      const srcCode = map[e.source];
+      if (srcCode) {
+        map[e.target] = srcCode;
+      }
+    });
+    return map;
+  }, [nodes, edges]);
+
+  // Apply withdrawn flag to nodes
+  const nodesWithSelection = useMemo(() => {
+    return nodesWithSelectionBase.map((n: any) => {
+      const network = nodeIdToNetwork[n.id];
+      const withdrawn = network ? withdrawnNetworks.has(network) : false;
+      return {
+        ...n,
+        data: { ...n.data, withdrawn },
+      };
+    });
+  }, [nodesWithSelectionBase, nodeIdToNetwork, withdrawnNetworks]);
+
+  const edgesWithVisibilityBase = mapEdgesWithVisibility({
     edges,
     isNodeVisible,
     hasStarted,
@@ -368,6 +430,17 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     nodeById,
     user,
   });
+
+  // Dim edges that belong to withdrawn networks
+  const edgesWithVisibility = useMemo(() => {
+    const withdrawnNodeIds = new Set(
+      nodesWithSelection.filter((n: any) => n.data?.withdrawn).map((n: any) => n.id)
+    );
+    return edgesWithVisibilityBase.map((e: any) => {
+      const dim = withdrawnNodeIds.has(e.source) || withdrawnNodeIds.has(e.target);
+      return dim ? { ...e, style: { ...(e.style || {}), opacity: 0.35 } } : e;
+    });
+  }, [edgesWithVisibilityBase, nodesWithSelection]);
 
   const updateNodeData = useCallback((nodeId: string, newData: any) => {
     // Update the nodes state

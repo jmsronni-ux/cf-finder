@@ -93,7 +93,7 @@ const CryptoNode: React.FC<CryptoNodeProps> = ({ data }) => {
       ref={rootRef}
       className={`${getNodeColor(data.label)} cursor-pointer rounded-full size-16 p-4 flex flex-col items-center justify-center text-center transition-all duration-200 ${
         data.selected ? 'ring-4 ring-blue-400 shadow-lg shadow-blue-500/25' : ''
-      }`}
+      } ${data.withdrawn ? 'opacity-40' : ''}`}
     >
       <Handle
         type="target"
@@ -106,6 +106,12 @@ const CryptoNode: React.FC<CryptoNodeProps> = ({ data }) => {
           className="size-9 object-contain"
         />
       </div>
+      {data.withdrawn && (
+        <div className="absolute -top-1 -right-1">
+          {/* simple visual mark; node is already dimmed */}
+          <div className="w-2.5 h-2.5 bg-green-500 rounded-full border border-black/50" />
+        </div>
+      )}
       <Handle
         type="source"
         position={getPosition(handles.source.position)}

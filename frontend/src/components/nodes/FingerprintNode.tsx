@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Handle } from 'reactflow';
 import { gsap } from 'gsap';
-import { Fingerprint, Lock } from 'lucide-react';
+import { Fingerprint, Lock, CheckCircle } from 'lucide-react';
 import { HyperText } from '@/components/ui/hyper-text';
 
 interface FingerprintNodeProps {
@@ -95,6 +95,9 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
 
   // Determine styling and glow animation based on effective status (pending or actual)
   const getStatusStyling = () => {
+    if (data.withdrawn) {
+      return 'border-gray-500/60 bg-gray-600/30 opacity-40';
+    }
     if (data.blocked) {
       return 'border-gray-500 bg-gray-600/40 opacity-70';
     }
@@ -173,10 +176,15 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
               startOnView={false}
               delay={400}
             >
-              {`${data.transaction?.amount.toFixed(0) || 0}$`}
+              {`${(data.transaction?.status === 'Success' ? (data.transaction?.amount || 0) : 0).toFixed(2)} USDT`}
             </HyperText>
           )}
         </div>
+        {data.withdrawn && (
+          <div className="absolute -top-2 -right-2">
+            <CheckCircle className="text-green-500" size={18} />
+          </div>
+        )}
         <span className="text-white/75 text-[0.65rem]">{data.transaction?.transaction.slice(0, 4)}...{data.transaction?.transaction.slice(-4)}</span>
       </div>
       <Handle

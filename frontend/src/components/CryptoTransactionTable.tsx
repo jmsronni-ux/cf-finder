@@ -63,7 +63,7 @@ export function CryptoTransactionTable({ data, onTransactionStatusChange, onRowC
                 <TableHead className="border-r border-gray-500/20 py-2">Date</TableHead>
                 <TableHead className="border-r border-gray-500/20 py-2">Level</TableHead>
                 <TableHead className="border-r border-gray-500/20 py-2">Transaction</TableHead>
-                <TableHead className="text-right py-2">Amount</TableHead>
+                <TableHead className="text-right py-2">Amount (USDT)</TableHead>
               </TableRow>
             </TableHeader>
           <TableBody>
@@ -84,7 +84,7 @@ export function CryptoTransactionTable({ data, onTransactionStatusChange, onRowC
                   {transaction.transaction}
                 </TableCell>
                 <TableCell className="text-right py-2">
-                  {transaction.amount} {transaction.currency}
+                  {Number(transaction.amount).toFixed(2)} USDT
                 </TableCell>
               </TableRow>
             ))}
