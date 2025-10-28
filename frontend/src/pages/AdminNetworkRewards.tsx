@@ -120,6 +120,12 @@ const AdminNetworkRewards: React.FC = () => {
         }
       });
       
+      console.log('[Global Network Rewards] Saving level rewards:', {
+        level,
+        rewardsToSave,
+        inputMode
+      });
+
       const response = await apiFetch(`/network-reward/level/${level}`, {
         method: 'PUT',
         headers: {
@@ -133,11 +139,18 @@ const AdminNetworkRewards: React.FC = () => {
       });
 
       const data = await response.json();
+      
+      console.log('[Global Network Rewards] API response:', {
+        status: response.status,
+        ok: response.ok,
+        data
+      });
 
       if (response.ok && data.success) {
         toast.success(`Level ${level} rewards updated successfully!`);
         fetchRewards(); // Refresh data
       } else {
+        console.error('[Global Network Rewards] Error response:', data);
         toast.error(data.message || 'Failed to update rewards');
       }
     } catch (error) {

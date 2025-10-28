@@ -1,6 +1,5 @@
 import WithdrawalRequest from '../models/withdrawal-request.model.js';
 import User from '../models/user.model.js';
-import UserNetworkReward from '../models/user-network-reward.model.js';
 import NetworkReward from '../models/network-reward.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
 
@@ -20,20 +19,23 @@ export const createWithdrawalRequest = async (req, res, next) => {
     }
 
     // Get user's rewards for this level (with fallback to global)
-    const userRewards = await UserNetworkReward.find({ userId, level, isActive: true });
     const globalRewards = await NetworkReward.find({ level, isActive: true });
     
     const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
     const availableRewards = {};
     let totalAmount = 0;
 
+    // Get user's network rewards from user model
+    const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
+    const userNetworkRewards = user[levelNetworkRewardsField] || {};
+
     // Calculate available rewards
     for (const network of networks) {
-      const userReward = userRewards.find(r => r.network === network);
+      const userRewardAmount = userNetworkRewards[network];
       let rewardAmount = 0;
 
-      if (userReward) {
-        rewardAmount = userReward.rewardAmount;
+      if (userRewardAmount !== undefined && userRewardAmount > 0) {
+        rewardAmount = userRewardAmount;
       } else {
         const globalReward = globalRewards.find(r => r.network === network);
         if (globalReward) {
@@ -304,8 +306,11 @@ export const getUserRewardSummary = async (req, res, next) => {
     const levelNum = parseInt(level);
 
     // Get user's rewards for this level
-    const userRewards = await UserNetworkReward.find({ userId, level: levelNum, isActive: true });
     const globalRewards = await NetworkReward.find({ level: levelNum, isActive: true });
+    
+    // Get user's network rewards from user model
+    const levelNetworkRewardsField = `lvl${levelNum}NetworkRewards`;
+    const userNetworkRewards = req.user[levelNetworkRewardsField] || {};
 
     // Check if level is completed
     const animField = `lvl${levelNum}anim`;
@@ -327,11 +332,11 @@ export const getUserRewardSummary = async (req, res, next) => {
 
     // Calculate available rewards
     for (const network of networks) {
-      const userReward = userRewards.find(r => r.network === network);
+      const userRewardAmount = userNetworkRewards[network];
       let rewardAmount = 0;
 
-      if (userReward) {
-        rewardAmount = userReward.rewardAmount;
+      if (userRewardAmount !== undefined && userRewardAmount > 0) {
+        rewardAmount = userRewardAmount;
       } else {
         const globalReward = globalRewards.find(r => r.network === network);
         if (globalReward) {

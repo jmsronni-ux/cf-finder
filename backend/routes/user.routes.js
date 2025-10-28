@@ -3,7 +3,6 @@ import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWall
 import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
-import UserNetworkReward from "../models/user-network-reward.model.js";
 import { convertRewardsToUSDT } from "../utils/crypto-conversion.js";
 
 const userRouter = express.Router();

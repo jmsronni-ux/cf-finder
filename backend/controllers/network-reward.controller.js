@@ -132,6 +132,14 @@ export const setLevelRewards = async (req, res, next) => {
     const { level, rewards } = req.body;
     const userId = req.user?.id;
     
+    console.log('[Global Network Rewards] Request received:', {
+      level,
+      rewards,
+      userId,
+      body: req.body,
+      params: req.params
+    });
+    
     if (!level || !rewards || typeof rewards !== 'object') {
       throw new ApiError(400, 'Level and rewards object are required');
     }
@@ -161,6 +169,8 @@ export const setLevelRewards = async (req, res, next) => {
     
     // Update each network reward
     for (const [network, rewardAmount] of rewardEntries) {
+      console.log(`[Global Network Rewards] Updating ${network} for level ${level} with amount ${rewardAmount}`);
+      
       const reward = await NetworkReward.findOneAndUpdate(
         { level, network },
         {
@@ -179,14 +189,19 @@ export const setLevelRewards = async (req, res, next) => {
         }
       );
       
+      console.log(`[Global Network Rewards] Updated ${network} result:`, reward);
+      
       // Set createdBy if it's a new document
       if (!reward.metadata.createdBy) {
         reward.metadata.createdBy = userId;
         await reward.save();
+        console.log(`[Global Network Rewards] Set createdBy for ${network}:`, reward.metadata.createdBy);
       }
       
       results.push(reward);
     }
+    
+    console.log(`[Global Network Rewards] Final results for level ${level}:`, results);
     
     res.status(200).json({
       success: true,
