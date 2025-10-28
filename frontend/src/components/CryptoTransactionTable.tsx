@@ -84,7 +84,7 @@ export function CryptoTransactionTable({ data, onTransactionStatusChange, onRowC
                   {transaction.transaction}
                 </TableCell>
                 <TableCell className="text-right py-2">
-                  {Number(transaction.amount).toFixed(2)} USDT
+                  {transaction.status === 'Success' ? Number(transaction.amount).toFixed(2) : '0.00'} USDT
                 </TableCell>
               </TableRow>
             ))}

@@ -891,6 +891,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           onSuccess={async () => {
             // Refresh user data after successful withdrawal
             await refreshUser();
+            // Refetch per-level rewards to re-evaluate withdrawn networks visual state
+            try {
+              if (user?._id) {
+                const rewards = await getUserLevelRewards(user._id, currentLevel);
+                setUserLevelRewards(rewards || {});
+              }
+            } catch {}
             toast.success('Withdrawal request submitted successfully!');
           }}
         />

@@ -207,6 +207,8 @@ const Dashboard = () => {
           nodeId: nodeId,
           actualStatus: transactionData.status,
           pendingSeconds: pendingSeconds,
+          // Force display as USDT to match nodes and counters
+          currency: 'USDT',
           status: (pendingSeconds > 0 ? 'Pending' : transactionData.status) as "Success" | "Fail" | "Pending"
         };
         
