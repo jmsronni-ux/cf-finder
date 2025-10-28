@@ -155,6 +155,8 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
           rewards[network] = Number(val?.amount ?? val ?? 0);
         });
 
+        console.log(`[Withdraw Popup] Fetched network rewards for level ${level}:`, rewards);
+        console.log(`[Withdraw Popup] Raw API response:`, data.data);
         setNetworkRewards(rewards);
 
         // Build USDT conversion using default rates (frontend standard)
