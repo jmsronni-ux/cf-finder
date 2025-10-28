@@ -16,6 +16,7 @@ interface FingerprintNodeProps {
     hasStarted?: boolean;
     effectiveStatus?: string;
     timeRemaining?: number;
+    withdrawn?: boolean;
     transaction?: {
       id: string;
       date: string;

@@ -9,6 +9,7 @@ interface CryptoNodeProps {
     selected?: boolean;
     isVisible?: boolean;
     hasStarted?: boolean;
+    withdrawn?: boolean;
     handles?: {
       target: {
         position: string;
