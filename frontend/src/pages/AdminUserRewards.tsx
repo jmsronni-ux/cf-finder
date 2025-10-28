@@ -132,20 +132,37 @@ const AdminUserRewards: React.FC = () => {
 
   const fetchUserRewards = async (userId: string) => {
     try {
-      const response = await apiFetch(`/user-network-reward/user/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
+      // Fetch rewards for all levels from UserNetworkRewards collection
+      const allLevels = [1, 2, 3, 4, 5];
+      const rewardsData: { [level: number]: NetworkRewards } = {};
       
-      if (response.ok && data.success) {
-        console.log('User rewards response:', data);
-        setUserRewards(data.data.rewards || {});
-      } else {
-        console.error('Failed to fetch user rewards:', data.message);
-        setUserRewards({});
+      for (const level of allLevels) {
+        const response = await apiFetch(`/user-network-reward/user/${userId}/level/${level}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          // Convert the response format to match expected structure
+          const levelRewards: NetworkRewards = {};
+          Object.entries(data.data.rewards || {}).forEach(([network, reward]: [string, any]) => {
+            levelRewards[network] = {
+              amount: reward.amount || 0,
+              isCustom: reward.isCustom || false,
+              source: reward.source || 'none'
+            };
+          });
+          rewardsData[level] = levelRewards;
+        } else {
+          console.error(`Failed to fetch user rewards for level ${level}:`, data.message);
+          rewardsData[level] = {};
+        }
       }
+      
+      console.log('User rewards response:', rewardsData);
+      setUserRewards(rewardsData);
     } catch (error) {
       console.error('Error fetching user rewards:', error);
       setUserRewards({});
