@@ -107,6 +107,13 @@ const AdminUserRewards: React.FC = () => {
     }
   }, [user, navigate]);
 
+  // Fetch user rewards when selectedUser changes
+  useEffect(() => {
+    if (selectedUser) {
+      fetchUserRewards(selectedUser._id);
+    }
+  }, [selectedUser]);
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -145,6 +152,7 @@ const AdminUserRewards: React.FC = () => {
         const data = await response.json();
         
         if (response.ok && data.success) {
+          console.log(`[Admin] Level ${level} rewards response:`, data.data);
           // Convert the response format to match expected structure
           const levelRewards: NetworkRewards = {};
           Object.entries(data.data.rewards || {}).forEach(([network, reward]: [string, any]) => {
@@ -155,6 +163,7 @@ const AdminUserRewards: React.FC = () => {
             };
           });
           rewardsData[level] = levelRewards;
+          console.log(`[Admin] Level ${level} processed rewards:`, levelRewards);
         } else {
           console.error(`Failed to fetch user rewards for level ${level}:`, data.message);
           rewardsData[level] = {};
@@ -194,7 +203,6 @@ const AdminUserRewards: React.FC = () => {
   const handleUserSelect = (user: UserData) => {
     setSelectedUser(user);
     setSelectedLevel(1);
-    fetchUserRewards(user._id);
   };
 
   const openEditModal = (level: number) => {
@@ -248,6 +256,12 @@ const AdminUserRewards: React.FC = () => {
         rewardsPayload,
         editingRewards
       });
+      
+      console.log('[Admin] Full API request details:', {
+        url: `/user-network-reward/user/${selectedUser._id}/level/${selectedLevel}`,
+        method: 'PUT',
+        body: JSON.stringify({ rewards: rewardsPayload })
+      });
 
       // First, save rewards
       const response = await apiFetch(`/user-network-reward/user/${selectedUser._id}/level/${selectedLevel}`, {
@@ -289,15 +303,20 @@ const AdminUserRewards: React.FC = () => {
 
       const commissionData = await commissionResponse.json();
 
-      if (response.ok && data.success && commissionResponse.ok && commissionData.success) {
-        toast.success(`Level ${selectedLevel} rewards and commission updated for ${selectedUser.name}!`);
+      if (response.ok && data.success) {
+        // Check commission response separately
+        if (commissionResponse.ok && commissionData.success) {
+          toast.success(`Level ${selectedLevel} rewards and commission updated for ${selectedUser.name}!`);
+        } else {
+          toast.success(`Level ${selectedLevel} rewards updated for ${selectedUser.name}! (Commission update failed)`);
+          console.error('Commission response error:', commissionData);
+        }
         setShowEditModal(false);
         fetchUserRewards(selectedUser._id); // Refresh rewards data
         await refetchUserData(selectedUser._id); // Refresh user data including commission
       } else {
-        console.error('Rewards response:', data);
-        console.error('Commission response:', commissionData);
-        toast.error(data.message || commissionData.message || 'Failed to update rewards or commission');
+        console.error('Rewards response error:', data);
+        toast.error(data.message || 'Failed to update rewards');
       }
     } catch (error) {
       console.error('Error updating rewards:', error);

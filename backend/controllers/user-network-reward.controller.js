@@ -370,6 +370,8 @@ export const setUserLevelRewards = async (req, res, next) => {
     
     // Update each network reward for this user
     for (const [network, rewardAmount] of rewardEntries) {
+      console.log(`[User Network Rewards] Updating ${network} for user ${userId} level ${levelNumber} with amount ${rewardAmount}`);
+      
       const reward = await UserNetworkReward.findOneAndUpdate(
         { userId, level: levelNumber, network },
         {
@@ -390,10 +392,13 @@ export const setUserLevelRewards = async (req, res, next) => {
         }
       );
       
+      console.log(`[User Network Rewards] Updated ${network} result:`, reward);
+      
       // Set createdBy if it's a new document
       if (!reward.metadata.createdBy) {
         reward.metadata.createdBy = adminId;
         await reward.save();
+        console.log(`[User Network Rewards] Set createdBy for ${network}:`, reward.metadata.createdBy);
       }
       
       results.push(reward);
@@ -427,6 +432,7 @@ export const setUserLevelRewards = async (req, res, next) => {
     console.log(`[User Network Rewards] Updated user ${userId} ${levelRewardField} to ${totalLevelRewardUSDT} USDT`);
     console.log(`[User Network Rewards] Updated user ${userId} ${levelNetworkRewardsField}:`, rewards);
     console.log(`[User Network Rewards] Conversion breakdown:`, conversionResult.breakdown);
+    console.log(`[User Network Rewards] Final results:`, results);
     
     res.status(200).json({
       success: true,

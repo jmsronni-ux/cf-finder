@@ -47,10 +47,15 @@ export const useConversionRates = (): UseConversionRatesReturn => {
         
         // Create map for easy access
         const map: ConversionRatesMap = {};
-        data.data.rates.forEach((rate: ConversionRate) => {
-          map[rate.network] = rate.rateToUSD;
-        });
+        if (data.data.rates && Array.isArray(data.data.rates)) {
+          data.data.rates.forEach((rate: ConversionRate) => {
+            if (rate && rate.network && rate.rateToUSD !== undefined) {
+              map[rate.network] = rate.rateToUSD;
+            }
+          });
+        }
         setRatesMap(map);
+        console.log('[useConversionRates] Created rates map:', map);
       } else {
         throw new Error(data.message || 'Failed to fetch conversion rates');
       }
