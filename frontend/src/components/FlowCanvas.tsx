@@ -92,19 +92,44 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Sync current level from DB (user tier)
   const { user, markAnimationWatched, refreshUser, token } = useAuth();
-  // Track per-level user rewards to detect withdrawn networks
+  // Keep rewards if needed elsewhere, but withdrawn marking uses history only
   const [userLevelRewards, setUserLevelRewards] = useState<{ [network: string]: number }>({});
+  const [withdrawnNetworksFromHistory, setWithdrawnNetworksFromHistory] = useState<Set<string>>(new Set());
+  
   useEffect(() => {
     (async () => {
       if (!user?._id) return;
       try {
         const rewards = await getUserLevelRewards(user._id, currentLevel);
         setUserLevelRewards(rewards || {});
+        
+    // Fetch withdrawal history (single source of truth for withdrawn networks)
+        const response = await apiFetch('/withdraw-request/my-requests', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const approvedWithdrawals = data.data?.filter((req: any) => req.status === 'approved') || [];
+          const withdrawn = new Set<string>();
+          
+          // Collect networks with approved withdrawals (any level)
+          approvedWithdrawals.forEach((req: any) => {
+            if (req.networks && req.networks.length > 0) {
+              req.networks.forEach((network: string) => {
+                withdrawn.add(network.toUpperCase());
+              });
+            }
+          });
+          
+          setWithdrawnNetworksFromHistory(withdrawn);
+        }
       } catch (e) {
         // ignore
       }
     })();
-  }, [user?._id, currentLevel]);
+  }, [user?._id, currentLevel, token]);
   
   // Sync completed levels from DB animation flags
   useEffect(() => {
@@ -376,18 +401,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     allowedVisible,
   });
 
-  // Determine withdrawn networks: check if user has any remaining rewards for this level
+  // Determine withdrawn networks strictly from approved WithdrawRequest history
   const withdrawnNetworks = useMemo(() => {
     const result = new Set<string>();
-    // For now, we'll mark networks as withdrawn if they have very low amounts (< 0.01 USDT)
-    // This is a placeholder - proper withdrawal tracking would need backend support
-    Object.entries(userLevelRewards).forEach(([network, amount]) => {
-      if (amount < 0.01) {
-        result.add(network.toUpperCase());
-      }
-    });
+    withdrawnNetworksFromHistory.forEach(network => result.add(network));
     return result;
-  }, [userLevelRewards]);
+  }, [withdrawnNetworksFromHistory]);
 
   // Map node id -> network code
   const nodeIdToNetwork = useMemo(() => {
