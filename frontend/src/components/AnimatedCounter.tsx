@@ -92,7 +92,6 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
         return levelTotalUSDT;
       }
       const baseAmount = transactions
-        .filter((tx: any) => tx.status === 'Success')
         .reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
       return baseAmount;
     } else if (type === 'nextLevelReward') {
