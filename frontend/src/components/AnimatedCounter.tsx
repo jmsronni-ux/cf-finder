@@ -17,6 +17,7 @@ interface AnimatedCounterProps {
   currency?: string;
   className?: string;
   levelTotalUSDT?: number;
+  shouldAnimate?: boolean; // New prop to control animation
 }
 
 interface DigitProps {
@@ -52,7 +53,8 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   duration = 800, 
   currency = "USD",
   className = "",
-  levelTotalUSDT
+  levelTotalUSDT,
+  shouldAnimate = false
 }) => {
   const [displayValue, setDisplayValue] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
@@ -128,8 +130,8 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
       return;
     }
 
-    // Skip animation if target hasn't changed significantly
-    if (Math.abs(targetValue - prevTargetRef.current) < 1) {
+    // Only animate if shouldAnimate is true AND target has changed significantly
+    if (!shouldAnimate || Math.abs(targetValue - prevTargetRef.current) < 1) {
       return;
     }
 
@@ -181,7 +183,7 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
       }
       setIsRolling(false);
     };
-  }, [progress, fullLevelReward, fullNextLevelReward, transactions, levelTotalUSDT, type, level, duration, displayValue]);
+  }, [progress, fullLevelReward, fullNextLevelReward, transactions, levelTotalUSDT, type, level, duration, displayValue, shouldAnimate]);
 
   // Convert number to array of digits without leading zeros
   const getDigits = (num: number) => {
