@@ -129,14 +129,15 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     }
   };
 
-  // Fetch user's total network rewards
+  // Fetch user's network rewards for CURRENT LEVEL only
   const fetchNetworkRewards = async () => {
     if (!user?._id) return;
     
     try {
       setIsLoadingRewards(true);
       
-      const response = await apiFetch(`/user-network-reward/user/${user._id}/total`, {
+      const level = user?.tier || 1;
+      const response = await apiFetch(`/user-network-reward/user/${user._id}/level/${level}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -144,12 +145,29 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       const data = await response.json();
       
       if (response.ok && data.success) {
-        setNetworkRewards(data.data.totalRewards);
-        setConversionBreakdown(data.data.conversionBreakdown);
-        setTotalUSDT(data.data.totalUSDT);
-        
+        // Normalize rewards map { BTC: { amount }, ... } -> { BTC: amount }
+        const rewards: Record<string, number> = {};
+        const raw = data.data?.rewards || {};
+        Object.entries(raw).forEach(([network, val]: [string, any]) => {
+          rewards[network] = Number(val?.amount ?? val ?? 0);
+        });
+
+        setNetworkRewards(rewards);
+
+        // Build USDT conversion using default rates (frontend standard)
+        const defaultRates: Record<string, number> = { BTC: 45000, ETH: 3000, TRON: 0.1, USDT: 1, BNB: 300, SOL: 100 };
+        const breakdown: any = {};
+        let total = 0;
+        Object.entries(rewards).forEach(([network, amount]) => {
+          const rate = defaultRates[network] ?? 1;
+          const usdt = amount * rate;
+          breakdown[network] = { original: amount, usdt, rate };
+          total += usdt;
+        });
+        setConversionBreakdown(breakdown);
+        setTotalUSDT(total);
+
         // Commission will be calculated when networks are selected
-        // Initial commission is 0 until user selects networks
         setTotalCommission(0);
       } else {
         console.error('Failed to fetch network rewards:', data.message);
@@ -218,7 +236,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
             }
           })();
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, token]);
 
   // Poll for request status updates
   useEffect(() => {
