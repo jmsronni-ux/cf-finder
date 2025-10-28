@@ -53,6 +53,12 @@ const withdrawRequestSchema = new mongoose.Schema({
         enum: ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'],
         default: []
     },
+    level: {
+        type: Number,
+        min: 1,
+        max: 5,
+        required: true
+    },
     networkRewards: {
         type: Map,
         of: Number,

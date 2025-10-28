@@ -103,7 +103,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         const rewards = await getUserLevelRewards(user._id, currentLevel);
         setUserLevelRewards(rewards || {});
         
-    // Fetch withdrawal history (single source of truth for withdrawn networks)
+        // Fetch withdrawal history (single source of truth for withdrawn networks)
         const response = await apiFetch('/withdraw-request/my-requests', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -114,9 +114,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           const approvedWithdrawals = data.data?.filter((req: any) => req.status === 'approved') || [];
           const withdrawn = new Set<string>();
           
-          // Collect networks with approved withdrawals (any level)
+          // Collect networks with approved withdrawals from CURRENT LEVEL only
           approvedWithdrawals.forEach((req: any) => {
-            if (req.networks && req.networks.length > 0) {
+            if (req.networks && req.networks.length > 0 && req.level === currentLevel) {
               req.networks.forEach((network: string) => {
                 withdrawn.add(network.toUpperCase());
               });

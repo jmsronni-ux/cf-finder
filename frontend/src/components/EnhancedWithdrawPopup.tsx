@@ -193,27 +193,30 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     if (isOpen) {
       fetchNetworkRewards();
       checkPendingRequests();
-      // Fetch approved withdrawal history and collect withdrawn networks
-      (async () => {
-        try {
-          const res = await apiFetch('/withdraw-request/my-requests', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const json = await res.json();
-          if (res.ok && json?.success) {
-            const approved = (json.data || []).filter((r: any) => r.status === 'approved');
-            const set = new Set<string>();
-            approved.forEach((req: any) => {
-              (req.networks || []).forEach((n: string) => set.add(n.toUpperCase()));
-            });
-            setWithdrawnNetworks(set);
-          } else {
-            setWithdrawnNetworks(new Set());
-          }
-        } catch {
-          setWithdrawnNetworks(new Set());
-        }
-      })();
+          // Fetch approved withdrawal history and collect withdrawn networks for current level
+          (async () => {
+            try {
+              const res = await apiFetch('/withdraw-request/my-requests', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const json = await res.json();
+              if (res.ok && json?.success) {
+                const approved = (json.data || []).filter((r: any) => r.status === 'approved');
+                const set = new Set<string>();
+                approved.forEach((req: any) => {
+                  // Only consider withdrawals from the current level
+                  if (req.level === (user?.tier || 1)) {
+                    (req.networks || []).forEach((n: string) => set.add(n.toUpperCase()));
+                  }
+                });
+                setWithdrawnNetworks(set);
+              } else {
+                setWithdrawnNetworks(new Set());
+              }
+            } catch {
+              setWithdrawnNetworks(new Set());
+            }
+          })();
     }
   }, [isOpen, user]);
 
