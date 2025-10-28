@@ -94,7 +94,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const { user, markAnimationWatched, refreshUser, token } = useAuth();
   // Keep rewards if needed elsewhere, but withdrawn marking uses history only
   const [userLevelRewards, setUserLevelRewards] = useState<{ [network: string]: number }>({});
-  const [withdrawnNetworksFromHistory, setWithdrawnNetworksFromHistory] = useState<Set<string>>(new Set());
+  const [withdrawnNetworksFromHistory, setWithdrawnNetworksFromHistory] = useState<Map<number, Set<string>>>(new Map());
   
   useEffect(() => {
     (async () => {
@@ -112,18 +112,22 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         if (response.ok) {
           const data = await response.json();
           const approvedWithdrawals = data.data?.filter((req: any) => req.status === 'approved') || [];
-          const withdrawn = new Set<string>();
+          const withdrawnByLevel = new Map<number, Set<string>>();
           
-          // Collect networks with approved withdrawals from CURRENT LEVEL only
+          // Collect networks with approved withdrawals for ALL levels
           approvedWithdrawals.forEach((req: any) => {
-            if (req.networks && req.networks.length > 0 && req.level === currentLevel) {
+            if (req.networks && req.networks.length > 0 && req.level) {
+              const level = req.level;
+              if (!withdrawnByLevel.has(level)) {
+                withdrawnByLevel.set(level, new Set());
+              }
               req.networks.forEach((network: string) => {
-                withdrawn.add(network.toUpperCase());
+                withdrawnByLevel.get(level)!.add(network.toUpperCase());
               });
             }
           });
           
-          setWithdrawnNetworksFromHistory(withdrawn);
+          setWithdrawnNetworksFromHistory(withdrawnByLevel);
         }
       } catch (e) {
         // ignore
@@ -401,12 +405,15 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     allowedVisible,
   });
 
-  // Determine withdrawn networks strictly from approved WithdrawRequest history
+  // Determine withdrawn networks for current level only
   const withdrawnNetworks = useMemo(() => {
     const result = new Set<string>();
-    withdrawnNetworksFromHistory.forEach(network => result.add(network));
+    const currentLevelWithdrawn = withdrawnNetworksFromHistory.get(currentLevel);
+    if (currentLevelWithdrawn) {
+      currentLevelWithdrawn.forEach(network => result.add(network));
+    }
     return result;
-  }, [withdrawnNetworksFromHistory]);
+  }, [withdrawnNetworksFromHistory, currentLevel]);
 
   // Map node id -> network code
   const nodeIdToNetwork = useMemo(() => {
@@ -429,19 +436,25 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     return map;
   }, [nodes, edges]);
 
-  // Apply withdrawn flag to nodes (only for current level)
+  // Apply withdrawn flag to nodes (check withdrawal history for each node's specific level)
   const nodesWithSelection = useMemo(() => {
     return nodesWithSelectionBase.map((n: any) => {
       const network = nodeIdToNetwork[n.id];
-      // Only mark as withdrawn if it's from the current level
       const nodeLevel = n.data?.level ?? 1;
-      const withdrawn = network && nodeLevel === currentLevel ? withdrawnNetworks.has(network) : false;
+      
+      // Check if this specific network was withdrawn from this specific level
+      let withdrawn = false;
+      if (network) {
+        const levelWithdrawn = withdrawnNetworksFromHistory.get(nodeLevel);
+        withdrawn = levelWithdrawn ? levelWithdrawn.has(network) : false;
+      }
+      
       return {
         ...n,
         data: { ...n.data, withdrawn },
       };
     });
-  }, [nodesWithSelectionBase, nodeIdToNetwork, withdrawnNetworks, currentLevel]);
+  }, [nodesWithSelectionBase, nodeIdToNetwork, withdrawnNetworksFromHistory]);
 
   const edgesWithVisibilityBase = mapEdgesWithVisibility({
     edges,
