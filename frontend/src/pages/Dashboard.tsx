@@ -60,6 +60,34 @@ const Dashboard = () => {
   // Initialize transactions as empty, they will be added as nodes appear
   const [transactions, setTransactions] = useState<TransactionWithPending[]>([]);
   const [completedPendingNodes, setCompletedPendingNodes] = useState<Set<string>>(new Set());
+  
+  // All nodes from current level (for levelTotal calculation)
+  const allLevelNodes = useMemo(() => {
+    if (!levels.length) return [];
+    const currentData = getLevelData(currentLevel, levels);
+    return currentData.nodes.filter((node: any) => 
+      node.type === 'fingerprintNode' && 
+      node.data && 
+      node.data.transaction &&
+      (node.data?.level ?? 1) === currentLevel
+    );
+  }, [levels, currentLevel]);
+  
+  // Convert all level nodes to transaction format for levelTotal calculation
+  const allLevelTransactions = useMemo(() => {
+    return allLevelNodes.map((node: any) => ({
+      id: node.data.transaction.id,
+      date: node.data.transaction.date,
+      transaction: node.data.transaction.transaction,
+      amount: node.data.transaction.amount,
+      currency: 'USDT', // Force USDT to match display
+      status: node.data.transaction.status,
+      level: node.data.level ?? 1,
+      nodeId: node.id,
+      actualStatus: node.data.transaction.status,
+      pendingSeconds: 0,
+    }));
+  }, [allLevelNodes]);
 
   // Fetch pending tier requests
   useEffect(() => {
@@ -335,7 +363,7 @@ const Dashboard = () => {
                                 progress={progress}
                                 level={currentLevel}
                                 user={user}
-                                transactions={transactions}
+                                transactions={allLevelTransactions}
                                 currency="USDT"
                                 shouldAnimate={progress > 0 && progress < 100}
                               />
