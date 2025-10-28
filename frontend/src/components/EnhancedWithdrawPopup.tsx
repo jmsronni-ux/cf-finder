@@ -336,6 +336,15 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     }
   }, [networkRewards, conversionBreakdown, withdrawnNetworks, isOpen]);
 
+  // If everything is withdrawn, clear any selections and withdrawAll flag
+  useEffect(() => {
+    if (allNetworksWithdrawn) {
+      setSelectedNetworks(new Set());
+      setWithdrawAll(false);
+      setTotalCommission(0);
+    }
+  }, [allNetworksWithdrawn]);
+
   if (!isOpen) return null;
 
   const handleNetworkToggle = (network: string) => {
@@ -653,13 +662,14 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                       const breakdown = conversionBreakdown[network.key];
                       const isSelected = selectedNetworks.has(network.key);
                       const hasAmount = amount > 0;
+                      const isWithdrawn = withdrawnNetworks.has(network.key);
                       
                       return (
                         <div
                           key={network.key}
-                          onClick={() => hasAmount && !withdrawAll && handleNetworkToggle(network.key)}
+                          onClick={() => hasAmount && !withdrawAll && !isWithdrawn && handleNetworkToggle(network.key)}
                           className={`relative p-3 rounded-xl border-2 transition-all ${
-                            !hasAmount
+                            !hasAmount || isWithdrawn
                               ? 'opacity-40 cursor-not-allowed bg-green-500/5 border-green-500/20'
                               : withdrawAll
                               ? 'opacity-50 cursor-not-allowed bg-white/5 border-white/10'
@@ -670,27 +680,27 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                         >
                           <div className="flex items-start justify-between mb-3">
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${
-                              !hasAmount
+                              !hasAmount || isWithdrawn
                                 ? 'bg-green-500/20 border-green-500/30'
                                 : isSelected && !withdrawAll
                                 ? 'bg-green-500 border-green-400'
                                 : 'bg-white/5 border-white/20'
                             }`}>
-                              {!hasAmount && <Check className="w-5 h-5 text-green-500/50" />}
+                              {(!hasAmount || isWithdrawn) && <Check className="w-5 h-5 text-green-500/50" />}
                               {isSelected && !withdrawAll && hasAmount && <Check className="w-5 h-5 text-white" />}
                             </div>
                             <img 
                               src={network.icon} 
                               alt={network.name} 
-                              className={`w-6 h-6 ${!hasAmount ? 'opacity-50' : ''}`} 
+                              className={`w-6 h-6 ${(!hasAmount || isWithdrawn) ? 'opacity-50' : ''}`} 
                             />
                           </div>
                           <div>
-                            <div className={`text-sm mb-2 ${!hasAmount ? 'text-gray-500' : 'text-gray-300'}`}>
+                            <div className={`text-sm mb-2 ${(!hasAmount || isWithdrawn) ? 'text-gray-500' : 'text-gray-300'}`}>
                               {amount.toLocaleString()} {network.key}
                             </div>
-                            <div className={`text-xs ${!hasAmount ? 'text-gray-600' : 'text-gray-400'}`}>
-                              ${breakdown?.usdt.toLocaleString() || '0'} USDT
+                            <div className={`text-xs ${(!hasAmount || isWithdrawn) ? 'text-gray-600' : 'text-gray-400'}`}>
+                              ${breakdown?.usdt?.toLocaleString?.() || '0'} USDT
                             </div>
                           </div>
                         </div>
@@ -760,28 +770,30 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                         )}
                       </span>
                     </Button>
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={isSubmitting || getSelectedAmount() <= 0 || totalCommission > currentBalance || !user?.walletVerified}
-                      className="flex-1 bg-purple-500/40 hover:bg-purple-500/50 border border-purple-500/50 text-white py-6 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
-                    >
-                      {isSubmitting ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Submitting...
-                        </span>
-                      ) : totalCommission > currentBalance ? (
-                        'Insufficient Balance'
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">
-                          Withdraw ${getSelectedAmount().toLocaleString()}
-                        </span>
-                      )}
-                    </Button>
+                    {!allNetworksWithdrawn && (
+                      <Button
+                        onClick={handleSubmit}
+                        disabled={isSubmitting || getSelectedAmount() <= 0 || totalCommission > currentBalance || !user?.walletVerified}
+                        className="flex-1 bg-purple-500/40 hover:bg-purple-500/50 border border-purple-500/50 text-white py-6 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
+                      >
+                        {isSubmitting ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Submitting...
+                          </span>
+                        ) : totalCommission > currentBalance ? (
+                          'Insufficient Balance'
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">
+                            Withdraw ${getSelectedAmount().toLocaleString()}
+                          </span>
+                        )}
+                      </Button>
+                    )}
                   </div>
 
                   {/* Commission Info */}
-                  {(withdrawAll || selectedNetworks.size > 0) && (
+                  {(!allNetworksWithdrawn && (withdrawAll || selectedNetworks.size > 0)) && (
                     <div className="mt-4 text-center">
                       <p className="text-xs text-gray-500">
                         Network commission: ${totalCommission.toLocaleString()} ({((totalCommission / getSelectedAmount()) * 100).toFixed(1)}%)
