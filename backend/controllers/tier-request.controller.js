@@ -65,7 +65,7 @@ export const createTierRequest = async (req, res, next) => {
 
             // Build set of withdrawn networks for this level from approved requests
             const approvedRequests = await WithdrawRequest.find({ userId, status: 'approved', level });
-            const withdrawnSet = new Set<string>();
+            const withdrawnSet = new Set();
             approvedRequests.forEach(req => {
                 (req.networks || []).forEach(n => withdrawnSet.add(String(n).toUpperCase()));
             });
