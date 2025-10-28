@@ -326,7 +326,7 @@ const Dashboard = () => {
                                 progress={progress}
                                 level={currentLevel}
                                 user={user}
-                                currency="USD"
+                                currency="USDT"
                                 shouldAnimate={progress > 0 && progress < 100}
                               />
 
@@ -336,8 +336,8 @@ const Dashboard = () => {
                                 level={currentLevel}
                                 user={user}
                                 transactions={transactions}
-                                levelTotalUSDT={getTotalRewardForLevel(currentLevel)}
-                                currency="USD"
+                                levelTotalUSDT={Number((user as any)?.[`lvl${currentLevel}reward`] || 0)}
+                                currency="USDT"
                                 shouldAnimate={progress > 0 && progress < 100}
                               />
                            </div>
@@ -350,7 +350,7 @@ const Dashboard = () => {
                                   progress={progress}
                                   level={currentLevel}
                                   user={user}
-                                  currency="USD"
+                                  currency="USDT"
                                   shouldAnimate={progress > 0 && progress < 100}
                                 />
                               </>

@@ -68,6 +68,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [commissionBreakdown, setCommissionBreakdown] = useState<any[]>([]);
   const [allNetworksWithdrawn, setAllNetworksWithdrawn] = useState<boolean>(false);
   const [isUpgradingTier, setIsUpgradingTier] = useState<boolean>(false);
+  const [withdrawnNetworks, setWithdrawnNetworks] = useState<Set<string>>(new Set());
   const confettiShownRef = useRef<boolean>(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token, refreshUser } = useAuth();
@@ -192,6 +193,27 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     if (isOpen) {
       fetchNetworkRewards();
       checkPendingRequests();
+      // Fetch approved withdrawal history and collect withdrawn networks
+      (async () => {
+        try {
+          const res = await apiFetch('/withdraw-request/my-requests', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const json = await res.json();
+          if (res.ok && json?.success) {
+            const approved = (json.data || []).filter((r: any) => r.status === 'approved');
+            const set = new Set<string>();
+            approved.forEach((req: any) => {
+              (req.networks || []).forEach((n: string) => set.add(n.toUpperCase()));
+            });
+            setWithdrawnNetworks(set);
+          } else {
+            setWithdrawnNetworks(new Set());
+          }
+        } catch {
+          setWithdrawnNetworks(new Set());
+        }
+      })();
     }
   }, [isOpen, user]);
 
@@ -267,10 +289,15 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     }
   }, [selectedNetworks, withdrawAll, networkRewards]);
 
-  // Check if all networks have been withdrawn and trigger confetti
+  // Check if all networks have been withdrawn (by history) or no available rewards
   useEffect(() => {
     if (Object.keys(networkRewards).length > 0) {
-      const allWithdrawn = Object.values(networkRewards).every(amount => amount === 0);
+      // A network is available if it has USDT > 0 and is NOT in withdrawn history
+      const available = Object.entries(conversionBreakdown).some(([network, breakdown]: any) => {
+        const upper = network.toUpperCase();
+        return (breakdown?.usdt || 0) > 0 && !withdrawnNetworks.has(upper);
+      });
+      const allWithdrawn = !available;
       setAllNetworksWithdrawn(allWithdrawn);
       
       // Trigger confetti only once when all networks are withdrawn
@@ -304,7 +331,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         }, 250);
       }
     }
-  }, [networkRewards, isOpen]);
+  }, [networkRewards, conversionBreakdown, withdrawnNetworks, isOpen]);
 
   if (!isOpen) return null;
 
