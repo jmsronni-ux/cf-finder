@@ -60,18 +60,23 @@ export const createUser = async (req, res, next) => {
             levelRewards[`lvl${level}reward`] = Math.round(totalUSDValue * 100) / 100;
         }
         
-        // Compute commission per level from global commissionPercent
+        // Store commission percentages per level (average of all networks for that level)
         const levelCommissions = {};
         for (let level = 1; level <= 5; level++) {
             const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
-            let totalCommissionUSD = 0;
+            let totalCommissionPercent = 0;
+            let networkCount = 0;
+            
             for (const reward of levelNetworkRewards) {
-                const rate = conversionRatesMap[reward.network] || 1;
-                const usd = reward.rewardAmount * rate;
-                const cp = typeof reward.commissionPercent === 'number' ? reward.commissionPercent : 0;
-                totalCommissionUSD += usd * cp;
+                if (typeof reward.commissionPercent === 'number') {
+                    totalCommissionPercent += reward.commissionPercent;
+                    networkCount++;
+                }
             }
-            levelCommissions[`lvl${level}Commission`] = Math.round(totalCommissionUSD * 100) / 100;
+            
+            // Average commission percentage for this level
+            const avgCommissionPercent = networkCount > 0 ? totalCommissionPercent / networkCount : 0;
+            levelCommissions[`lvl${level}Commission`] = Math.round(avgCommissionPercent * 100) / 100;
         }
 
         // Add calculated level rewards and commissions to user data

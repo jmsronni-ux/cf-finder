@@ -57,6 +57,7 @@ const AdminNetworkRewards: React.FC = () => {
   const { ratesMap, loading: ratesLoading } = useConversionRates();
   
   const [rewards, setRewards] = useState<LevelRewards>({});
+  const [commissions, setCommissions] = useState<{ [level: number]: { [network: string]: number } }>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<{ [key: string]: boolean }>({});
   const [summary, setSummary] = useState<any>(null);
@@ -90,6 +91,15 @@ const AdminNetworkRewards: React.FC = () => {
       if (response.ok && data.success) {
         setRewards(data.data.summary.byLevel || {});
         setSummary(data.data.summary);
+
+        // Build commissions map from rawRewards (which include commissionPercent)
+        const raw: any[] = data.data.rawRewards || [];
+        const levelToCommissions: { [level: number]: { [network: string]: number } } = {};
+        raw.forEach((r: any) => {
+          if (!levelToCommissions[r.level]) levelToCommissions[r.level] = {};
+          levelToCommissions[r.level][r.network] = typeof r.commissionPercent === 'number' ? r.commissionPercent : 0;
+        });
+        setCommissions(levelToCommissions);
       } else {
         toast.error(data.message || 'Failed to fetch rewards');
       }
@@ -119,12 +129,14 @@ const AdminNetworkRewards: React.FC = () => {
           rewardsToSave[network] = value;
         }
       });
-      
-      console.log('[Global Network Rewards] Saving level rewards:', {
-        level,
-        rewardsToSave,
-        inputMode
+
+      // Prepare commissions payload (percentages 0..100)
+      const commissionsToSave: { [network: string]: number } = { };
+      Object.entries(commissions[level] || {}).forEach(([network, percent]) => {
+        commissionsToSave[network] = typeof percent === 'number' ? percent : 0;
       });
+      
+      console.log('[Global Network Rewards] Saving level rewards:', { level, rewardsToSave, commissionsToSave, inputMode });
 
       const response = await apiFetch(`/network-reward/level/${level}`, {
         method: 'PUT',
@@ -132,10 +144,7 @@ const AdminNetworkRewards: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          level,
-          rewards: rewardsToSave
-        })
+        body: JSON.stringify({ level, rewards: rewardsToSave, commissions: commissionsToSave })
       });
 
       const data = await response.json();
@@ -167,6 +176,21 @@ const AdminNetworkRewards: React.FC = () => {
       ...prev,
       [level]: {
         ...prev[level],
+        [network]: numValue
+      }
+    }));
+  };
+
+  const updateCommission = (level: number, network: string, value: string) => {
+    // Accept percent 0..100
+    let numValue = parseFloat(value);
+    if (isNaN(numValue)) numValue = 0;
+    if (numValue < 0) numValue = 0;
+    if (numValue > 100) numValue = 100;
+    setCommissions(prev => ({
+      ...prev,
+      [level]: {
+        ...(prev[level] || {}),
         [network]: numValue
       }
     }));
@@ -385,6 +409,21 @@ const AdminNetworkRewards: React.FC = () => {
                                 {rate === 0 && (
                                   <p className="text-xs text-yellow-500">Rate missing</p>
                                 )}
+
+                                {/* Commission percentage input */}
+                                <div className="pt-1">
+                                  <Label className="text-xs text-muted-foreground">Commission (%)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="100"
+                                    value={commissions[level]?.[network.key] ?? 0}
+                                    onChange={(e) => updateCommission(level, network.key, e.target.value)}
+                                    className="bg-background/50 border-border text-foreground"
+                                    placeholder="0"
+                                  />
+                                </div>
                               </div>
                             );
                           })}

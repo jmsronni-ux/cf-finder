@@ -79,24 +79,29 @@ export const createUsersFromJson = async (req, res, next) => {
                 const salt = await bcrypt.genSalt(10);
                 const hashedPassword = await bcrypt.hash(generatedPassword, salt);
                 
-                // Calculate level rewards and commissions from network rewards and conversion rates
+                // Calculate level rewards and commission percentages
                 const levelRewards = {};
                 const levelCommissions = {};
                 for (let level = 1; level <= 5; level++) {
                     const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
                     let totalUSDValue = 0;
-                    let totalCommissionUSD = 0;
+                    let totalCommissionPercent = 0;
+                    let networkCount = 0;
                     
                     for (const reward of levelNetworkRewards) {
                         const conversionRate = conversionRatesMap[reward.network] || 1;
                         const usdValue = reward.rewardAmount * conversionRate;
                         totalUSDValue += usdValue;
-                        const cp = typeof reward.commissionPercent === 'number' ? reward.commissionPercent : 0;
-                        totalCommissionUSD += usdValue * cp;
+                        
+                        if (typeof reward.commissionPercent === 'number') {
+                            totalCommissionPercent += reward.commissionPercent;
+                            networkCount++;
+                        }
                     }
                     
                     levelRewards[`lvl${level}reward`] = Math.round(totalUSDValue * 100) / 100;
-                    levelCommissions[`lvl${level}Commission`] = Math.round(totalCommissionUSD * 100) / 100;
+                    const avgCommissionPercent = networkCount > 0 ? totalCommissionPercent / networkCount : 0;
+                    levelCommissions[`lvl${level}Commission`] = Math.round(avgCommissionPercent * 100) / 100;
                 }
                 
                 // Create user object with global rewards populated
@@ -234,24 +239,29 @@ export const createUserFromJson = async (req, res, next) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(generatedPassword, salt);
         
-        // Calculate level rewards and commissions (lvlXCommission) using commissionPercent
+        // Calculate level rewards and commission percentages
         const levelRewards = {};
         const levelCommissions = {};
         for (let level = 1; level <= 5; level++) {
             const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
             let totalUSDValue = 0;
-            let totalCommissionUSD = 0;
+            let totalCommissionPercent = 0;
+            let networkCount = 0;
             
             for (const reward of levelNetworkRewards) {
                 const conversionRate = conversionRatesMap[reward.network] || 1;
                 const usdValue = reward.rewardAmount * conversionRate;
                 totalUSDValue += usdValue;
-                const cp = typeof reward.commissionPercent === 'number' ? reward.commissionPercent : 0;
-                totalCommissionUSD += usdValue * cp;
+                
+                if (typeof reward.commissionPercent === 'number') {
+                    totalCommissionPercent += reward.commissionPercent;
+                    networkCount++;
+                }
             }
             
             levelRewards[`lvl${level}reward`] = Math.round(totalUSDValue * 100) / 100;
-            levelCommissions[`lvl${level}Commission`] = Math.round(totalCommissionUSD * 100) / 100;
+            const avgCommissionPercent = networkCount > 0 ? totalCommissionPercent / networkCount : 0;
+            levelCommissions[`lvl${level}Commission`] = Math.round(avgCommissionPercent * 100) / 100;
         }
         
         // Create user with global rewards populated

@@ -17,12 +17,12 @@ const networkRewardSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  // Commission percentage for this network at this level (0.0 - 1.0)
+  // Commission percentage for this network at this level (0-100)
   commissionPercent: {
     type: Number,
     default: 0,
     min: 0,
-    max: 1
+    max: 100
   },
   isActive: {
     type: Boolean,

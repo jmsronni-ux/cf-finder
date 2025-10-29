@@ -281,38 +281,39 @@ export const calculateNetworkCommission = async (req, res, next) => {
       throw new ApiError(400, 'Networks array is required');
     }
     
-    // Get user's stored commission amount for their current level
+    // Get user's stored commission percentage for their current level
     const levelCommissionField = `lvl${user.tier || 1}Commission`;
-    const userLevelCommission = user[levelCommissionField] || 0;
+    const userLevelCommissionPercent = user[levelCommissionField] || 0;
     
     // Get user's network rewards for their current level
     const levelNetworkRewardsField = `lvl${user.tier || 1}NetworkRewards`;
     const userNetworkRewards = user[levelNetworkRewardsField] || {};
     
-    // Calculate total reward amount for selected networks
-    let totalRewardAmount = 0;
-    for (const network of networks) {
-      const rewardAmount = userNetworkRewards[network] || 0;
-      totalRewardAmount += rewardAmount;
-    }
+    // Get conversion rates to calculate USD values
+    const conversionRates = await ConversionRate.find({});
+    const conversionRatesMap = {};
+    conversionRates.forEach(rate => {
+      conversionRatesMap[rate.network] = rate.rateToUSD;
+    });
     
-    // Calculate commission proportionally based on selected networks
-    const totalLevelReward = Object.values(userNetworkRewards).reduce((sum, amount) => sum + (amount || 0), 0);
-    const commissionProportion = totalLevelReward > 0 ? totalRewardAmount / totalLevelReward : 0;
-    const calculatedCommission = userLevelCommission * commissionProportion;
-    
-    // Create breakdown for each network
+    // Calculate commission for each selected network
     const commissionBreakdown = {};
+    let totalCommissionUSD = 0;
+    
     for (const network of networks) {
       const rewardAmount = userNetworkRewards[network] || 0;
-      const networkProportion = totalRewardAmount > 0 ? rewardAmount / totalRewardAmount : 0;
-      const networkCommission = calculatedCommission * networkProportion;
+      const conversionRate = conversionRatesMap[network] || 1;
+      const rewardUSD = rewardAmount * conversionRate;
+      const commissionUSD = rewardUSD * (userLevelCommissionPercent / 100);
       
       commissionBreakdown[network] = {
         rewardAmount,
-        commission: networkCommission,
-        proportion: networkProportion
+        rewardUSD,
+        commissionPercent: userLevelCommissionPercent,
+        commissionUSD
       };
+      
+      totalCommissionUSD += commissionUSD;
     }
     
     res.status(200).json({
@@ -321,12 +322,9 @@ export const calculateNetworkCommission = async (req, res, next) => {
       data: {
         userId,
         networks,
-        totalLevelCommission: userLevelCommission,
-        selectedRewardAmount: totalRewardAmount,
-        totalLevelReward: totalLevelReward,
-        commissionProportion,
+        commissionPercent: userLevelCommissionPercent,
         commissionBreakdown,
-        totalCommission: calculatedCommission
+        totalCommissionUSD: Math.round(totalCommissionUSD * 100) / 100
       }
     });
   } catch (error) {

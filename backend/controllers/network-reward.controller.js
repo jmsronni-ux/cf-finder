@@ -91,8 +91,8 @@ export const setNetworkReward = async (req, res, next) => {
       throw new ApiError(400, 'Reward amount must be non-negative');
     }
     if (commissionPercent !== undefined) {
-      if (typeof commissionPercent !== 'number' || commissionPercent < 0 || commissionPercent > 1) {
-        throw new ApiError(400, 'commissionPercent must be between 0 and 1');
+      if (typeof commissionPercent !== 'number' || commissionPercent < 0 || commissionPercent > 100) {
+        throw new ApiError(400, 'commissionPercent must be between 0 and 100');
       }
     }
     
@@ -171,8 +171,8 @@ export const setLevelRewards = async (req, res, next) => {
       }
       if (commissions && commissions[network] !== undefined) {
         const cp = commissions[network];
-        if (typeof cp !== 'number' || cp < 0 || cp > 1) {
-          throw new ApiError(400, `Invalid commissionPercent for ${network}: ${cp}. Must be 0..1`);
+        if (typeof cp !== 'number' || cp < 0 || cp > 100) {
+          throw new ApiError(400, `Invalid commissionPercent for ${network}: ${cp}. Must be 0..100`);
         }
       }
     }
