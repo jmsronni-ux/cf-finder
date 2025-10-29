@@ -1,5 +1,6 @@
 import NetworkReward from '../models/network-reward.model.js';
 import User from '../models/user.model.js';
+import ConversionRate from '../models/conversion-rate.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
 import { convertRewardsToUSDT } from '../utils/crypto-conversion.js';
 
@@ -324,7 +325,7 @@ export const calculateNetworkCommission = async (req, res, next) => {
         networks,
         commissionPercent: userLevelCommissionPercent,
         commissionBreakdown,
-        totalCommissionUSD: Math.round(totalCommissionUSD * 100) / 100
+        totalCommission: Math.round(totalCommissionUSD * 100) / 100
       }
     });
   } catch (error) {
