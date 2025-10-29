@@ -4,6 +4,7 @@ import ConversionRate from "../models/conversion-rate.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { getTierInfo } from "../utils/tier-system.js";
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 export const getAllUsers = async (req, res, next) => {
     try { 
@@ -127,6 +128,67 @@ export const deleteUser = async (req, res, next) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
+        next(error);
+    }
+};
+
+// Update authenticated user's basic profile (name only)
+export const updateMyProfile = async (req, res, next) => {
+    try {
+        const { name } = req.body || {};
+        if (!name || typeof name !== 'string' || !name.trim()) {
+            return res.status(400).json({ success: false, message: 'Name is required' });
+        }
+
+        const updated = await User.findByIdAndUpdate(
+            req.user._id,
+            { $set: { name: name.trim(), updatedAt: new Date() } },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        return res.status(200).json({ success: true, message: 'Profile updated', data: updated });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Change authenticated user's password
+export const changeMyPassword = async (req, res, next) => {
+    try {
+        const { currentPassword, newPassword } = req.body || {};
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ success: false, message: 'Current and new password are required' });
+        }
+
+        if (typeof newPassword !== 'string' || newPassword.length < 8) {
+            return res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
+        }
+
+        // Fetch user including password hash
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashed = await bcrypt.hash(newPassword, salt);
+
+        user.password = hashed;
+        user.updatedAt = new Date();
+        await user.save();
+
+        return res.status(200).json({ success: true, message: 'Password changed successfully' });
+    } catch (error) {
         next(error);
     }
 };

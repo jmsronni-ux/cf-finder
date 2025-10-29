@@ -51,6 +51,13 @@ const UserProfile: React.FC = () => {
   const [submittingVerification, setSubmittingVerification] = useState(false);
   const [withdrawalCount, setWithdrawalCount] = useState<number>(0);
   const navigate = useNavigate();
+  // Edit profile state
+  const [nameInput, setNameInput] = useState<string>(user?.name || '');
+  const [savingName, setSavingName] = useState<boolean>(false);
+  const [currentPassword, setCurrentPassword] = useState<string>('');
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [savingPassword, setSavingPassword] = useState<boolean>(false);
 
   // Ensure we show real-time tier/balance from DB
   useEffect(() => {
@@ -561,6 +568,134 @@ const UserProfile: React.FC = () => {
                   </CardContent>
                 </Card>
               </div>
+            </div>
+
+            {/* Edit Profile */}
+            <MagicBadge title="Edit Profile" className="mt-24 mb-6"/>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="border border-border rounded-xl">
+                <CardHeader>
+                  <CardTitle className="text-foreground">Change Name</CardTitle>
+                  <CardDescription>Only your name can be changed.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm text-foreground">Name</label>
+                    <input
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-foreground outline-none"
+                      placeholder="Enter your name"
+                    />
+                  </div>
+                  <Button
+                    disabled={savingName || !token || !nameInput.trim() || nameInput.trim() === user.name}
+                    onClick={async () => {
+                      if (!token) return;
+                      const nextName = nameInput.trim();
+                      if (!nextName) { toast.error('Name is required'); return; }
+                      setSavingName(true);
+                      try {
+                        const res = await apiFetch('/user/me', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                          body: JSON.stringify({ name: nextName })
+                        });
+                        const json = await res.json();
+                        if (res.ok && json?.success) {
+                          toast.success('Name updated');
+                          // Optimistically update local user and storage
+                          if (user) {
+                            const updatedUser = { ...user, name: nextName };
+                            localStorage.setItem('user', JSON.stringify(updatedUser));
+                          }
+                          await refreshUser();
+                        } else {
+                          toast.error(json?.message || 'Failed to update name');
+                        }
+                      } catch (e) {
+                        toast.error('Error updating name');
+                      } finally {
+                        setSavingName(false);
+                      }
+                    }}
+                    className="bg-purple-600/50 hover:bg-purple-700 text-white border border-purple-600"
+                  >
+                    {savingName ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Save Name'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border rounded-xl">
+                <CardHeader>
+                  <CardTitle className="text-foreground">Change Password</CardTitle>
+                  <CardDescription>Enter your current and new password.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm text-foreground">Current Password</label>
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-foreground outline-none"
+                      placeholder="Current password"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-foreground">New Password</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-foreground outline-none"
+                      placeholder="At least 8 characters"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-foreground">Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-foreground outline-none"
+                      placeholder="Confirm new password"
+                    />
+                  </div>
+                  <Button
+                    disabled={savingPassword || !token || !currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 8}
+                    onClick={async () => {
+                      if (!token) return;
+                      if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return; }
+                      if (newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+                      setSavingPassword(true);
+                      try {
+                        const res = await apiFetch('/user/me/password', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                          body: JSON.stringify({ currentPassword, newPassword })
+                        });
+                        const json = await res.json();
+                        if (res.ok && json?.success) {
+                          toast.success('Password changed');
+                          setCurrentPassword('');
+                          setNewPassword('');
+                          setConfirmPassword('');
+                        } else {
+                          toast.error(json?.message || 'Failed to change password');
+                        }
+                      } catch (e) {
+                        toast.error('Error changing password');
+                      } finally {
+                        setSavingPassword(false);
+                      }
+                    }}
+                    className="bg-purple-600/50 hover:bg-purple-700 text-white border border-purple-600"
+                  >
+                    {savingPassword ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Change Password'}
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Wallets Section - Only show if no BTC wallet has been added */}
