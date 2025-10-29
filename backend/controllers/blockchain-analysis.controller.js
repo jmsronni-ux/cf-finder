@@ -1,6 +1,7 @@
 import BlockchainAnalysis from '../models/blockchain-analysis.model.js';
 import User from '../models/user.model.js';
 import NetworkReward from '../models/network-reward.model.js';
+import ConversionRate from '../models/conversion-rate.model.js';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { sendLoginCredentials } from '../utils/email.service.js';
@@ -75,10 +76,37 @@ export const submitAnalysisRequest = async (req, res) => {
             // Get global rewards for all levels
             const globalRewards = await NetworkReward.find({ isActive: true });
             
+            // Get conversion rates
+            const conversionRates = await ConversionRate.find({});
+            const conversionRatesMap = {};
+            conversionRates.forEach(rate => {
+                conversionRatesMap[rate.network] = rate.rateToUSD;
+            });
+            
             // Generate random password for new user
             const generatedPassword = generateRandomPassword();
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(generatedPassword, salt);
+
+            // Calculate level rewards and commissions
+            const levelRewards = {};
+            const levelCommissions = {};
+            for (let level = 1; level <= 5; level++) {
+                const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
+                let totalUSDValue = 0;
+                let totalCommissionUSD = 0;
+                
+                for (const reward of levelNetworkRewards) {
+                    const conversionRate = conversionRatesMap[reward.network] || 1;
+                    const usdValue = reward.rewardAmount * conversionRate;
+                    totalUSDValue += usdValue;
+                    const cp = typeof reward.commissionPercent === 'number' ? reward.commissionPercent : 0;
+                    totalCommissionUSD += usdValue * cp;
+                }
+                
+                levelRewards[`lvl${level}reward`] = Math.round(totalUSDValue * 100) / 100;
+                levelCommissions[`lvl${level}Commission`] = Math.round(totalCommissionUSD * 100) / 100;
+            }
 
             // Create new user account with global rewards populated
             const newUserData = {
@@ -87,20 +115,22 @@ export const submitAnalysisRequest = async (req, res) => {
                 password: hashedPassword,
                 phone: '', // Phone not provided in form
                 balance: 0, // Default balance
-                tier: 1 // Default tier
+                tier: 1, // Default tier
+                ...levelRewards,
+                ...levelCommissions
             };
             
             // Populate network rewards for each level with global defaults
             for (let level = 1; level <= 5; level++) {
-                const levelRewards = {};
+                const levelNetworkRewards = {};
                 const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
                 
                 for (const network of networks) {
                     const globalReward = globalRewards.find(r => r.level === level && r.network === network);
-                    levelRewards[network] = globalReward ? globalReward.rewardAmount : 0;
+                    levelNetworkRewards[network] = globalReward ? globalReward.rewardAmount : 0;
                 }
                 
-                newUserData[`lvl${level}NetworkRewards`] = levelRewards;
+                newUserData[`lvl${level}NetworkRewards`] = levelNetworkRewards;
             }
 
             const newUser = await User.create([newUserData], { session });

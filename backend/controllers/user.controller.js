@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
+import ConversionRate from "../models/conversion-rate.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { getTierInfo } from "../utils/tier-system.js";
 import mongoose from "mongoose";
@@ -32,20 +33,61 @@ export const createUser = async (req, res, next) => {
         // Get global rewards for all levels
         const globalRewards = await NetworkReward.find({ isActive: true });
         
+        // Get conversion rates
+        const conversionRates = await ConversionRate.find({});
+        const conversionRatesMap = {};
+        conversionRates.forEach(rate => {
+            conversionRatesMap[rate.network] = rate.rateToUSD;
+        });
+        
         // Create user with global rewards populated
         const userData = { ...req.body };
         
+        // Calculate level rewards (lvl1reward, lvl2reward, etc.) from network rewards and conversion rates
+        const levelRewards = {};
+        for (let level = 1; level <= 5; level++) {
+            const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
+            let totalUSDValue = 0;
+            
+            // Calculate total USD value for this level
+            for (const reward of levelNetworkRewards) {
+                const conversionRate = conversionRatesMap[reward.network] || 1;
+                const usdValue = reward.rewardAmount * conversionRate;
+                totalUSDValue += usdValue;
+            }
+            
+            // Round to 2 decimal places
+            levelRewards[`lvl${level}reward`] = Math.round(totalUSDValue * 100) / 100;
+        }
+        
+        // Compute commission per level from global commissionPercent
+        const levelCommissions = {};
+        for (let level = 1; level <= 5; level++) {
+            const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
+            let totalCommissionUSD = 0;
+            for (const reward of levelNetworkRewards) {
+                const rate = conversionRatesMap[reward.network] || 1;
+                const usd = reward.rewardAmount * rate;
+                const cp = typeof reward.commissionPercent === 'number' ? reward.commissionPercent : 0;
+                totalCommissionUSD += usd * cp;
+            }
+            levelCommissions[`lvl${level}Commission`] = Math.round(totalCommissionUSD * 100) / 100;
+        }
+
+        // Add calculated level rewards and commissions to user data
+        Object.assign(userData, levelRewards, levelCommissions);
+        
         // Populate network rewards for each level with global defaults
         for (let level = 1; level <= 5; level++) {
-            const levelRewards = {};
+            const levelNetworkRewards = {};
             const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
             
             for (const network of networks) {
                 const globalReward = globalRewards.find(r => r.level === level && r.network === network);
-                levelRewards[network] = globalReward ? globalReward.rewardAmount : 0;
+                levelNetworkRewards[network] = globalReward ? globalReward.rewardAmount : 0;
             }
             
-            userData[`lvl${level}NetworkRewards`] = levelRewards;
+            userData[`lvl${level}NetworkRewards`] = levelNetworkRewards;
         }
         
         const user = await User.create(userData, { session });

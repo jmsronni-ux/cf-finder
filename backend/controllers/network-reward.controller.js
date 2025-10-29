@@ -71,7 +71,7 @@ export const getRewardsByLevel = async (req, res, next) => {
 // Create or update network reward (Admin only)
 export const setNetworkReward = async (req, res, next) => {
   try {
-    const { level, network, rewardAmount, isActive = true } = req.body;
+    const { level, network, rewardAmount, commissionPercent, isActive = true } = req.body;
     const userId = req.user?.id; // From auth middleware
     
     // Validation
@@ -90,6 +90,11 @@ export const setNetworkReward = async (req, res, next) => {
     if (rewardAmount < 0) {
       throw new ApiError(400, 'Reward amount must be non-negative');
     }
+    if (commissionPercent !== undefined) {
+      if (typeof commissionPercent !== 'number' || commissionPercent < 0 || commissionPercent > 1) {
+        throw new ApiError(400, 'commissionPercent must be between 0 and 1');
+      }
+    }
     
     // Use upsert to create or update
     const reward = await NetworkReward.findOneAndUpdate(
@@ -98,6 +103,7 @@ export const setNetworkReward = async (req, res, next) => {
         level,
         network,
         rewardAmount,
+        ...(commissionPercent !== undefined ? { commissionPercent } : {}),
         isActive,
         $set: {
           'metadata.updatedBy': userId
@@ -129,7 +135,7 @@ export const setNetworkReward = async (req, res, next) => {
 // Bulk update rewards for a level (Admin only)
 export const setLevelRewards = async (req, res, next) => {
   try {
-    const { level, rewards } = req.body;
+    const { level, rewards, commissions } = req.body;
     const userId = req.user?.id;
     
     console.log('[Global Network Rewards] Request received:', {
@@ -163,6 +169,12 @@ export const setLevelRewards = async (req, res, next) => {
       if (typeof amount !== 'number' || amount < 0) {
         throw new ApiError(400, `Invalid reward amount for ${network}: ${amount}. Must be a non-negative number.`);
       }
+      if (commissions && commissions[network] !== undefined) {
+        const cp = commissions[network];
+        if (typeof cp !== 'number' || cp < 0 || cp > 1) {
+          throw new ApiError(400, `Invalid commissionPercent for ${network}: ${cp}. Must be 0..1`);
+        }
+      }
     }
     
     const results = [];
@@ -177,6 +189,7 @@ export const setLevelRewards = async (req, res, next) => {
           level,
           network,
           rewardAmount,
+          ...(commissions && commissions[network] !== undefined ? { commissionPercent: commissions[network] } : {}),
           isActive: true,
           $set: {
             'metadata.updatedBy': userId

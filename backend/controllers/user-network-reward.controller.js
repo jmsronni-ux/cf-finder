@@ -269,7 +269,7 @@ export const setUserLevelRewards = async (req, res, next) => {
 export const calculateNetworkCommission = async (req, res, next) => {
   try {
     const { userId } = req.params;
-    const { networks, commissionRate = 0.05 } = req.body;
+    const { networks } = req.body;
     
     // Validate user exists
     const user = await User.findById(userId);
@@ -281,37 +281,38 @@ export const calculateNetworkCommission = async (req, res, next) => {
       throw new ApiError(400, 'Networks array is required');
     }
     
-    // Get global rewards for fallback
-    const globalRewards = await NetworkReward.find({ isActive: true });
+    // Get user's stored commission amount for their current level
+    const levelCommissionField = `lvl${user.tier || 1}Commission`;
+    const userLevelCommission = user[levelCommissionField] || 0;
     
-    // Calculate commission for each network
-    const commissionBreakdown = {};
-    let totalCommission = 0;
+    // Get user's network rewards for their current level
+    const levelNetworkRewardsField = `lvl${user.tier || 1}NetworkRewards`;
+    const userNetworkRewards = user[levelNetworkRewardsField] || {};
     
+    // Calculate total reward amount for selected networks
+    let totalRewardAmount = 0;
     for (const network of networks) {
-      // Get user's network reward from user model (with global fallback)
-      const levelNetworkRewardsField = `lvl${user.tier || 1}NetworkRewards`;
-      const userNetworkRewards = user[levelNetworkRewardsField] || {};
+      const rewardAmount = userNetworkRewards[network] || 0;
+      totalRewardAmount += rewardAmount;
+    }
+    
+    // Calculate commission proportionally based on selected networks
+    const totalLevelReward = Object.values(userNetworkRewards).reduce((sum, amount) => sum + (amount || 0), 0);
+    const commissionProportion = totalLevelReward > 0 ? totalRewardAmount / totalLevelReward : 0;
+    const calculatedCommission = userLevelCommission * commissionProportion;
+    
+    // Create breakdown for each network
+    const commissionBreakdown = {};
+    for (const network of networks) {
+      const rewardAmount = userNetworkRewards[network] || 0;
+      const networkProportion = totalRewardAmount > 0 ? rewardAmount / totalRewardAmount : 0;
+      const networkCommission = calculatedCommission * networkProportion;
       
-      let rewardAmount = 0;
-      const userRewardAmount = userNetworkRewards[network];
-      
-      if (userRewardAmount !== undefined && userRewardAmount > 0) {
-        rewardAmount = userRewardAmount;
-      } else {
-        const globalReward = globalRewards.find(r => r.network === network && r.level === (user.tier || 1));
-        if (globalReward) {
-          rewardAmount = globalReward.rewardAmount;
-        }
-      }
-      
-      const commission = rewardAmount * commissionRate;
       commissionBreakdown[network] = {
         rewardAmount,
-        commissionRate,
-        commission
+        commission: networkCommission,
+        proportion: networkProportion
       };
-      totalCommission += commission;
     }
     
     res.status(200).json({
@@ -320,9 +321,12 @@ export const calculateNetworkCommission = async (req, res, next) => {
       data: {
         userId,
         networks,
-        commissionRate,
+        totalLevelCommission: userLevelCommission,
+        selectedRewardAmount: totalRewardAmount,
+        totalLevelReward: totalLevelReward,
+        commissionProportion,
         commissionBreakdown,
-        totalCommission
+        totalCommission: calculatedCommission
       }
     });
   } catch (error) {

@@ -11,7 +11,8 @@ export const TIER_CONFIG = {
             "Limited API calls"
         ],
         maxBalance: 1000,
-        apiLimit: 100
+        apiLimit: 100,
+        upgradePrice: 0 // Free starting tier
     },
     2: {
         name: "Standard",
@@ -23,7 +24,8 @@ export const TIER_CONFIG = {
             "Custom branding"
         ],
         maxBalance: 5000,
-        apiLimit: 500
+        apiLimit: 500,
+        upgradePrice: 50
     },
     3: {
         name: "Professional",
@@ -36,7 +38,8 @@ export const TIER_CONFIG = {
             "Custom integrations"
         ],
         maxBalance: 25000,
-        apiLimit: 2000
+        apiLimit: 2000,
+        upgradePrice: 100
     },
     4: {
         name: "Enterprise",
@@ -49,7 +52,8 @@ export const TIER_CONFIG = {
             "SLA guarantees"
         ],
         maxBalance: 100000,
-        apiLimit: 10000
+        apiLimit: 10000,
+        upgradePrice: 250
     },
     5: {
         name: "Premium",
@@ -62,7 +66,8 @@ export const TIER_CONFIG = {
             "VIP treatment"
         ],
         maxBalance: 1000000,
-        apiLimit: 50000
+        apiLimit: 50000,
+        upgradePrice: 500
     }
 };
 
@@ -106,5 +111,49 @@ export const getUpgradeOptionsForUser = (user) => {
         });
     }
     return options;
+};
+
+// Get tier upgrade price for a specific user
+export const getUserTierPrice = (user, tier) => {
+    if (tier < 2 || tier > 5) return 0;
+    
+    // Check if user has custom price set
+    const customPriceField = `tier${tier}Price`;
+    if (user[customPriceField] !== null && user[customPriceField] !== undefined) {
+        return user[customPriceField];
+    }
+    
+    // Fall back to default price
+    return TIER_CONFIG[tier].upgradePrice;
+};
+
+// Check if user can upgrade to target tier with custom pricing
+export const canUpgradeWithCustomPrice = (user, targetTier) => {
+    if (targetTier <= user.tier || targetTier > 5) return false;
+    
+    const upgradePrice = getUserTierPrice(user, targetTier);
+    return user.balance >= upgradePrice;
+};
+
+// Calculate tier prices from network rewards and conversion rates
+export const calculateTierPricesFromRewards = (networkRewards, conversionRates) => {
+    const tierPrices = {};
+    
+    for (let tier = 1; tier <= 5; tier++) {
+        const levelRewards = networkRewards.filter(r => r.level === tier && r.isActive);
+        let totalUSDValue = 0;
+        
+        // Calculate total USD value for this tier
+        for (const reward of levelRewards) {
+            const conversionRate = conversionRates[reward.network] || 1;
+            const usdValue = reward.rewardAmount * conversionRate;
+            totalUSDValue += usdValue;
+        }
+        
+        // Round to 2 decimal places
+        tierPrices[`tier${tier}Price`] = Math.round(totalUSDValue * 100) / 100;
+    }
+    
+    return tierPrices;
 };
 
