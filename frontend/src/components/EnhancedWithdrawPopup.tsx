@@ -128,7 +128,13 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     
     // Get the selected networks to withdraw
     const networksToWithdraw = withdrawAll 
-      ? Object.keys(networkRewards)
+      ? Object.keys(conversionBreakdown)
+          .filter((network) => {
+            const upper = network.toUpperCase();
+            const breakdown: any = (conversionBreakdown as any)[network];
+            // Only include networks that are NOT withdrawn and have USDT value > 0
+            return !withdrawnNetworks.has(upper) && (breakdown?.usdt || 0) > 0;
+          })
       : Array.from(selectedNetworks);
     
     // Don't fetch if no networks are selected
