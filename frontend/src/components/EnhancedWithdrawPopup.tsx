@@ -39,6 +39,10 @@ interface ConversionBreakdown {
   };
 }
 
+interface ConversionRates {
+  [network: string]: number;
+}
+
 const NETWORKS = [
   { key: 'BTC', name: 'Bitcoin', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500' },
   { key: 'ETH', name: 'Ethereum', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500' },
@@ -57,8 +61,9 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 }) => {
   const [networkRewards, setNetworkRewards] = useState<NetworkRewards>({});
   const [conversionBreakdown, setConversionBreakdown] = useState<ConversionBreakdown>({});
+  const [conversionRates, setConversionRates] = useState<ConversionRates>({});
   const [totalUSDT, setTotalUSDT] = useState<number>(0);
-  const [userLevelReward, setUserLevelReward] = useState<number>(0); // User's level reward from model
+  const [availableUSDT, setAvailableUSDT] = useState<number>(0); // Total excluding withdrawn networks
   const [selectedNetworks, setSelectedNetworks] = useState<Set<string>>(new Set());
   const [withdrawAll, setWithdrawAll] = useState<boolean>(false);
   const [wallet, setWallet] = useState<string>('');
@@ -85,6 +90,36 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       });
     }
   }, [isOpen, user?.walletVerified]);
+
+  // Fetch conversion rates from backend
+  const fetchConversionRates = async () => {
+    try {
+      const response = await apiFetch('/conversion-rate', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        const rates: ConversionRates = {};
+        (data.data.rates || []).forEach((rate: any) => {
+          rates[rate.network] = rate.rateToUSD;
+        });
+        setConversionRates(rates);
+        console.log('[Conversion Rates] Fetched from backend:', rates);
+        return rates;
+      } else {
+        console.error('Failed to fetch conversion rates:', data.message);
+        // Fallback to default rates
+        return { BTC: 45000, ETH: 3000, TRON: 0.1, USDT: 1, BNB: 300, SOL: 100 };
+      }
+    } catch (error) {
+      console.error('Error fetching conversion rates:', error);
+      // Fallback to default rates
+      return { BTC: 45000, ETH: 3000, TRON: 0.1, USDT: 1, BNB: 300, SOL: 100 };
+    }
+  };
  
   // Fetch commission from backend API
   const fetchCommissionForSelectedNetworks = async () => {
@@ -139,6 +174,9 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     try {
       setIsLoadingRewards(true);
       
+      // Fetch conversion rates first
+      const rates = await fetchConversionRates();
+      
       const level = user?.tier || 1;
       const response = await apiFetch(`/user-network-reward/user/${user._id}/level/${level}`, {
         headers: {
@@ -159,18 +197,24 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         console.log(`[Withdraw Popup] Raw API response:`, data.data);
         setNetworkRewards(rewards);
 
-        // Build USDT conversion using default rates (frontend standard)
-        const defaultRates: Record<string, number> = { BTC: 45000, ETH: 3000, TRON: 0.1, USDT: 1, BNB: 300, SOL: 100 };
+        // Build USDT conversion using rates from backend
         const breakdown: any = {};
         let total = 0;
         Object.entries(rewards).forEach(([network, amount]) => {
-          const rate = defaultRates[network] ?? 1;
+          const rate = rates[network] ?? 1;
           const usdt = amount * rate;
           breakdown[network] = { original: amount, usdt, rate };
           total += usdt;
         });
         setConversionBreakdown(breakdown);
         setTotalUSDT(total);
+
+        console.log('[Network Rewards] Fetched and calculated:', {
+          rewards,
+          breakdown,
+          totalUSDT: total,
+          rates
+        });
 
         // Commission will be calculated when networks are selected
         setTotalCommission(0);
@@ -216,15 +260,6 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     if (isOpen) {
       fetchNetworkRewards();
       checkPendingRequests();
-      
-      // Set user level reward from user model
-      if (userData) {
-        const currentLevel = userData.tier || 1;
-        const levelRewardField = `lvl${currentLevel}reward`;
-        const levelReward = userData[levelRewardField] || 0;
-        setUserLevelReward(levelReward);
-        console.log(`[Withdraw Popup] User level ${currentLevel} reward: ${levelReward}`);
-      }
       
       // Fetch approved withdrawal history and collect withdrawn networks for current level
       (async () => {
@@ -325,6 +360,26 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     }
   }, [selectedNetworks, withdrawAll, networkRewards]);
 
+  // Calculate available USDT (excluding withdrawn networks)
+  useEffect(() => {
+    if (Object.keys(conversionBreakdown).length > 0) {
+      let available = 0;
+      Object.entries(conversionBreakdown).forEach(([network, breakdown]: any) => {
+        const upper = network.toUpperCase();
+        // Only count networks that haven't been withdrawn
+        if (!withdrawnNetworks.has(upper) && (breakdown?.usdt || 0) > 0) {
+          available += breakdown.usdt;
+        }
+      });
+      setAvailableUSDT(available);
+      console.log('[Available USDT] Calculated available USDT (excluding withdrawn):', {
+        availableUSDT: available,
+        totalUSDT,
+        withdrawnNetworks: Array.from(withdrawnNetworks)
+      });
+    }
+  }, [conversionBreakdown, withdrawnNetworks, totalUSDT]);
+
   // Check if all networks have been withdrawn (by history) or no available rewards
   useEffect(() => {
     if (Object.keys(networkRewards).length > 0) {
@@ -400,7 +455,8 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
   const getSelectedAmount = (): number => {
     if (withdrawAll) {
-      return userLevelReward; // Use user level reward instead of network rewards total
+      // Return only available USDT (excluding withdrawn networks)
+      return availableUSDT;
     }
     
     let total = 0;
@@ -492,13 +548,39 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     setIsSubmitting(true);
 
     try {
+      // Get available networks (excluding already withdrawn ones)
+      const allNetworks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+      const availableNetworks = withdrawAll 
+        ? allNetworks.filter(network => {
+            const upper = network.toUpperCase();
+            const breakdown = conversionBreakdown[network];
+            // Include only networks that are NOT withdrawn and have value > 0
+            return !withdrawnNetworks.has(upper) && (breakdown?.usdt || 0) > 0;
+          })
+        : Array.from(selectedNetworks);
+      
+      // Get network rewards for available networks only
+      const selectedNetworkRewards = withdrawAll 
+        ? Object.fromEntries(
+            availableNetworks.map(network => [network, networkRewards[network] || 0])
+          )
+        : Object.fromEntries(
+            Array.from(selectedNetworks).map(network => [network, networkRewards[network] || 0])
+          );
+      
+      console.log('[Withdraw] Submitting withdrawal:', {
+        withdrawAll,
+        availableNetworks,
+        withdrawnNetworks: Array.from(withdrawnNetworks),
+        selectedNetworkRewards,
+        amount: withdrawAmount
+      });
+
       const requestBody = {
         amount: withdrawAmount,
         wallet: '', // No wallet needed since money goes to balance
-        networks: withdrawAll ? ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'] : Array.from(selectedNetworks),
-        networkRewards: withdrawAll ? networkRewards : Object.fromEntries(
-          Array.from(selectedNetworks).map(network => [network, networkRewards[network] || 0])
-        ),
+        networks: availableNetworks,
+        networkRewards: selectedNetworkRewards,
         withdrawAll: withdrawAll,
         addToBalance: true // New flag to add network rewards to user balance instead of direct withdrawal
       };
@@ -604,7 +686,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                      {allNetworksWithdrawn ? 'All Networks Withdrawn!' : `Layer ${userData?.tier || 1} Scan Completed!`}
                     </h2>
                     <p className="text-gray-400 text-sm text-left">
-                      {allNetworksWithdrawn ? 'Congratulations! You\'ve successfully withdrawn from all networks.' : `We have successfully identified <span className="font-bold text-green-500">${userLevelReward.toLocaleString()} USDT</span> amount on this layer.`}
+                      {allNetworksWithdrawn
+                        ? "Congratulations! You've successfully withdrawn from all networks."
+                        : <>We have successfully identified <span className="font-bold text-green-500">${availableUSDT.toLocaleString()} USDT</span> available on this layer.</>
+                      }
                     </p>
                   </div>
                 </div>
@@ -672,10 +757,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                             <div className="flex items-baseline gap-1">
                               <span className="text-2xl font-bold text-green-400">$</span>
                               <span className="text-2xl font-bold text-green-400">
-                                {userLevelReward.toLocaleString()}
+                                {availableUSDT.toLocaleString()}
                               </span>
                             </div>
-                            <div className="text-xs text-gray-400 mt-1">Level Reward</div>
+                            <div className="text-xs text-gray-400 mt-1">Available Value</div>
                           </div>
                         </div>
                       </div>

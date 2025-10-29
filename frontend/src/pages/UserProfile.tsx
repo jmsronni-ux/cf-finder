@@ -49,6 +49,7 @@ const UserProfile: React.FC = () => {
   const [verificationRequest, setVerificationRequest] = useState<WalletVerificationRequest | null>(null);
   const [loadingVerification, setLoadingVerification] = useState(false);
   const [submittingVerification, setSubmittingVerification] = useState(false);
+  const [withdrawalCount, setWithdrawalCount] = useState<number>(0);
   const navigate = useNavigate();
 
   // Ensure we show real-time tier/balance from DB
@@ -155,6 +156,32 @@ const UserProfile: React.FC = () => {
       fetchWallets();
     }
   }, [token]);
+
+  // Fetch withdrawal count for current level
+  const fetchWithdrawalCount = async () => {
+    if (!token || !user?.tier) return;
+    try {
+      const res = await apiFetch(`/withdrawal-request/withdrawal-count?level=${user.tier}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        setWithdrawalCount(json.data.withdrawalCount);
+      }
+    } catch (e) {
+      console.error('Failed to fetch withdrawal count', e);
+    }
+  };
+
+  // Fetch withdrawal count when user tier changes
+  useEffect(() => {
+    if (user?.tier) {
+      fetchWithdrawalCount();
+    }
+  }, [user?.tier, token]);
 
   // Fetch verification status when component mounts and wallets are loaded
   useEffect(() => {
@@ -411,34 +438,20 @@ const UserProfile: React.FC = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-foreground">
                       <ArrowBigUpIcon className="w-6 h-6" />
-                      <span>Current Level</span>
+                      <span>Current Layer: {user.tier}</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col">
-                    <LevelProgressBar level={user.tier} />
-                    
-                    {upgradeOptions.length > 0 && upgradeOptions[0] && (
-                      <div className="mt-4 space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-400">Next Level:</span>
-                          <span className="text-foreground font-semibold">
-                            {upgradeOptions[0].tier}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-400">Est. Reward:</span>
-                          <span className="text-green-500 font-bold">
-                            ${(user[`lvl${upgradeOptions[0].tier}reward` as keyof typeof user] as number)?.toLocaleString() || 0}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    {upgradeOptions.length === 0 && user.tier === 5 && (
-                      <div className="mt-4 text-center">
-                        <CrownIcon className="w-8 h-8 mx-auto text-yellow-500 mb-2" />
-                        <p className="text-sm text-foreground font-semibold">Max Tier!</p>
-                      </div>
-                    )}
+                    <LevelProgressBar level={withdrawalCount}/>
+                    <div className="flex flex-col items-start justify-center h-full text-sm text-gray-400 gap-2">
+                      <p>
+                        Level {user.tier} networks withdrawn: {withdrawalCount}
+                      </p>
+                      <p>
+                        Total available transactions on layer:
+                      </p>
+                    </div>
+
                   </CardContent>
                 </Card>
               </div>
