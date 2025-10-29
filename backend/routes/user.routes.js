@@ -9,6 +9,10 @@ const userRouter = express.Router();
 
 userRouter.get("/", authMiddleware, getAllUsers);
 
+// Profile update routes (place BEFORE dynamic :id routes)
+userRouter.put("/me", authMiddleware, updateMyProfile);
+userRouter.put("/me/password", authMiddleware, changeMyPassword);
+
 userRouter.get("/:id", authMiddleware, getUserById);
 
 userRouter.post("/", authMiddleware, createUser);
@@ -173,9 +177,7 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
 userRouter.get("/me/wallets", authMiddleware, getMyWallets);
 userRouter.put("/me/wallets", authMiddleware, updateMyWallets);
 
-// Profile update routes (name and password only)
-userRouter.put("/me", authMiddleware, updateMyProfile);
-userRouter.put("/me/password", authMiddleware, changeMyPassword);
+// (moved above)
 
 // Admin routes for managing user level rewards
 userRouter.get("/admin/rewards", authMiddleware, adminMiddleware, getAllUsersWithRewards);
