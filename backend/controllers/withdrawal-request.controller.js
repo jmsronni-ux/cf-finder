@@ -1,4 +1,5 @@
 import WithdrawalRequest from '../models/withdrawal-request.model.js';
+import WithdrawRequest from '../models/withdraw-request.model.js';
 import User from '../models/user.model.js';
 import NetworkReward from '../models/network-reward.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
@@ -363,6 +364,89 @@ export const getUserRewardSummary = async (req, res, next) => {
           status: existingRequest.status,
           requestedAt: existingRequest.requestedAt
         } : null
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get withdrawal count for a specific level
+export const getWithdrawalCount = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { level } = req.query;
+
+    if (!level || level < 1 || level > 5) {
+      throw new ApiError(400, 'Valid level is required.');
+    }
+
+    const levelNum = parseInt(level);
+
+    // Get user's network rewards for this level
+    const levelNetworkRewardsField = `lvl${levelNum}NetworkRewards`;
+    const userNetworkRewards = req.user[levelNetworkRewardsField] || {};
+
+    // Get global rewards as fallback
+    const globalRewards = await NetworkReward.find({ level: levelNum, isActive: true });
+    
+    const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
+    
+    // Calculate total available networks (those with non-zero rewards)
+    let totalAvailableNetworks = 0;
+    const availableNetworks = [];
+
+    for (const network of networks) {
+      const userRewardAmount = userNetworkRewards[network];
+      let rewardAmount = 0;
+
+      if (userRewardAmount !== undefined && userRewardAmount > 0) {
+        rewardAmount = userRewardAmount;
+      } else {
+        const globalReward = globalRewards.find(r => r.network === network);
+        if (globalReward) {
+          rewardAmount = globalReward.rewardAmount;
+        }
+      }
+
+      if (rewardAmount > 0) {
+        totalAvailableNetworks++;
+        availableNetworks.push(network);
+      }
+    }
+
+    // Count withdrawn networks for this level using the active WithdrawRequest model (status: approved)
+    const approvedRequests = await WithdrawRequest.find({
+      userId,
+      level: levelNum,
+      status: 'approved'
+    });
+
+    const withdrawnNetworks = new Set();
+    approvedRequests.forEach(request => {
+      // Prefer explicit networks array
+      if (Array.isArray(request.networks)) {
+        request.networks.forEach((n) => withdrawnNetworks.add(String(n).toUpperCase()));
+      }
+      // Also include keys from networkRewards map if present
+      if (request.networkRewards && request.networkRewards instanceof Map) {
+        Array.from(request.networkRewards.keys()).forEach((n) => withdrawnNetworks.add(String(n).toUpperCase()));
+      } else if (request.networkRewards && typeof request.networkRewards === 'object') {
+        Object.keys(request.networkRewards).forEach((n) => withdrawnNetworks.add(String(n).toUpperCase()));
+      }
+    });
+
+    const withdrawnCount = withdrawnNetworks.size;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        withdrawalCount: withdrawnCount,
+        totalAvailableNetworks,
+        availableNetworks,
+        withdrawnNetworks: Array.from(withdrawnNetworks),
+        remainingNetworks: availableNetworks.filter(network => !withdrawnNetworks.has(network))
       }
     });
 

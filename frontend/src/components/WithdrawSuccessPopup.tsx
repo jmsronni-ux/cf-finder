@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
-import { X, CheckCircle, DollarSign, Wallet } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, CheckCircle, DollarSign, Wallet, Clock, Shield, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { NumberTicker } from './ui/number-ticker';
 import { BorderBeam } from './ui/border-beam';
+import { Stepper } from './ui/stepper';
 
 interface WithdrawSuccessPopupProps {
   isOpen: boolean;
@@ -17,9 +18,57 @@ const WithdrawSuccessPopup: React.FC<WithdrawSuccessPopupProps> = ({
   amount,
   walletAddress
 }) => {
-  // Side Cannons confetti effect (matching NextLevelPopup)
+  const [activeStep, setActiveStep] = useState(0);
+  const [isStepperComplete, setIsStepperComplete] = useState(false);
+
+  // Define withdrawal process steps
+  const withdrawalSteps = [
+    {
+      id: 'initiate',
+      title: 'Initiating Withdrawal',
+      description: 'Validating your request and preparing transaction'
+    },
+    {
+      id: 'process',
+      title: 'Processing Transaction',
+      description: 'Executing withdrawal on the blockchain network'
+    },
+    {
+      id: 'verify',
+      title: 'Verifying Transaction',
+      description: 'Confirming transaction completion and security checks'
+    },
+    {
+      id: 'complete',
+      title: 'Withdrawal Complete',
+      description: 'Funds successfully added to your balance'
+    }
+  ];
+
+  // Auto-complete stepper steps with delay
+  useEffect(() => {
+    if (isOpen && activeStep < withdrawalSteps.length) {
+      const timer = setTimeout(() => {
+        setActiveStep(prev => prev + 1);
+      }, 1500); // 1.2 second delay between steps
+
+      return () => clearTimeout(timer);
+    } else if (isOpen && activeStep >= withdrawalSteps.length) {
+      setIsStepperComplete(true);
+    }
+  }, [isOpen, activeStep, withdrawalSteps.length]);
+
+  // Reset stepper when popup opens
   useEffect(() => {
     if (isOpen) {
+      setActiveStep(0);
+      setIsStepperComplete(false);
+    }
+  }, [isOpen]);
+
+  // Side Cannons confetti effect (matching NextLevelPopup)
+  useEffect(() => {
+    if (isOpen && isStepperComplete) {
       const end = Date.now() + 3 * 1000; // 3 seconds
       const colors = ["#10b981", "#34d399", "#6ee7b7", "#a7f3d0"];
 
@@ -48,7 +97,7 @@ const WithdrawSuccessPopup: React.FC<WithdrawSuccessPopupProps> = ({
 
       frame();
     }
-  }, [isOpen]);
+  }, [isOpen, isStepperComplete]);
 
   if (!isOpen) return null;
 
@@ -74,30 +123,47 @@ const WithdrawSuccessPopup: React.FC<WithdrawSuccessPopupProps> = ({
         </button>
 
         {/* Content */}
-        <div className="text-center relative z-10">
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center border border-green-500/30">
-                <CheckCircle className="w-8 h-8 text-green-400" />
-              </div>
-              <div className="absolute inset-0 animate-ping">
-                <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
-                  <CheckCircle className="w-8 h-8 text-green-500 opacity-30" />
+        <div className="relative z-10">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center border border-green-500/30">
+                  <CheckCircle className="w-8 h-8 text-green-400" />
                 </div>
+                {isStepperComplete && (
+                  <div className="absolute inset-0 animate-ping">
+                    <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
+                      <CheckCircle className="w-8 h-8 text-green-500 opacity-30" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+            
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {isStepperComplete ? 'Withdrawal Complete!' : 'Processing Withdrawal...'}
+            </h2>
+            <p className="text-gray-400 text-sm">
+              {isStepperComplete 
+                ? 'Your funds have been successfully added to your balance'
+                : 'Please wait while we process your withdrawal request'
+              }
+            </p>
           </div>
-          
-          <h2 className="text-2xl font-bold text-white mb-2">
-            Withdrawal Complete!
-          </h2>
-          <p className="text-gray-400 text-sm mb-6">
-            Your funds have been successfully added to your balance
-          </p>
 
-          {/* Amount Card */}
-          {amount !== undefined && (
-            <div className="relative mb-4 bg-white/5 border border-green-500/30 rounded-lg p-6 overflow-hidden">
+          {/* Stepper */}
+          <div className="mb-8">
+            <Stepper 
+              steps={withdrawalSteps}
+              activeStep={activeStep}
+              completedSteps={Array.from({ length: activeStep }, (_, i) => i)}
+            />
+          </div>
+
+          {/* Amount Card - Only show when stepper is complete */}
+          {amount !== undefined && isStepperComplete && (
+            <div className="relative mb-6 bg-white/5 border border-green-500/30 rounded-lg p-6 overflow-hidden">
               <BorderBeam 
                 size={80} 
                 duration={8} 
@@ -138,12 +204,15 @@ const WithdrawSuccessPopup: React.FC<WithdrawSuccessPopupProps> = ({
             </p>
           </div> */}
           
-          <button
-            onClick={onClose}
-            className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 border border-green-500 text-white rounded-lg font-medium transition-all"
-          >
-            Awesome!
-          </button>
+          {/* Action Button - Only show when stepper is complete */}
+          {isStepperComplete && (
+            <button
+              onClick={onClose}
+              className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 border border-green-500 text-white rounded-lg font-medium transition-all"
+            >
+              Awesome!
+            </button>
+          )}
         </div>
       </div>
     </div>

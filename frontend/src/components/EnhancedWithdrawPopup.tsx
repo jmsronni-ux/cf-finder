@@ -77,6 +77,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   const [allNetworksWithdrawn, setAllNetworksWithdrawn] = useState<boolean>(false);
   const [isUpgradingTier, setIsUpgradingTier] = useState<boolean>(false);
   const [withdrawnNetworks, setWithdrawnNetworks] = useState<Set<string>>(new Set());
+  const [lastSubmittedCommission, setLastSubmittedCommission] = useState<number | null>(null);
   const confettiShownRef = useRef<boolean>(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { user, token, refreshUser } = useAuth();
@@ -310,7 +311,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
               navigate('/profile', { 
                 state: { 
                   showWithdrawSuccess: true,
-                  withdrawAmount: request.amount,
+                  withdrawAmount: Math.max(0, (request.amount || 0) - (lastSubmittedCommission || 0)),
                   withdrawWallet: request.walletAddress || 'Network Rewards'
                 } 
               });
@@ -585,6 +586,9 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         addToBalance: true // New flag to add network rewards to user balance instead of direct withdrawal
       };
       
+      // Persist the commission related to this submission for later approval navigation
+      setLastSubmittedCommission(totalCommission || 0);
+
       const response = await apiFetch('/withdraw-request/create', {
         method: 'POST',
         headers: {
@@ -612,7 +616,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
           navigate('/profile', { 
             state: { 
               showWithdrawSuccess: true,
-              withdrawAmount: data.data.amount,
+              withdrawAmount: Math.max(0, (data.data.amount || 0) - (totalCommission || 0)),
               withdrawWallet: 'Network Rewards'
             } 
           });

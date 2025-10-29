@@ -823,7 +823,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                       ? 'Verify Wallet'
                       : hasStarted 
                         ? 'Running...' 
-                        : 'Start Animation'}
+                        : 'Start Allocation'}
         </PulsatingButton>
         
 

@@ -5,7 +5,8 @@ import {
   getAllWithdrawalRequests,
   processWithdrawalRequest,
   checkTierUpgradeEligibility,
-  getUserRewardSummary
+  getUserRewardSummary,
+  getWithdrawalCount
 } from '../controllers/withdrawal-request.controller.js';
 import authMiddleware, { adminMiddleware } from '../middlewares/auth.middleware.js';
 
@@ -16,6 +17,7 @@ router.post('/', authMiddleware, createWithdrawalRequest);
 router.get('/my-requests', authMiddleware, getUserWithdrawalRequests);
 router.get('/reward-summary', authMiddleware, getUserRewardSummary);
 router.get('/tier-upgrade-eligibility', authMiddleware, checkTierUpgradeEligibility);
+router.get('/withdrawal-count', authMiddleware, getWithdrawalCount);
 
 // Admin routes
 router.get('/all', authMiddleware, adminMiddleware, getAllWithdrawalRequests);

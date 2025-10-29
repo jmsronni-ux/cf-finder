@@ -19,6 +19,7 @@ import WithdrawPopup from '@/components/WithdrawPopup';
 import AddWalletPopup from '../components/AddWalletPopup';
 import ChangeWallet from '../components/ChangeWallet';
 import WithdrawSuccessPopup from '../components/WithdrawSuccessPopup';
+import EditSettingsPopup from '../components/EditSettingsPopup';
 import { WalletVerificationRequest } from '../types/wallet-verification';
 
 interface TierInfo {
@@ -49,7 +50,21 @@ const UserProfile: React.FC = () => {
   const [verificationRequest, setVerificationRequest] = useState<WalletVerificationRequest | null>(null);
   const [loadingVerification, setLoadingVerification] = useState(false);
   const [submittingVerification, setSubmittingVerification] = useState(false);
-  const [withdrawalCount, setWithdrawalCount] = useState<number>(0);
+  const [withdrawalData, setWithdrawalData] = useState<{
+    withdrawalCount: number;
+    totalAvailableNetworks: number;
+    availableNetworks: string[];
+    withdrawnNetworks: string[];
+    remainingNetworks: string[];
+  }>({
+    withdrawalCount: 0,
+    totalAvailableNetworks: 0,
+    availableNetworks: [],
+    withdrawnNetworks: [],
+    remainingNetworks: []
+  });
+  const [remainingUSDT, setRemainingUSDT] = useState<number>(0);
+  const [showEditSettingsPopup, setShowEditSettingsPopup] = useState(false);
   const navigate = useNavigate();
   // Edit profile state
   const [nameInput, setNameInput] = useState<string>(user?.name || '');
@@ -164,8 +179,8 @@ const UserProfile: React.FC = () => {
     }
   }, [token]);
 
-  // Fetch withdrawal count for current level
-  const fetchWithdrawalCount = async () => {
+  // Fetch withdrawal data for current level
+  const fetchWithdrawalData = async () => {
     if (!token || !user?.tier) return;
     try {
       const res = await apiFetch(`/withdrawal-request/withdrawal-count?level=${user.tier}`, {
@@ -176,17 +191,108 @@ const UserProfile: React.FC = () => {
       });
       const json = await res.json();
       if (res.ok && json?.success) {
-        setWithdrawalCount(json.data.withdrawalCount);
+        setWithdrawalData(json.data);
+
+        // After we get network sets, compute remaining USD = total available - withdrawn
+        await computeRemainingUSDT(json.data.availableNetworks, json.data.withdrawnNetworks, user.tier);
       }
     } catch (e) {
-      console.error('Failed to fetch withdrawal count', e);
+      console.error('Failed to fetch withdrawal data', e);
     }
   };
 
-  // Fetch withdrawal count when user tier changes
+  // Fetch conversion rates from backend (to USDT)
+  const fetchConversionRates = async (): Promise<Record<string, number>> => {
+    try {
+      const response = await apiFetch('/conversion-rate', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        const rates: Record<string, number> = {};
+        (data.data.rates || []).forEach((rate: any) => {
+          rates[rate.network] = rate.rateToUSD;
+        });
+        return rates;
+      }
+    } catch (_) {}
+    // Fallback defaults
+    return { BTC: 45000, ETH: 3000, TRON: 0.1, USDT: 1, BNB: 300, SOL: 100 };
+  };
+
+  // Compute remaining amount in USDT for current level based on remaining networks
+  const computeRemainingUSDT = async (availableNetworks: string[], withdrawnNetworks: string[], levelNumber: number) => {
+    if (!user?._id || !token || !levelNumber || availableNetworks.length === 0) {
+      setRemainingUSDT(0);
+      return;
+    }
+    try {
+      // Fetch rewards for current level
+      const rewardsRes = await apiFetch(`/user-network-reward/user/${user._id}/level/${levelNumber}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const rewardsJson = await rewardsRes.json();
+      if (!rewardsRes.ok || !rewardsJson?.success) {
+        setRemainingUSDT(0);
+        return;
+      }
+
+      // Normalize rewards map { BTC: { amount }, ... } -> { BTC: amount }
+      const rewards: Record<string, number> = {};
+      const raw = rewardsJson.data?.rewards || {};
+      Object.entries(raw).forEach(([network, val]: [string, any]) => {
+        rewards[network] = Number((val as any)?.amount ?? (val as any) ?? 0);
+      });
+
+      // Get conversion rates
+      const rates = await fetchConversionRates();
+
+      // Sum only available networks to get total available USDT
+      let totalAvailableUsdt = 0;
+      availableNetworks.forEach((net) => {
+        const amount = Number(rewards[net] ?? 0);
+        const rate = Number(rates[net] ?? 1);
+        totalAvailableUsdt += amount * rate;
+      });
+
+      // Fetch withdrawn requests for this level (status approved) and sum selected network amounts in USDT
+      let withdrawnUsdt = 0;
+      const reqRes = await apiFetch(`/withdraw-request/my-requests`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const reqJson = await reqRes.json();
+      if (reqRes.ok && reqJson?.success) {
+        const requests = (reqJson.data || []).filter((r: any) => r?.level === levelNumber && r?.status === 'approved');
+        requests.forEach((r: any) => {
+          // Prefer networkRewards map (network -> amount)
+          const rewardsMap = r.networkRewards || {};
+          if (rewardsMap && typeof rewardsMap === 'object') {
+            Object.entries(rewardsMap).forEach(([net, amt]: [string, any]) => {
+              const amount = Number(amt ?? 0);
+              const rate = Number(rates[net] ?? 1);
+              withdrawnUsdt += amount * rate;
+            });
+          }
+        });
+      }
+
+      const remaining = Math.max(0, totalAvailableUsdt - withdrawnUsdt);
+      setRemainingUSDT(remaining);
+    } catch (e) {
+      setRemainingUSDT(0);
+    }
+  };
+
+  // Fetch withdrawal data when user tier changes
   useEffect(() => {
     if (user?.tier) {
-      fetchWithdrawalCount();
+      fetchWithdrawalData();
     }
   }, [user?.tier, token]);
 
@@ -271,7 +377,7 @@ const UserProfile: React.FC = () => {
           // Check if status changed to approved
           if (btcRequest?.status === 'approved' && verificationRequest?.status === 'pending') {
             toast.success('🎉 Wallet verification approved!', {
-              description: 'You can now start animations and make withdrawals'
+              description: 'You can now start and make withdrawals'
             });
           }
           
@@ -360,6 +466,14 @@ const UserProfile: React.FC = () => {
     navigate('/');
   };
 
+  // Determine if user has withdrawn all available networks for current level
+  const isAllNetworksWithdrawn =
+    withdrawalData.totalAvailableNetworks > 0 &&
+    withdrawalData.remainingNetworks.length === 0;
+
+  // Determine next available tier option (first available)
+  const nextTierOption = upgradeOptions && upgradeOptions.length > 0 ? upgradeOptions[0] : undefined;
+
   return (
     <>
       <div id="profile" className="absolute -z-10 inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-20" />
@@ -418,7 +532,7 @@ const UserProfile: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col">
-                    <p className="text-3xl font-bold mb-4 text-foreground">${user.balance.toFixed(0)}</p>
+                    <p className="text-3xl font-bold mb-4 text-foreground">${user.balance.toFixed(2)}</p>
                     <div className="space-y-2 mt-auto">
                       <Button 
                         onClick={() => setShowTopupPopup(true)}
@@ -449,14 +563,38 @@ const UserProfile: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col">
-                    <LevelProgressBar level={withdrawalCount}/>
-                    <div className="flex flex-col items-start justify-center h-full text-sm text-gray-400 gap-2">
+                    <LevelProgressBar 
+                      withdrawn={withdrawalData.withdrawalCount} 
+                      total={withdrawalData.totalAvailableNetworks}
+                    />
+                    <div className="flex flex-col items-start justify-start mt-5 h-full text-sm text-gray-400 gap-2">
                       <p>
-                        Level {user.tier} networks withdrawn: {withdrawalCount}
+                        Level {user.tier} transactions completed: {withdrawalData.withdrawalCount}/6
                       </p>
-                      <p>
-                        Total available transactions on layer:
-                      </p>
+                      {!isAllNetworksWithdrawn ? (
+                        withdrawalData.withdrawalCount > 0 && (
+                          <p>
+                            Total available transactions on this layer: <span className="text-lg font-bold text-foreground text-green-500"> ${remainingUSDT.toFixed(2)} </span>
+                          </p>
+                        )
+                      ) : (
+                        <Button
+                          className="bg-yellow-600/50 hover:bg-yellow-700 text-white border border-yellow-600 w-full mt-5 flex items-center justify-center gap-2"
+                          disabled={!nextTierOption || !!pendingTierRequest || loadingTiers || upgradingToTier !== null}
+                          onClick={() => {
+                            if (!nextTierOption) return;
+                            handleTierUpgrade(nextTierOption.tier, nextTierOption.name);
+                          }}
+                        >
+                          <ArrowBigUpIcon className="w-5 h-5" />
+                          {pendingTierRequest
+                            ? 'Upgrade request pending'
+                            : nextTierOption
+                            ? `Upgrade to ${nextTierOption.name}`
+                            : 'No upgrade available'}
+                        </Button>
+                      )}
+                      
                     </div>
 
                   </CardContent>
@@ -465,7 +603,7 @@ const UserProfile: React.FC = () => {
 
               {/* User Details */}
               <div className="group h-full">
-                <Card className="h-full flex flex-col border border-border rounded-xl">
+                <Card className="h-full flex flex-col border border-border rounded-xl relative">
                   <CardHeader>
                     <CardTitle className="text-foreground flex items-center gap-2"> <UserIcon className="w-6 h-6" /> Details</CardTitle>
                   </CardHeader>
@@ -476,226 +614,116 @@ const UserProfile: React.FC = () => {
                     
                     {/* Wallet Verification Status */}
                     {wallets?.btc && (
-                      <div className="mt-2 space-y-2">
-                        {verificationRequest ? (
-                          <div className="w-full border border-border rounded-md p-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">Wallet Verification</span>
-                              {verificationRequest.status === 'pending' && (
-                                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  Pending
-                                </Badge>
-                              )}
-                              {verificationRequest.status === 'approved' && (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
-                                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                                  Verified
-                                </Badge>
-                              )}
-                              {verificationRequest.status === 'rejected' && (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
-                                  <XCircle className="w-3 h-3 mr-1" />
-                                  Rejected
-                                </Badge>
+                      <>
+                      {loadingVerification ? (
+                        <></>
+                      ) : verificationRequest?.status !== 'approved' && (
+                        <div className="mt-2 space-y-2">
+                          {verificationRequest ? (
+                            <div className="w-full border border-border rounded-md p-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">Wallet Verification</span>
+                                {verificationRequest.status === 'pending' && (
+                                  <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Pending
+                                  </Badge>
+                                )}
+                                {verificationRequest.status === 'rejected' && (
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Rejected
+                                  </Badge>
+                                )}
+                              </div>
+                              {verificationRequest.status === 'rejected' && verificationRequest.rejectionReason && (
+                                <div className="mt-2">
+                                  <p className="text-xs text-red-400 mb-2">
+                                    <strong>Rejection Reason:</strong> {verificationRequest.rejectionReason}
+                                  </p>
+                                  <Button
+                                    onClick={handleVerifyWallet}
+                                    disabled={submittingVerification}
+                                    className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-600/50 flex items-center justify-center gap-2 text-xs py-2"
+                                  >
+                                    {submittingVerification ? (
+                                      <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        Submitting...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        Request New Verification
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
                               )}
                             </div>
-                            {verificationRequest.status === 'rejected' && verificationRequest.rejectionReason && (
-                              <div className="mt-2">
-                                <p className="text-xs text-red-400 mb-2">
-                                  <strong>Rejection Reason:</strong> {verificationRequest.rejectionReason}
-                                </p>
-                                <Button
-                                  onClick={handleVerifyWallet}
-                                  disabled={submittingVerification}
-                                  className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-600/50 flex items-center justify-center gap-2 text-xs py-2"
-                                >
-                                  {submittingVerification ? (
-                                    <>
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                      Submitting...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <CheckCircle2 className="w-3 h-3" />
-                                      Request New Verification
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <Button 
-                            onClick={handleVerifyWallet}
-                            disabled={submittingVerification}
-                            className="w-full bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50 flex items-center justify-center gap-2"
-                          >
-                            {submittingVerification ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Submitting...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle2 className="w-4 h-4" />
-                                Request Verification
-                              </>
-                            )}
-                          </Button>
-                        )}
-                        {(!verificationRequest || verificationRequest?.status === 'rejected') && (
-                          <Button 
-                            onClick={() => setShowChangeWalletPopup(true)}
-                            disabled={loadingVerification}
-                            className="w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            {loadingVerification ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Loading...
-                              </>
-                            ) : (
-                              <>
-                                <Wallet className="w-4 h-4" />
-                                Change Wallet
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
+                          ) : (
+                            <Button 
+                              onClick={handleVerifyWallet}
+                              disabled={submittingVerification}
+                              className="w-full bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50 flex items-center justify-center gap-2"
+                            >
+                              {submittingVerification ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Submitting...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  Request Verification
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {(!verificationRequest || verificationRequest?.status === 'rejected') && (
+                            <Button 
+                              onClick={() => setShowChangeWalletPopup(true)}
+                              disabled={loadingVerification}
+                              className="w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                              {loadingVerification ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Loading...
+                                </>
+                              ) : (
+                                <>
+                                  <Wallet className="w-4 h-4" />
+                                  Change Wallet
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
+                      {!loadingVerification && verificationRequest?.status === 'approved' && (
+                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 absolute right-6 top-6">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Verified
+                        </Badge>
+                      )}
+                      </>
                     )}
+
+                    <div className="flex w-full">
+                      <Button
+                        onClick={() => setShowEditSettingsPopup(true)}
+                        className="bg-gray-600/20 hover:bg-gray-700 text-white border border-gray-600 w-full"
+                      >
+                        Open Settings
+                      </Button>
+                    </div>
+
+                    
                   </CardContent>
                 </Card>
               </div>
-            </div>
-
-            {/* Edit Profile */}
-            <MagicBadge title="Edit Profile" className="mt-24 mb-6"/>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border border-border rounded-xl">
-                <CardHeader>
-                  <CardTitle className="text-foreground">Change Name</CardTitle>
-                  <CardDescription>Only your name can be changed.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm text-foreground">Name</label>
-                    <input
-                      value={nameInput}
-                      onChange={(e) => setNameInput(e.target.value)}
-                      className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-foreground outline-none"
-                      placeholder="Enter your name"
-                    />
-                  </div>
-                  <Button
-                    disabled={savingName || !token || !nameInput.trim() || nameInput.trim() === user.name}
-                    onClick={async () => {
-                      if (!token) return;
-                      const nextName = nameInput.trim();
-                      if (!nextName) { toast.error('Name is required'); return; }
-                      setSavingName(true);
-                      try {
-                        const res = await apiFetch('/user/me', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                          body: JSON.stringify({ name: nextName })
-                        });
-                        const json = await res.json();
-                        if (res.ok && json?.success) {
-                          toast.success('Name updated');
-                          // Optimistically update local user and storage
-                          if (user) {
-                            const updatedUser = { ...user, name: nextName };
-                            localStorage.setItem('user', JSON.stringify(updatedUser));
-                          }
-                          await refreshUser();
-                        } else {
-                          toast.error(json?.message || 'Failed to update name');
-                        }
-                      } catch (e) {
-                        toast.error('Error updating name');
-                      } finally {
-                        setSavingName(false);
-                      }
-                    }}
-                    className="bg-purple-600/50 hover:bg-purple-700 text-white border border-purple-600"
-                  >
-                    {savingName ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Save Name'}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-border rounded-xl">
-                <CardHeader>
-                  <CardTitle className="text-foreground">Change Password</CardTitle>
-                  <CardDescription>Enter your current and new password.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm text-foreground">Current Password</label>
-                    <input
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-foreground outline-none"
-                      placeholder="Current password"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-foreground">New Password</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-foreground outline-none"
-                      placeholder="At least 8 characters"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-foreground">Confirm New Password</label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-foreground outline-none"
-                      placeholder="Confirm new password"
-                    />
-                  </div>
-                  <Button
-                    disabled={savingPassword || !token || !currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 8}
-                    onClick={async () => {
-                      if (!token) return;
-                      if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return; }
-                      if (newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return; }
-                      setSavingPassword(true);
-                      try {
-                        const res = await apiFetch('/user/me/password', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                          body: JSON.stringify({ currentPassword, newPassword })
-                        });
-                        const json = await res.json();
-                        if (res.ok && json?.success) {
-                          toast.success('Password changed');
-                          setCurrentPassword('');
-                          setNewPassword('');
-                          setConfirmPassword('');
-                        } else {
-                          toast.error(json?.message || 'Failed to change password');
-                        }
-                      } catch (e) {
-                        toast.error('Error changing password');
-                      } finally {
-                        setSavingPassword(false);
-                      }
-                    }}
-                    className="bg-purple-600/50 hover:bg-purple-700 text-white border border-purple-600"
-                  >
-                    {savingPassword ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Change Password'}
-                  </Button>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Wallets Section - Only show if no BTC wallet has been added */}
@@ -753,6 +781,17 @@ const UserProfile: React.FC = () => {
           }}
           amount={withdrawSuccessData.amount}
           walletAddress={withdrawSuccessData.wallet}
+        />
+
+        <EditSettingsPopup
+          isOpen={showEditSettingsPopup}
+          onClose={() => setShowEditSettingsPopup(false)}
+          token={token || ''}
+          user={user}
+          onSuccess={() => {
+            refreshUser();
+            fetchWallets();
+          }}
         />
 
       </div>
