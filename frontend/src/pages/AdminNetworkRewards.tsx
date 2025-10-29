@@ -57,7 +57,7 @@ const AdminNetworkRewards: React.FC = () => {
   const { ratesMap, loading: ratesLoading } = useConversionRates();
   
   const [rewards, setRewards] = useState<LevelRewards>({});
-  const [commissions, setCommissions] = useState<{ [level: number]: { [network: string]: number } }>({});
+  const [commissions, setCommissions] = useState<{ [level: number]: number }>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<{ [key: string]: boolean }>({});
   const [summary, setSummary] = useState<any>(null);
@@ -92,12 +92,13 @@ const AdminNetworkRewards: React.FC = () => {
         setRewards(data.data.summary.byLevel || {});
         setSummary(data.data.summary);
 
-        // Build commissions map from rawRewards (which include commissionPercent)
+        // Build commissions map from rawRewards (use first network's commission for each level)
         const raw: any[] = data.data.rawRewards || [];
-        const levelToCommissions: { [level: number]: { [network: string]: number } } = {};
+        const levelToCommissions: { [level: number]: number } = {};
         raw.forEach((r: any) => {
-          if (!levelToCommissions[r.level]) levelToCommissions[r.level] = {};
-          levelToCommissions[r.level][r.network] = typeof r.commissionPercent === 'number' ? r.commissionPercent : 0;
+          if (!levelToCommissions[r.level] && typeof r.commissionPercent === 'number') {
+            levelToCommissions[r.level] = r.commissionPercent;
+          }
         });
         setCommissions(levelToCommissions);
       } else {
@@ -130,10 +131,11 @@ const AdminNetworkRewards: React.FC = () => {
         }
       });
 
-      // Prepare commissions payload (percentages 0..100)
-      const commissionsToSave: { [network: string]: number } = { };
-      Object.entries(commissions[level] || {}).forEach(([network, percent]) => {
-        commissionsToSave[network] = typeof percent === 'number' ? percent : 0;
+      // Prepare commissions payload (one percentage per level, applied to all networks)
+      const levelCommission = typeof commissions[level] === 'number' ? commissions[level] : 0;
+      const commissionsToSave: { [network: string]: number } = {};
+      NETWORKS.forEach(network => {
+        commissionsToSave[network.key] = levelCommission;
       });
       
       console.log('[Global Network Rewards] Saving level rewards:', { level, rewardsToSave, commissionsToSave, inputMode });
@@ -181,7 +183,7 @@ const AdminNetworkRewards: React.FC = () => {
     }));
   };
 
-  const updateCommission = (level: number, network: string, value: string) => {
+  const updateCommission = (level: number, value: string) => {
     // Accept percent 0..100
     let numValue = parseFloat(value);
     if (isNaN(numValue)) numValue = 0;
@@ -189,10 +191,7 @@ const AdminNetworkRewards: React.FC = () => {
     if (numValue > 100) numValue = 100;
     setCommissions(prev => ({
       ...prev,
-      [level]: {
-        ...(prev[level] || {}),
-        [network]: numValue
-      }
+      [level]: numValue
     }));
   };
 
@@ -410,27 +409,36 @@ const AdminNetworkRewards: React.FC = () => {
                                   <p className="text-xs text-yellow-500">Rate missing</p>
                                 )}
 
-                                {/* Commission percentage input */}
-                                <div className="pt-1">
-                                  <Label className="text-xs text-muted-foreground">Commission (%)</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    max="100"
-                                    value={commissions[level]?.[network.key] ?? 0}
-                                    onChange={(e) => updateCommission(level, network.key, e.target.value)}
-                                    className="bg-background/50 border-border text-foreground"
-                                    placeholder="0"
-                                  />
-                                </div>
                               </div>
                             );
                           })}
                         </div>
                         
+                        {/* Commission Input */}
+                        <div className="mt-4 pt-4 border-t border-border">
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <Zap className="w-4 h-4 text-yellow-500" />
+                              <span className="text-sm text-muted-foreground">Commission for Level {level}:</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="100"
+                                value={commissions[level] ?? 0}
+                                onChange={(e) => updateCommission(level, e.target.value)}
+                                className="w-20 bg-background/50 border-border text-foreground"
+                                placeholder="0"
+                              />
+                              <span className="text-sm text-muted-foreground">%</span>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Level Summary */}
-                        <div className="mt-6 pt-4 border-t border-border">
+                        <div className="mt-4 pt-4 border-t border-border">
                           <div className="flex items-center gap-2">
                             <Zap className="w-4 h-4 text-yellow-500" />
                             <span className="text-sm text-muted-foreground">Total for Level {level} (USDT):</span>

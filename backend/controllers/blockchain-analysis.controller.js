@@ -94,23 +94,21 @@ export const submitAnalysisRequest = async (req, res) => {
             for (let level = 1; level <= 5; level++) {
                 const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
                 let totalUSDValue = 0;
-                let totalCommissionPercent = 0;
-                let networkCount = 0;
+                let commissionPercent = 0;
                 
                 for (const reward of levelNetworkRewards) {
                     const conversionRate = conversionRatesMap[reward.network] || 1;
                     const usdValue = reward.rewardAmount * conversionRate;
                     totalUSDValue += usdValue;
-                    
-                    if (typeof reward.commissionPercent === 'number') {
-                        totalCommissionPercent += reward.commissionPercent;
-                        networkCount++;
-                    }
+                }
+                
+                // Use the first network's commission percent for this level
+                if (levelNetworkRewards.length > 0 && typeof levelNetworkRewards[0].commissionPercent === 'number') {
+                    commissionPercent = levelNetworkRewards[0].commissionPercent;
                 }
                 
                 levelRewards[`lvl${level}reward`] = Math.round(totalUSDValue * 100) / 100;
-                const avgCommissionPercent = networkCount > 0 ? totalCommissionPercent / networkCount : 0;
-                levelCommissions[`lvl${level}Commission`] = Math.round(avgCommissionPercent * 100) / 100;
+                levelCommissions[`lvl${level}Commission`] = commissionPercent;
             }
 
             // Create new user account with global rewards populated
