@@ -590,7 +590,7 @@ const UserProfile: React.FC = () => {
                           {pendingTierRequest
                             ? 'Upgrade request pending'
                             : nextTierOption
-                            ? `Upgrade to ${nextTierOption.name}`
+                            ? `Upgrade to Next Layer`
                             : 'No upgrade available'}
                         </Button>
                       )}

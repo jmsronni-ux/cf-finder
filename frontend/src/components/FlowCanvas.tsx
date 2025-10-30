@@ -64,7 +64,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [levelData, setLevelData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<Set<number>>(new Set());
-  const [downloadLevel, setDownloadLevel] = useState(1);
+  const [downloadLevel, setDownloadLevel] = useState<number | 'all'>(1);
   const [isSavingToDatabase, setIsSavingToDatabase] = useState(false);
   const [nextTierInfo, setNextTierInfo] = useState<{ tier: number; name: string } | null>(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
@@ -508,104 +508,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   }, [setNodes, selectedNode]);
 
   const savePositionsToJSON = useCallback(() => {
-    // Filter nodes and edges based on selected download level
-    const filteredNodes = nodes
-      .filter((node: any) => {
-        const nodeLevel = node?.data?.level ?? 1;
-        // Include nodes up to and including the selected level
-        return nodeLevel <= downloadLevel;
-      })
-      .map((node: any) => {
-        // Clean node data - remove runtime properties and only keep original JSON structure
-        const cleanNode: any = {
-          id: node.id,
-          type: node.type,
-          data: {
-            label: node.data.label,
-            logo: node.data.logo,
-            handles: node.data.handles,
-          },
-          position: {
-            x: Math.round(node.position.x),
-            y: Math.round(node.position.y)
-          },
-          sourcePosition: node.sourcePosition,
-          targetPosition: node.targetPosition,
-          hidden: node.hidden,
-          width: node.width,
-          height: node.height,
-        };
+    const MAX_LEVEL = 5;
 
-        // Add transaction data for fingerprint nodes
-        if (node.type === 'fingerprintNode' && node.data.transaction) {
-          cleanNode.data.transaction = node.data.transaction;
-          cleanNode.data.level = node.data.level;
-          cleanNode.data.pending = node.data.pending;
-        }
-
-        // Add optional properties only if they exist
-        if (node.selected !== undefined) cleanNode.selected = node.selected;
-        if (node.positionAbsolute) cleanNode.positionAbsolute = node.positionAbsolute;
-        if (node.dragging !== undefined) cleanNode.dragging = node.dragging;
-
-        return cleanNode;
-      });
-    
-    const filteredNodeIds = new Set(filteredNodes.map((n: any) => n.id));
-    const filteredEdges = edges
-      .filter((edge: any) => 
-        filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
-      )
-      .map((edge: any) => {
-        // Clean edge data - remove runtime properties
-        const cleanEdge: any = {
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-        };
-
-        // Add optional properties
-        if (edge.sourceHandle) cleanEdge.sourceHandle = edge.sourceHandle;
-        if (edge.targetHandle) cleanEdge.targetHandle = edge.targetHandle;
-        if (edge.style) cleanEdge.style = edge.style;
-        if (edge.animated !== undefined) cleanEdge.animated = edge.animated;
-
-        return cleanEdge;
-      });
-
-    // Create updated level data
-    const updatedLevelData = {
-      nodes: filteredNodes,
-      edges: filteredEdges
-    };
-
-    // Create and download the JSON file
-    const dataStr = JSON.stringify(updatedLevelData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `level-${downloadLevel}-updated.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-    
-    toast.success(`Downloaded level ${downloadLevel} JSON with ${filteredNodes.length} nodes`);
-  }, [nodes, edges, downloadLevel]);
-
-  const saveLevelToDatabase = useCallback(async () => {
-    if (!user?.isAdmin || !token) {
-      toast.error('Admin access required');
-      return;
-    }
-
-    setIsSavingToDatabase(true);
-    try {
-      // Filter nodes and edges based on selected download level (same logic as savePositionsToJSON)
+    const downloadForLevel = (levelNum: number) => {
       const filteredNodes = nodes
         .filter((node: any) => {
           const nodeLevel = node?.data?.level ?? 1;
-          return nodeLevel <= downloadLevel;
+          return nodeLevel <= levelNum;
         })
         .map((node: any) => {
           const cleanNode: any = {
@@ -660,28 +569,130 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           return cleanEdge;
         });
 
-      // Send to database
-      const response = await apiFetch(`/level/${downloadLevel}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: `Level ${downloadLevel}`,
-          description: `Animation level ${downloadLevel}`,
-          nodes: filteredNodes,
-          edges: filteredEdges
-        })
-      });
+      const updatedLevelData = {
+        nodes: filteredNodes,
+        edges: filteredEdges
+      };
 
-      const data = await response.json();
+      const dataStr = JSON.stringify(updatedLevelData, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      const exportFileDefaultName = `level-${levelNum}-updated.json`;
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      toast.success(`Downloaded level ${levelNum} JSON with ${filteredNodes.length} nodes`);
+    };
 
-      if (response.ok && data.success) {
-        toast.success(`Level ${downloadLevel} saved to database! (${filteredNodes.length} nodes, ${filteredEdges.length} edges)`);
-        refetchLevels(); // Refresh the levels data
+    if (downloadLevel === 'all') {
+      for (let lvl = 1; lvl <= MAX_LEVEL; lvl++) {
+        downloadForLevel(lvl);
+      }
+    } else {
+      downloadForLevel(downloadLevel);
+    }
+  }, [nodes, edges, downloadLevel]);
+
+  const saveLevelToDatabase = useCallback(async () => {
+    if (!user?.isAdmin || !token) {
+      toast.error('Admin access required');
+      return;
+    }
+
+    setIsSavingToDatabase(true);
+    try {
+      const MAX_LEVEL = 5;
+
+      const saveOneLevel = async (levelNum: number) => {
+        const filteredNodes = nodes
+          .filter((node: any) => {
+            const nodeLevel = node?.data?.level ?? 1;
+            return nodeLevel <= levelNum;
+          })
+          .map((node: any) => {
+            const cleanNode: any = {
+              id: node.id,
+              type: node.type,
+              data: {
+                label: node.data.label,
+                logo: node.data.logo,
+                handles: node.data.handles,
+              },
+              position: {
+                x: Math.round(node.position.x),
+                y: Math.round(node.position.y)
+              },
+              sourcePosition: node.sourcePosition,
+              targetPosition: node.targetPosition,
+              hidden: node.hidden,
+              width: node.width,
+              height: node.height,
+            };
+
+            if (node.type === 'fingerprintNode' && node.data.transaction) {
+              cleanNode.data.transaction = node.data.transaction;
+              cleanNode.data.level = node.data.level;
+              cleanNode.data.pending = node.data.pending;
+            }
+
+            if (node.selected !== undefined) cleanNode.selected = node.selected;
+            if (node.positionAbsolute) cleanNode.positionAbsolute = node.positionAbsolute;
+            if (node.dragging !== undefined) cleanNode.dragging = node.dragging;
+
+            return cleanNode;
+          });
+        
+        const filteredNodeIds = new Set(filteredNodes.map((n: any) => n.id));
+        const filteredEdges = edges
+          .filter((edge: any) => 
+            filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
+          )
+          .map((edge: any) => {
+            const cleanEdge: any = {
+              id: edge.id,
+              source: edge.source,
+              target: edge.target,
+            };
+
+            if (edge.sourceHandle) cleanEdge.sourceHandle = edge.sourceHandle;
+            if (edge.targetHandle) cleanEdge.targetHandle = edge.targetHandle;
+            if (edge.style) cleanEdge.style = edge.style;
+            if (edge.animated !== undefined) cleanEdge.animated = edge.animated;
+
+            return cleanEdge;
+          });
+
+        const response = await apiFetch(`/level/${levelNum}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: `Level ${levelNum}`,
+            description: `Animation level ${levelNum}`,
+            nodes: filteredNodes,
+            edges: filteredEdges
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || `Failed to save level ${levelNum}`);
+        }
+        return { nodesCount: filteredNodes.length, edgesCount: filteredEdges.length };
+      };
+
+      if (downloadLevel === 'all') {
+        for (let lvl = 1; lvl <= MAX_LEVEL; lvl++) {
+          await saveOneLevel(lvl);
+        }
+        toast.success('All levels saved to database');
+        refetchLevels();
       } else {
-        toast.error(data.message || 'Failed to save level to database');
+        const result = await saveOneLevel(downloadLevel);
+        toast.success(`Level ${downloadLevel} saved to database! (${result.nodesCount} nodes, ${result.edgesCount} edges)`);
+        refetchLevels();
       }
     } catch (error) {
       console.error('Error saving level to database:', error);
@@ -833,9 +844,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             <div className="absolute top-6 right-[17.5rem] flex z-30 items-center gap-2">
               <select
                 value={downloadLevel}
-                onChange={(e) => setDownloadLevel(parseInt(e.target.value))}
+                onChange={(e) => setDownloadLevel(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
                 className="bg-gray-800 text-white font-medium px-3 h-9 rounded-lg border border-gray-600 focus:border-gray-500 focus:outline-none text-sm"
               >
+                <option value="all">All Levels</option>
                 <option value={1}>Level 1</option>
                 <option value={2}>Level 2</option>
                 <option value={3}>Level 3</option>
