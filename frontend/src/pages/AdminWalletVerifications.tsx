@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
@@ -14,7 +14,9 @@ import {
   XCircle,
   Shield,
   Wallet,
-  RefreshCw
+  RefreshCw,
+  Trophy,
+  X
 } from 'lucide-react';
 import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
 import MagicBadge from '../components/ui/magic-badge';
@@ -144,144 +146,211 @@ const AdminWalletVerifications: React.FC = () => {
 
   return (
     <>
-      <AdminNavigation />
-      <MaxWidthWrapper className="py-10">
-        <div className="max-w-7xl mx-auto">
-          <MagicBadge title="Wallet Verifications" className="mb-6" />
+      <div id="admin-wallet-verifications" className="absolute -z-10 inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-20" />
+      <div className="min-h-screen text-foreground overflow-x-hidden scrollbar-hide">
+        <MaxWidthWrapper>
+          <div className="pt-20 pb-20">
+            {/* Header */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-10">
+              <div>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium font-heading text-foreground">
+                  Wallet <br/> <span className="text-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text">Verification Requests</span>
+                </h1>
+                <p className="text-muted-foreground mt-4">Review and approve user wallet verification requests</p>
+              </div>
+              <Button
+                onClick={fetchRequests}
+                disabled={isLoading}
+                className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
 
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <Shield className="w-8 h-8 text-purple-500" />
-              Wallet Verification Requests
-            </h1>
-            <Button
-              onClick={fetchRequests}
-              disabled={isLoading}
-              className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
+            {/* Admin Navigation */}
+            <AdminNavigation />
 
-          {/* Filters and Search */}
-          <Card className="mb-6 border border-border rounded-xl">
-            <CardContent className="p-6">
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-2 mb-4">
-                {(['all', 'pending', 'approved', 'rejected'] as const).map((filterOption) => (
+            <MagicBadge title="Filter & Search" className="mb-6" />
+
+            {/* Filter Bar */}
+            <div className="group w-full border border-border rounded-xl p-6 mb-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Search Input */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search by name, email, or wallet address..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2 bg-background/50 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Buttons */}
+                <div className="flex gap-2">
                   <Button
-                    key={filterOption}
-                    onClick={() => setFilter(filterOption)}
-                    variant={filter === filterOption ? 'primary' : 'outline'}
-                    className={`${
-                      filter === filterOption
-                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                        : 'border-border hover:bg-white/5'
-                    }`}
+                    onClick={() => setFilter('all')}
+                    variant={filter === 'all' ? 'primary' : 'outline'}
+                    className={filter === 'all' ? 'bg-purple-600 hover:bg-purple-700' : ''}
                   >
-                    {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
-                    {filterOption === 'pending' && requests.filter(r => r.status === 'pending').length > 0 && (
+                    All ({requests.length})
+                  </Button>
+                  <Button
+                    onClick={() => setFilter('pending')}
+                    variant={filter === 'pending' ? 'primary' : 'outline'}
+                    className={filter === 'pending' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
+                  >
+                    Pending {requests.filter(r => r.status === 'pending').length > 0 && (
                       <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black text-xs font-bold rounded-full">
                         {requests.filter(r => r.status === 'pending').length}
                       </span>
                     )}
                   </Button>
-                ))}
-              </div>
-
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  type="text"
-                  placeholder="Search by user name, email, or wallet address..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-background/50 border-border"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Requests List */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-            </div>
-          ) : filteredRequests.length === 0 ? (
-            <Card className="border border-border rounded-xl">
-              <CardContent className="p-12 text-center text-muted-foreground">
-                <Shield className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-lg">
-                  {searchQuery
-                    ? 'No verification requests found matching your search'
-                    : 'No verification requests found'}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {filteredRequests.map((request) => {
-                const userId = request.userId as any;
-                return (
-                  <Card
-                    key={request._id}
-                    className="border border-border rounded-xl hover:border-purple-500/50 transition-all cursor-pointer"
-                    onClick={() => handleRequestClick(request)}
+                  <Button
+                    onClick={() => setFilter('approved')}
+                    variant={filter === 'approved' ? 'primary' : 'outline'}
+                    className={filter === 'approved' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-4">
-                            <div>
-                              <h3 className="text-lg font-semibold text-foreground">
-                                {userId?.name || 'Unknown User'}
-                              </h3>
-                              <p className="text-sm text-muted-foreground">{userId?.email || 'No email'}</p>
+                    Approved
+                  </Button>
+                  <Button
+                    onClick={() => setFilter('rejected')}
+                    variant={filter === 'rejected' ? 'primary' : 'outline'}
+                    className={filter === 'rejected' ? 'bg-red-600 hover:bg-red-700' : ''}
+                  >
+                    Rejected
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="flex gap-4 mt-4 pt-4 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm text-muted-foreground">
+                    Total Requests: <span className="text-foreground font-semibold">{requests.length}</span>
+                  </span>
+                </div>
+                {searchQuery && (
+                  <div className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-green-400" />
+                    <span className="text-sm text-muted-foreground">
+                      Filtered: <span className="text-foreground font-semibold">{filteredRequests.length}</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <MagicBadge title="Wallet Verification Requests" className="mt-10 mb-6" />
+
+            {/* Requests List */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+              </div>
+            ) : filteredRequests.length === 0 ? (
+              <div className="w-full border border-border rounded-xl p-10 text-center">
+                {searchQuery ? (
+                  <>
+                    <p className="text-muted-foreground mb-2">No requests match your search</p>
+                    <p className="text-sm text-muted-foreground">Try a different search term</p>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">No verification requests found</p>
+                )}
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {filteredRequests.map((request) => {
+                  const userId = request.userId as any;
+                  return (
+                    <Card key={request._id} className="border border-border rounded-xl hover:border-purple-500/50 transition-colors cursor-pointer" onClick={() => handleRequestClick(request)}>
+                      <CardContent className="p-6">
+                        <div className="space-y-4">
+                          {/* Request Header */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-full border border-border flex items-center justify-center">
+                                <Shield className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-bold">{userId?.name || 'Unknown User'}</h3>
+                                <div className="text-sm text-gray-400">{userId?.email || 'No email'}</div>
+                              </div>
                             </div>
                             {getStatusBadge(request.status)}
                           </div>
-                          <div className="flex items-center gap-4 text-sm">
+
+                          {/* Wallet Info */}
+                          <div className="grid grid-cols-3 gap-4 pt-3 border-t border-border">
                             <div className="flex items-center gap-2">
                               <Wallet className={`w-4 h-4 ${getWalletTypeColor(request.walletType)}`} />
-                              <span className={`font-medium ${getWalletTypeColor(request.walletType)}`}>
-                                {request.walletType.toUpperCase()}
-                              </span>
+                              <div>
+                                <p className="text-xs text-gray-400">Wallet Type</p>
+                                <p className={`font-bold ${getWalletTypeColor(request.walletType)}`}>{request.walletType.toUpperCase()}</p>
+                              </div>
                             </div>
-                            <span className="text-muted-foreground font-mono text-xs">
-                              {request.walletAddress.substring(0, 10)}...{request.walletAddress.substring(request.walletAddress.length - 10)}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {new Date(request.createdAt).toLocaleDateString()}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <Shield className="w-4 h-4 text-purple-500" />
+                              <div>
+                                <p className="text-xs text-gray-400">Address</p>
+                                <p className="font-bold text-sm font-mono">
+                                  {request.walletAddress.substring(0, 10)}...{request.walletAddress.substring(request.walletAddress.length - 10)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-gray-500" />
+                              <div>
+                                <p className="text-xs text-gray-400">Requested</p>
+                                <p className="font-bold text-sm">{new Date(request.createdAt).toLocaleDateString()}</p>
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Blockchain Data */}
                           {request.blockchainData && (
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span>Balance: {request.blockchainData.balance.toFixed(6)}</span>
-                              <span>Transactions: {request.blockchainData.transactionCount}</span>
+                            <div className="pt-3 border-t border-border">
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <span>Balance: <span className="text-foreground font-semibold">{request.blockchainData.balance.toFixed(6)}</span></span>
+                                <span>Transactions: <span className="text-foreground font-semibold">{request.blockchainData.transactionCount}</span></span>
+                              </div>
                             </div>
                           )}
+
+                          {/* Review Button */}
+                          <div className="pt-3 border-t border-border">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRequestClick(request);
+                              }}
+                              className="w-full bg-purple-600/50 hover:bg-purple-700 text-white flex items-center justify-center gap-2 border border-purple-600"
+                            >
+                              Review
+                            </Button>
+                          </div>
                         </div>
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRequestClick(request);
-                          }}
-                          className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-600/50"
-                        >
-                          Review
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </MaxWidthWrapper>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </MaxWidthWrapper>
+      </div>
 
       {/* Verification Modal */}
       {showModal && selectedRequest && (
