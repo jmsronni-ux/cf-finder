@@ -87,6 +87,11 @@ const Dashboard = () => {
       pendingSeconds: 0,
     }));
   }, [allLevelNodes]);
+  
+  // Only Success transactions for levelReward calculation
+  const successLevelTransactions = useMemo(() => {
+    return allLevelTransactions.filter((tx: any) => tx.status === 'Success');
+  }, [allLevelTransactions]);
 
   // Fetch pending tier requests
   useEffect(() => {
@@ -353,7 +358,7 @@ const Dashboard = () => {
                                 progress={progress}
                                 level={currentLevel}
                                 user={user}
-                                transactions={allLevelTransactions}
+                                transactions={successLevelTransactions}
                                 currency="USDT"
                                 shouldAnimate={progress > 0 && progress < 100}
                               />
