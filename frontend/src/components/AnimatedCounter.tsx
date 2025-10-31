@@ -85,6 +85,12 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   // Calculate the target value based on type
   const calculateTarget = (): number => {
     if (type === 'levelReward') {
+      // Use transaction sum if available (from distributed nodes), otherwise use DB value
+      if (transactions && transactions.length > 0) {
+        const totalAmount = transactions.reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
+        const reward = (totalAmount * progress) / 100;
+        return reward;
+      }
       const reward = (fullLevelReward * progress) / 100;
       return reward;
     } else if (type === 'levelTotal') {

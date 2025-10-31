@@ -353,6 +353,7 @@ const Dashboard = () => {
                                 progress={progress}
                                 level={currentLevel}
                                 user={user}
+                                transactions={allLevelTransactions}
                                 currency="USDT"
                                 shouldAnimate={progress > 0 && progress < 100}
                               />
