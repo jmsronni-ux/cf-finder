@@ -13,8 +13,10 @@ import AnimatedCounter from "@/components/AnimatedCounter";
 import { useNetworkRewards } from "@/hooks/useNetworkRewards";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLevelData } from "@/hooks/useLevelData";
+import { useConversionRates } from "@/hooks/useConversionRates";
 import type { CryptoTransaction } from "@/components/CryptoTransactionTable";
 import { apiFetch } from "@/utils/api";
+import { convertCryptoToUSDT } from "@/utils/cryptoConversion";
 
 interface TransactionWithPending extends CryptoTransaction {
   nodeId: string;
@@ -32,6 +34,7 @@ const Dashboard = () => {
   const { user, token } = useAuth();
   const { levels, loading: levelsLoading, error: levelsError } = useLevelData();
   const { getTotalRewardForLevel } = useNetworkRewards();
+  const { ratesMap } = useConversionRates();
   const [progress, setProgress] = useState<number>(0);
   const [showWalletPopup, setShowWalletPopup] = useState<boolean>(false);
   const [showInsufficientBalancePopup, setShowInsufficientBalancePopup] = useState<boolean>(false);
@@ -62,51 +65,46 @@ const Dashboard = () => {
   const [completedPendingNodes, setCompletedPendingNodes] = useState<Set<string>>(new Set());
   
   // All nodes from current level (for levelTotal calculation)
-  // Only include Success transactions since those are the ones that get distributed USD amounts
+  // Include ALL transactions and convert to USD
   const allLevelNodes = useMemo(() => {
-    if (!levels.length) {
-      console.log('[Dashboard] No levels loaded yet');
-      return [];
-    }
+    if (!levels.length) return [];
     const currentData = getLevelData(currentLevel, levels);
-    console.log(`[Dashboard] Getting level ${currentLevel} nodes. Total nodes in level:`, currentData.nodes.length);
-    
-    const filtered = currentData.nodes.filter((node: any) => 
+    return currentData.nodes.filter((node: any) => 
       node.type === 'fingerprintNode' && 
       node.data && 
       node.data.transaction &&
-      (node.data?.level ?? 1) === currentLevel &&
-      node.data.transaction.status === 'Success' // Only Success transactions have USD amounts
+      (node.data?.level ?? 1) === currentLevel
     );
-    
-    console.log(`[Dashboard] Filtered ${filtered.length} Success transactions for level ${currentLevel}`);
-    if (filtered.length > 0) {
-      console.log('[Dashboard] Sample Success transaction:', {
-        id: filtered[0].id,
-        level: filtered[0].data?.level,
-        status: filtered[0].data?.transaction?.status,
-        amount: filtered[0].data?.transaction?.amount
-      });
-    }
-    
-    return filtered;
   }, [levels, currentLevel]);
   
   // Convert all level nodes to transaction format for levelTotal calculation
+  // Convert all amounts to USD
   const allLevelTransactions = useMemo(() => {
-    return allLevelNodes.map((node: any) => ({
-      id: node.data.transaction.id,
-      date: node.data.transaction.date,
-      transaction: node.data.transaction.transaction,
-      amount: node.data.transaction.amount,
-      currency: 'USDT', // All amounts are in USD/USDT after distribution
-      status: node.data.transaction.status,
-      level: node.data.level ?? 1,
-      nodeId: node.id,
-      actualStatus: node.data.transaction.status,
-      pendingSeconds: 0,
-    }));
-  }, [allLevelNodes]);
+    return allLevelNodes.map((node: any) => {
+      const amount = node.data.transaction.amount;
+      const currency = node.data.transaction.currency;
+      const status = node.data.transaction.status;
+      
+      // If Success, amount is already in USD/USDT
+      // If Fail/Pending, convert from crypto to USD
+      const usdAmount = status === 'Success' 
+        ? amount 
+        : convertCryptoToUSDT(amount, currency, ratesMap);
+      
+      return {
+        id: node.data.transaction.id,
+        date: node.data.transaction.date,
+        transaction: node.data.transaction.transaction,
+        amount: usdAmount,
+        currency: 'USDT', // All amounts are in USD/USDT
+        status: status,
+        level: node.data.level ?? 1,
+        nodeId: node.id,
+        actualStatus: status,
+        pendingSeconds: 0,
+      };
+    });
+  }, [allLevelNodes, ratesMap]);
 
   // Fetch pending tier requests
   useEffect(() => {
@@ -254,8 +252,8 @@ const Dashboard = () => {
           nodeId: nodeId,
           actualStatus: transactionData.status,
           pendingSeconds: pendingSeconds,
-          // Force display as USDT to match nodes and counters
-          currency: 'USDT',
+          // For Success: currency is already USDT after distribution
+          // For Fail/Pending: keep original currency from transaction data
           status: (pendingSeconds > 0 ? 'Pending' : transactionData.status) as "Success" | "Fail" | "Pending"
         };
         
