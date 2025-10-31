@@ -62,6 +62,7 @@ const Dashboard = () => {
   const [completedPendingNodes, setCompletedPendingNodes] = useState<Set<string>>(new Set());
   
   // All nodes from current level (for levelTotal calculation)
+  // Only include Success transactions since those are the ones that get distributed USD amounts
   const allLevelNodes = useMemo(() => {
     if (!levels.length) return [];
     const currentData = getLevelData(currentLevel, levels);
@@ -69,7 +70,8 @@ const Dashboard = () => {
       node.type === 'fingerprintNode' && 
       node.data && 
       node.data.transaction &&
-      (node.data?.level ?? 1) === currentLevel
+      (node.data?.level ?? 1) === currentLevel &&
+      node.data.transaction.status === 'Success' // Only Success transactions have USD amounts
     );
   }, [levels, currentLevel]);
   
@@ -80,7 +82,7 @@ const Dashboard = () => {
       date: node.data.transaction.date,
       transaction: node.data.transaction.transaction,
       amount: node.data.transaction.amount,
-      currency: 'USDT', // Force USDT to match display
+      currency: 'USDT', // All amounts are in USD/USDT after distribution
       status: node.data.transaction.status,
       level: node.data.level ?? 1,
       nodeId: node.id,
