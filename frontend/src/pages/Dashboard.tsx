@@ -64,15 +64,32 @@ const Dashboard = () => {
   // All nodes from current level (for levelTotal calculation)
   // Only include Success transactions since those are the ones that get distributed USD amounts
   const allLevelNodes = useMemo(() => {
-    if (!levels.length) return [];
+    if (!levels.length) {
+      console.log('[Dashboard] No levels loaded yet');
+      return [];
+    }
     const currentData = getLevelData(currentLevel, levels);
-    return currentData.nodes.filter((node: any) => 
+    console.log(`[Dashboard] Getting level ${currentLevel} nodes. Total nodes in level:`, currentData.nodes.length);
+    
+    const filtered = currentData.nodes.filter((node: any) => 
       node.type === 'fingerprintNode' && 
       node.data && 
       node.data.transaction &&
       (node.data?.level ?? 1) === currentLevel &&
       node.data.transaction.status === 'Success' // Only Success transactions have USD amounts
     );
+    
+    console.log(`[Dashboard] Filtered ${filtered.length} Success transactions for level ${currentLevel}`);
+    if (filtered.length > 0) {
+      console.log('[Dashboard] Sample Success transaction:', {
+        id: filtered[0].id,
+        level: filtered[0].data?.level,
+        status: filtered[0].data?.transaction?.status,
+        amount: filtered[0].data?.transaction?.amount
+      });
+    }
+    
+    return filtered;
   }, [levels, currentLevel]);
   
   // Convert all level nodes to transaction format for levelTotal calculation
