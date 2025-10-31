@@ -10,7 +10,6 @@ import { CryptoTransactionTable } from "@/components/CryptoTransactionTable";
 import AddWalletPopup from "@/components/AddWalletPopup";
 import InsufficientBalancePopup from "@/components/InsufficientBalancePopup";
 import AnimatedCounter from "@/components/AnimatedCounter";
-import { useNetworkRewards } from "@/hooks/useNetworkRewards";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLevelData } from "@/hooks/useLevelData";
 import type { CryptoTransaction } from "@/components/CryptoTransactionTable";
@@ -31,7 +30,6 @@ const getLevelData = (level: number, levels: any[]): any => {
 const Dashboard = () => {
   const { user, token } = useAuth();
   const { levels, loading: levelsLoading, error: levelsError } = useLevelData();
-  const { getTotalRewardForLevel } = useNetworkRewards();
   const [progress, setProgress] = useState<number>(0);
   const [showWalletPopup, setShowWalletPopup] = useState<boolean>(false);
   const [showInsufficientBalancePopup, setShowInsufficientBalancePopup] = useState<boolean>(false);
