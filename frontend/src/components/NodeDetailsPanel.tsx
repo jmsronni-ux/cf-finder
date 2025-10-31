@@ -320,12 +320,13 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                   </div>
                   <div className="pl-8 flex flex-row justify-between items-center">
                     <div className="text-xl font-bold text-white font-mono">
-                      {transaction.amount 
-                        ? transaction.status === 'Success'
-                          ? `${Number(transaction.amount).toFixed(2)} USDT`
-                          : `${Number(transaction.amount).toFixed(transaction.currency === 'BTC' ? 8 : transaction.currency === 'ETH' ? 6 : 2)} ${transaction.currency || 'USDT'}`
-                        : '0'}
+                      {transaction.amount ? Number(transaction.amount).toFixed(0) : '0'} USD
                     </div>
+                    {transaction.currency && ratesMap[transaction.currency] && (
+                      <div className="text-xs text-gray-400 font-mono">
+                        ≈ {(Number(transaction.amount) / ratesMap[transaction.currency]).toFixed(8)} {transaction.currency}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

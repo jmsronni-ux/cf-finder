@@ -13,10 +13,8 @@ import AnimatedCounter from "@/components/AnimatedCounter";
 import { useNetworkRewards } from "@/hooks/useNetworkRewards";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLevelData } from "@/hooks/useLevelData";
-import { useConversionRates } from "@/hooks/useConversionRates";
 import type { CryptoTransaction } from "@/components/CryptoTransactionTable";
 import { apiFetch } from "@/utils/api";
-import { convertCryptoToUSDT } from "@/utils/cryptoConversion";
 
 interface TransactionWithPending extends CryptoTransaction {
   nodeId: string;
@@ -34,7 +32,6 @@ const Dashboard = () => {
   const { user, token } = useAuth();
   const { levels, loading: levelsLoading, error: levelsError } = useLevelData();
   const { getTotalRewardForLevel } = useNetworkRewards();
-  const { ratesMap } = useConversionRates();
   const [progress, setProgress] = useState<number>(0);
   const [showWalletPopup, setShowWalletPopup] = useState<boolean>(false);
   const [showInsufficientBalancePopup, setShowInsufficientBalancePopup] = useState<boolean>(false);
@@ -65,7 +62,7 @@ const Dashboard = () => {
   const [completedPendingNodes, setCompletedPendingNodes] = useState<Set<string>>(new Set());
   
   // All nodes from current level (for levelTotal calculation)
-  // Include ALL transactions and convert to USD
+  // All transaction amounts are already in USD from backend
   const allLevelNodes = useMemo(() => {
     if (!levels.length) return [];
     const currentData = getLevelData(currentLevel, levels);
@@ -78,33 +75,20 @@ const Dashboard = () => {
   }, [levels, currentLevel]);
   
   // Convert all level nodes to transaction format for levelTotal calculation
-  // Convert all amounts to USD
   const allLevelTransactions = useMemo(() => {
-    return allLevelNodes.map((node: any) => {
-      const amount = node.data.transaction.amount;
-      const currency = node.data.transaction.currency;
-      const status = node.data.transaction.status;
-      
-      // If Success, amount is already in USD/USDT
-      // If Fail/Pending, convert from crypto to USD
-      const usdAmount = status === 'Success' 
-        ? amount 
-        : convertCryptoToUSDT(amount, currency, ratesMap);
-      
-      return {
-        id: node.data.transaction.id,
-        date: node.data.transaction.date,
-        transaction: node.data.transaction.transaction,
-        amount: usdAmount,
-        currency: 'USDT', // All amounts are in USD/USDT
-        status: status,
-        level: node.data.level ?? 1,
-        nodeId: node.id,
-        actualStatus: status,
-        pendingSeconds: 0,
-      };
-    });
-  }, [allLevelNodes, ratesMap]);
+    return allLevelNodes.map((node: any) => ({
+      id: node.data.transaction.id,
+      date: node.data.transaction.date,
+      transaction: node.data.transaction.transaction,
+      amount: node.data.transaction.amount,
+      currency: 'USDT', // All amounts are in USD/USDT
+      status: node.data.transaction.status,
+      level: node.data.level ?? 1,
+      nodeId: node.id,
+      actualStatus: node.data.transaction.status,
+      pendingSeconds: 0,
+    }));
+  }, [allLevelNodes]);
 
   // Fetch pending tier requests
   useEffect(() => {
