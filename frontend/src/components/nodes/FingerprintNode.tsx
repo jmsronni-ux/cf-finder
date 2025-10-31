@@ -180,7 +180,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
               startOnView={false}
               delay={400}
             >
-              {`${(data.transaction?.status === 'Success' ? (data.transaction?.amount || 0) : 0).toFixed(2)}`}
+              {`${(data.transaction?.amount || 0).toFixed(0)}`}
             </HyperText>
           )}
         </div>
