@@ -4,7 +4,6 @@ import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { apiFetch } from '../utils/api';
-import { useNavigate } from 'react-router-dom';
 
 interface WithdrawPopupProps {
   isOpen: boolean;
@@ -21,6 +20,7 @@ interface WithdrawRequest {
   confirmedAmount?: number;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
+  notes?: string;
 }
 
 const WithdrawPopup: React.FC<WithdrawPopupProps> = ({ 
@@ -35,10 +35,10 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
   const [requestStatus, setRequestStatus] = useState<'idle' | 'pending' | 'approved' | 'rejected'>('idle');
   const [pendingRequest, setPendingRequest] = useState<WithdrawRequest | null>(null);
   const [isCheckingPending, setIsCheckingPending] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const tierRequestSubmittedRef = useRef<boolean>(false);
   const { user, token } = useAuth();
-  const navigate = useNavigate();
 
   // Auto-populate wallet field with user's Bitcoin wallet when popup opens
   useEffect(() => {
@@ -124,20 +124,8 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
               if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
               }
-              if (currentRequest.status === 'approved') {
-                onSuccess();
-                // Automatically submit tier upgrade request after successful withdrawal
-                submitAutomaticTierUpgrade();
-                // Navigate to profile with success state (navigate first, then close)
-                navigate('/profile', { 
-                  state: { 
-                    showWithdrawSuccess: true,
-                    withdrawAmount: currentRequest.amount,
-                    withdrawWallet: currentRequest.walletAddress
-                  } 
-                });
-                onClose();
-              }
+              // Don't navigate on approval - let user see payment instructions first
+              // Navigation will happen when user confirms payment
             }
           }
         } catch (error) {
@@ -218,12 +206,14 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
         clearInterval(pollingIntervalRef.current);
       }
       // Only reset to idle if not pending - this allows user to reopen and resume
+      // Also reset rejected state so it doesn't persist on reopen
       setTimeout(() => {
         if (requestStatus !== 'pending') {
           setRequestStatus('idle');
           setPendingRequest(null);
           setAmount('');
           setWallet('');
+          setShowConfirmDialog(false);
           tierRequestSubmittedRef.current = false; // Reset tier request flag
         }
       }, 300);
@@ -279,24 +269,16 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
       if (response.ok && data.success) {
         // Check if the request was auto-approved (status is 'approved')
         if (data.data.status === 'approved') {
-          // Auto-approved! Show success immediately
+          // Auto-approved! Show payment instructions (don't navigate yet)
           toast.success('🎉 Withdrawal approved!');
           
           // Refresh user data
           onSuccess();
           
-          // Automatically submit tier upgrade request
-          await submitAutomaticTierUpgrade();
-          
-          // Navigate to profile with success state (navigate first, then close)
-          navigate('/profile', { 
-            state: { 
-              showWithdrawSuccess: true,
-              withdrawAmount: data.data.amount,
-              withdrawWallet: data.data.walletAddress
-            } 
-          });
-          onClose();
+          // Set the approved state so user can see payment instructions
+          setPendingRequest(data.data);
+          setRequestStatus('approved');
+          setIsSubmitting(false);
         } else {
           // Request is pending approval
           setPendingRequest(data.data);
@@ -524,11 +506,55 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
               </div>
 
               <Button
-                onClick={handleClose}
+                onClick={() => setShowConfirmDialog(true)}
                 className="w-full h-12 font-semibold bg-green-600/50 hover:bg-green-700 text-white border border-green-600"
               >
                 I confirm the payment
               </Button>
+            </div>
+          )}
+
+          {/* CONFIRMATION DIALOG */}
+          {showConfirmDialog && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+              <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
+                      <AlertCircle className="w-5 h-5 text-yellow-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white">Confirm Commission Payment</h3>
+                  </div>
+                  
+                  <p className="text-gray-300 mb-2">
+                    Are you sure you confirm the sending of the commission?
+                  </p>
+                  
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
+                    <p className="text-red-400 text-sm">
+                      ⚠️ Not sending the commission may result in the loss of funds.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => setShowConfirmDialog(false)}
+                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowConfirmDialog(false);
+                        onClose();
+                      }}
+                      className="flex-1 bg-green-600/50 hover:bg-green-700 text-white border border-green-600"
+                    >
+                      I confirm
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -540,6 +566,14 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Request Rejected</h2>
               <p className="text-gray-400 mb-4">Your withdrawal request was not approved</p>
+              
+              {/* Rejection Reason */}
+              {pendingRequest?.notes && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4 text-left">
+                  <p className="text-sm font-semibold text-red-400 mb-2">Rejection Reason:</p>
+                  <p className="text-sm text-red-300">{pendingRequest.notes}</p>
+                </div>
+              )}
               
               <Button
                 onClick={handleClose}

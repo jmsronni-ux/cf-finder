@@ -63,10 +63,49 @@ const AdminWithdrawRequests: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmedWallet, setConfirmedWallet] = useState<{ [key: string]: string }>({});
   const [confirmedAmount, setConfirmedAmount] = useState<{ [key: string]: string }>({});
+  const [globalWalletAddress, setGlobalWalletAddress] = useState<string>('');
 
   useEffect(() => {
     fetchRequests();
   }, [filter]);
+
+  // Fetch global settings to pre-fill wallet address
+  useEffect(() => {
+    const fetchGlobalSettings = async () => {
+      try {
+        const response = await apiFetch('/global-settings', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const data = await response.json();
+        
+        if (response.ok && data.success && data.data.topupWalletAddress) {
+          setGlobalWalletAddress(data.data.topupWalletAddress);
+        }
+      } catch (error) {
+        console.error('[Admin Panel] Error fetching global settings:', error);
+      }
+    };
+    
+    fetchGlobalSettings();
+  }, []);
+
+  // Initialize pending requests with global wallet address if not manually set
+  useEffect(() => {
+    if (globalWalletAddress && requests.length > 0) {
+      setConfirmedWallet(prev => {
+        const updated = { ...prev };
+        requests.forEach(request => {
+          if (request.status === 'pending' && !updated[request._id]) {
+            updated[request._id] = globalWalletAddress;
+          }
+        });
+        return updated;
+      });
+    }
+  }, [globalWalletAddress, requests]);
 
   // Debug: Also fetch all requests on component mount to see if any exist
   useEffect(() => {
@@ -90,8 +129,6 @@ const AdminWithdrawRequests: React.FC = () => {
       debugFetchAll();
     }
   }, [token]);
-
-  // Don't pre-populate - admin needs to enter their own wallet and amount
 
   const fetchRequests = async () => {
     setIsLoading(true);
@@ -129,7 +166,7 @@ const AdminWithdrawRequests: React.FC = () => {
   };
 
   const handleApprove = async (requestId: string) => {
-    const wallet = confirmedWallet[requestId];
+    const wallet = confirmedWallet[requestId] || globalWalletAddress;
     const amount = confirmedAmount[requestId];
 
     if (!wallet || !wallet.trim()) {
@@ -599,7 +636,7 @@ const AdminWithdrawRequests: React.FC = () => {
                               <Input
                                 type="text"
                                 placeholder="Your wallet where user will send funds"
-                                value={confirmedWallet[request._id] || ''}
+                                value={confirmedWallet[request._id] || globalWalletAddress || ''}
                                 onChange={(e) => setConfirmedWallet(prev => ({ ...prev, [request._id]: e.target.value }))}
                                 className="bg-background/50 border-border text-foreground"
                               />
