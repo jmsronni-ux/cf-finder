@@ -207,7 +207,25 @@ const AdminUserRewards: React.FC = () => {
 
   const openEditModal = (level: number) => {
     setSelectedLevel(level);
-    setEditingRewards(userRewards[level] || {});
+    
+    // Initialize editingRewards with all networks, ensuring they all exist
+    const currentRewards = userRewards[level] || {};
+    const initializedRewards: NetworkRewards = {};
+    
+    // Initialize all networks, using existing values or defaulting to 0
+    NETWORKS.forEach(network => {
+      if (currentRewards[network.key]) {
+        initializedRewards[network.key] = currentRewards[network.key];
+      } else {
+        initializedRewards[network.key] = {
+          amount: 0,
+          isCustom: false,
+          source: 'none'
+        };
+      }
+    });
+    
+    setEditingRewards(initializedRewards);
     
     // Load commission from selected user
     if (selectedUser) {
@@ -239,22 +257,40 @@ const AdminUserRewards: React.FC = () => {
 
     try {
       // Convert to simple object for API
+      // Include all networks from editingRewards with their values
+      // Since we initialize all networks in openEditModal, we'll include all that have values > 0
       const rewardsPayload: { [key: string]: number } = {};
       Object.entries(editingRewards).forEach(([network, rewardData]) => {
-        // Convert USDT to crypto if in USDT mode
-        if (inputMode === 'usdt') {
-          rewardsPayload[network] = convertUSDTToCrypto(rewardData.amount, network, ratesMap);
-        } else {
-          rewardsPayload[network] = rewardData.amount;
+        const amount = rewardData.amount || 0;
+        
+        // Include all networks with values > 0
+        // This ensures all crypto values entered by admin are saved
+        if (amount > 0) {
+          // Convert USDT to crypto if in USDT mode
+          if (inputMode === 'usdt') {
+            rewardsPayload[network] = convertUSDTToCrypto(amount, network, ratesMap);
+          } else {
+            // In crypto mode, save the amount directly
+            rewardsPayload[network] = amount;
+          }
         }
       });
+      
+      // Validate that at least one network has a value
+      if (Object.keys(rewardsPayload).length === 0) {
+        toast.error('Please enter at least one network reward value');
+        setSaving(prev => ({ ...prev, [levelKey]: false }));
+        return;
+      }
 
       console.log('[Admin] Saving rewards payload:', {
         userId: selectedUser._id,
         level: selectedLevel,
         inputMode,
         rewardsPayload,
-        editingRewards
+        editingRewards,
+        rewardsPayloadKeys: Object.keys(rewardsPayload),
+        rewardsPayloadValues: Object.values(rewardsPayload)
       });
       
       console.log('[Admin] Full API request details:', {

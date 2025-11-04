@@ -2,7 +2,7 @@ import NetworkReward from '../models/network-reward.model.js';
 import User from '../models/user.model.js';
 import ConversionRate from '../models/conversion-rate.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
-import { convertRewardsToUSDT } from '../utils/crypto-conversion.js';
+import { convertRewardsToUSDT, fetchConversionRates } from '../utils/crypto-conversion.js';
 
 // Get user's network rewards (with fallback to global rewards)
 export const getUserNetworkRewards = async (req, res, next) => {
@@ -227,8 +227,12 @@ export const setUserLevelRewards = async (req, res, next) => {
     
     console.log(`[User Network Rewards] Updating user ${userId} level ${levelNumber} with rewards:`, networkRewardsUpdate);
     
-    // Convert all rewards to USDT equivalent and calculate total
-    const conversionResult = convertRewardsToUSDT(rewards);
+    // Fetch conversion rates from database to ensure accurate conversion
+    const conversionRates = await fetchConversionRates();
+    console.log(`[User Network Rewards] Using conversion rates:`, conversionRates);
+    
+    // Convert all rewards to USDT equivalent and calculate total using database rates
+    const conversionResult = convertRewardsToUSDT(rewards, conversionRates);
     const totalLevelRewardUSDT = conversionResult.totalUSDT;
     const levelRewardField = `lvl${levelNumber}reward`;
     
