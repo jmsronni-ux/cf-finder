@@ -21,7 +21,7 @@ interface TopupRequestData {
     balance: number;
     tier: number;
     phone?: string;
-  };
+  } | null;
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
@@ -139,8 +139,8 @@ const AdminTopupRequests: React.FC = () => {
     
     const query = searchQuery.toLowerCase();
     return (
-      request.userId.name.toLowerCase().includes(query) ||
-      request.userId.email.toLowerCase().includes(query) ||
+      (request.userId?.name?.toLowerCase().includes(query)) ||
+      (request.userId?.email?.toLowerCase().includes(query)) ||
       request._id.toLowerCase().includes(query)
     );
   });
@@ -314,10 +314,10 @@ const AdminTopupRequests: React.FC = () => {
                             <User className="w-6 h-6" />
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold">{request.userId.name}</h3>
+                            <h3 className="text-lg font-bold">{request.userId?.name || 'Unknown User'}</h3>
                             <div className="flex items-center gap-2 text-sm text-gray-400">
                               <Mail size={14} />
-                              {request.userId.email}
+                              {request.userId?.email || 'N/A'}
                             </div>
                           </div>
                         </div>
@@ -337,14 +337,14 @@ const AdminTopupRequests: React.FC = () => {
                           <Wallet className="w-4 h-4 text-blue-500" />
                           <div>
                             <p className="text-xs text-gray-400">Current Balance</p>
-                            <p className="font-bold">${request.userId.balance}</p>
+                            <p className="font-bold">${request.userId?.balance ?? 'N/A'}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Trophy className="w-4 h-4 text-purple-500" />
                           <div>
                             <p className="text-xs text-gray-400">Tier Level</p>
-                            <p className="font-bold">Tier {request.userId.tier}</p>
+                            <p className="font-bold">Tier {request.userId?.tier ?? 'N/A'}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
