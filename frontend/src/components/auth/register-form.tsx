@@ -91,17 +91,17 @@ const RegisterForm = () => {
     };
 
     return (
-        <div className="flex flex-col items-start gap-y-6 py-8 w-full px-0.5">
-            <h2 className="text-2xl font-semibold">
+        <div className="flex flex-col items-start gap-y-4 sm:gap-y-6 py-4 sm:py-8 w-full">
+            <h2 className="text-xl sm:text-2xl font-semibold w-full">
                 Create your account
             </h2>
-            <p className="text-sm text-muted-foreground -mt-4">
+            <p className="text-xs sm:text-sm text-muted-foreground -mt-2 sm:-mt-4 w-full">
                 Your registration will be reviewed by an administrator.
             </p>
 
             <form onSubmit={handleRegister} className="w-full">
                 <div className="space-y-2 w-full">
-                    <Label htmlFor="name">
+                    <Label htmlFor="name" className="text-sm">
                         Full Name
                     </Label>
                     <Input
@@ -110,13 +110,13 @@ const RegisterForm = () => {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Enter your full name"
-                        className="w-full focus-visible:border-foreground"
+                        className="w-full focus-visible:border-foreground h-11 sm:h-10"
                         required
                     />
                 </div>
 
                 <div className="mt-4 space-y-2 w-full">
-                    <Label htmlFor="email">
+                    <Label htmlFor="email" className="text-sm">
                         Email
                     </Label>
                     <Input
@@ -125,13 +125,13 @@ const RegisterForm = () => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter your email"
-                        className="w-full focus-visible:border-foreground"
+                        className="w-full focus-visible:border-foreground h-11 sm:h-10"
                         required
                     />
                 </div>
 
                 <div className="mt-4 space-y-2 w-full">
-                    <Label htmlFor="phone">
+                    <Label htmlFor="phone" className="text-sm">
                         Phone Number
                     </Label>
                     <Input
@@ -140,13 +140,13 @@ const RegisterForm = () => {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="Enter your phone number"
-                        className="w-full focus-visible:border-foreground"
+                        className="w-full focus-visible:border-foreground h-11 sm:h-10"
                         required
                     />
                 </div>
                 
-                <div className="mt-4 space-y-2">
-                    <Label htmlFor="password">
+                <div className="mt-4 space-y-2 w-full">
+                    <Label htmlFor="password" className="text-sm">
                         Password
                     </Label>
                     <div className="relative w-full">
@@ -156,19 +156,20 @@ const RegisterForm = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Enter your password"
-                            className="w-full focus-visible:border-foreground"
+                            className="w-full focus-visible:border-foreground h-11 sm:h-10 pr-12"
                             required
                         />
                         <Button
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="absolute top-1 right-1"
+                            className="absolute top-1/2 -translate-y-1/2 right-1 h-9 w-9 sm:h-8 sm:w-8 touch-manipulation"
                             onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
                         >
                             {showPassword ?
-                                <EyeOff className="w-4 h-4" /> :
-                                <Eye className="w-4 h-4" />
+                                <EyeOff className="w-5 h-5 sm:w-4 sm:h-4" /> :
+                                <Eye className="w-5 h-5 sm:w-4 sm:h-4" />
                             }
                         </Button>
                     </div>
@@ -177,8 +178,8 @@ const RegisterForm = () => {
                     </p>
                 </div>
 
-                <div className="mt-4 space-y-2">
-                    <Label htmlFor="confirmPassword">
+                <div className="mt-4 space-y-2 w-full">
+                    <Label htmlFor="confirmPassword" className="text-sm">
                         Confirm Password
                     </Label>
                     <div className="relative w-full">
@@ -188,19 +189,20 @@ const RegisterForm = () => {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="Confirm your password"
-                            className="w-full focus-visible:border-foreground"
+                            className="w-full focus-visible:border-foreground h-11 sm:h-10 pr-12"
                             required
                         />
                         <Button
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="absolute top-1 right-1"
+                            className="absolute top-1/2 -translate-y-1/2 right-1 h-9 w-9 sm:h-8 sm:w-8 touch-manipulation"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                         >
                             {showConfirmPassword ?
-                                <EyeOff className="w-4 h-4" /> :
-                                <Eye className="w-4 h-4" />
+                                <EyeOff className="w-5 h-5 sm:w-4 sm:h-4" /> :
+                                <Eye className="w-5 h-5 sm:w-4 sm:h-4" />
                             }
                         </Button>
                     </div>
@@ -209,7 +211,7 @@ const RegisterForm = () => {
                 <div className="mt-6 w-full">
                     <Button
                         type="submit"
-                        className="w-full"
+                        className="w-full h-11 sm:h-10 text-sm sm:text-base font-medium"
                         disabled={isLoading}
                     >
                         {isLoading ? (
@@ -219,13 +221,13 @@ const RegisterForm = () => {
                 </div>
             </form>
 
-            <div className="flex items-center justify-center w-full mt-4">
-                <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-center w-full mt-4 sm:mt-6">
+                <p className="text-xs sm:text-sm text-muted-foreground text-center">
                     Already have an account?{" "}
                     <button 
                         type="button"
                         onClick={() => router("/login")} 
-                        className="text-primary hover:underline"
+                        className="text-primary hover:underline font-medium touch-manipulation"
                     >
                         Sign in
                     </button>
