@@ -228,7 +228,7 @@ const AdminWalletVerifications: React.FC = () => {
                 <p className="text-muted-foreground mt-4">Review and approve user wallet verification requests</p>
               </div>
               <Button
-                onClick={fetchRequests}
+                onClick={() => fetchRequests(1, false)}
                 disabled={isLoading}
                 className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
               >
