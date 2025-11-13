@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -30,30 +30,59 @@ interface RegistrationRequestData {
 const AdminRegistrationRequests: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const PAGE_SIZE = 20;
   const [requests, setRequests] = useState<RegistrationRequestData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [rejectionReasons, setRejectionReasons] = useState<{ [key: string]: string }>({});
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!user?.isAdmin) {
       toast.error('Access Denied: Admin privileges required.');
       navigate('/profile');
-    } else {
-      fetchRequests();
     }
-  }, [filter, user, navigate]);
+  }, [user, navigate]);
 
-  const fetchRequests = async () => {
-    setIsLoading(true);
+  const fetchRequests = useCallback(async (requestedPage = 1, append = false) => {
+    if (!token || !user?.isAdmin) return;
+
+    if (append) {
+      setIsFetchingMore(true);
+    } else {
+      setIsLoading(true);
+      setHasMore(true);
+    }
+
     try {
-      const url = filter === 'all' 
-        ? '/registration-request' 
-        : `/registration-request?status=${filter}`;
-      
-      const response = await apiFetch(url, {
+      const params = new URLSearchParams();
+      params.set('page', String(requestedPage));
+      params.set('limit', String(PAGE_SIZE));
+
+      if (filter !== 'all') {
+        params.set('status', filter);
+      }
+
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+
+      const response = await apiFetch(`/registration-request?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +93,28 @@ const AdminRegistrationRequests: React.FC = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setRequests(data.data);
+        const incomingRequests: RegistrationRequestData[] = data.data || [];
+        const pagination = data.pagination || data.data?.pagination;
+
+        setRequests(prev => append ? [...prev, ...incomingRequests] : incomingRequests);
+
+        setTotalCount(prevTotal => {
+          if (pagination && typeof pagination.total === 'number') {
+            return pagination.total;
+          }
+          if (pagination && typeof pagination.totalItems === 'number') {
+            return pagination.totalItems;
+          }
+          return append ? prevTotal : incomingRequests.length;
+        });
+
+        const totalPages = pagination?.totalPages ?? pagination?.pages;
+        const hasMoreResults = totalPages
+          ? requestedPage < Math.max(totalPages, 1)
+          : incomingRequests.length === PAGE_SIZE;
+
+        setHasMore(hasMoreResults);
+        setPage(requestedPage);
       } else {
         toast.error(data.message || 'Failed to fetch registration requests');
       }
@@ -72,9 +122,40 @@ const AdminRegistrationRequests: React.FC = () => {
       console.error('Error fetching registration requests:', error);
       toast.error('An error occurred while fetching registration requests');
     } finally {
-      setIsLoading(false);
+      if (append) {
+        setIsFetchingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
-  };
+  }, [PAGE_SIZE, token, filter, debouncedSearch, user?.isAdmin]);
+
+  useEffect(() => {
+    if (!user?.isAdmin) return;
+    setRequests([]);
+    setPage(1);
+    setHasMore(true);
+    setTotalCount(0);
+    fetchRequests(1, false);
+  }, [user?.isAdmin, filter, debouncedSearch, fetchRequests]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || isLoading || !hasMore) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      const firstEntry = entries[0];
+      if (firstEntry?.isIntersecting && !isFetchingMore) {
+        fetchRequests(page + 1, true);
+      }
+    }, { rootMargin: '200px' });
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, isLoading, isFetchingMore, fetchRequests, page]);
 
   const handleApprove = async (requestId: string) => {
     setProcessingId(requestId);
@@ -91,7 +172,7 @@ const AdminRegistrationRequests: React.FC = () => {
 
       if (response.ok && data.success) {
         toast.success('Registration request approved! User account created successfully.');
-        fetchRequests();
+        fetchRequests(1, false);
       } else {
         toast.error(data.message || 'Failed to approve request');
       }
@@ -126,7 +207,7 @@ const AdminRegistrationRequests: React.FC = () => {
 
       if (response.ok && data.success) {
         toast.success('Registration request rejected');
-        fetchRequests();
+        fetchRequests(1, false);
         // Clear the rejection reason for this request
         setRejectionReasons(prev => {
           const newReasons = { ...prev };
@@ -162,7 +243,7 @@ const AdminRegistrationRequests: React.FC = () => {
 
       if (response.ok && data.success) {
         toast.success('Registration request deleted successfully');
-        fetchRequests();
+        fetchRequests(1, false);
       } else {
         toast.error(data.message || 'Failed to delete request');
       }
@@ -174,17 +255,8 @@ const AdminRegistrationRequests: React.FC = () => {
     }
   };
 
-  const filteredRequests = requests.filter((request) => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      request.name.toLowerCase().includes(query) ||
-      request.email.toLowerCase().includes(query) ||
-      request.phone.toLowerCase().includes(query) ||
-      request._id.toLowerCase().includes(query)
-    );
-  });
+  const totalResults = totalCount || requests.length;
+  const isInitialLoading = isLoading && requests.length === 0;
 
   if (!user?.isAdmin) {
     return null;
@@ -237,7 +309,7 @@ const AdminRegistrationRequests: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Total Requests</p>
-                      <p className="text-3xl font-bold text-blue-400">{requests.length}</p>
+                      <p className="text-3xl font-bold text-blue-400">{totalResults}</p>
                     </div>
                     <UserPlus className="w-10 h-10 text-blue-400 opacity-50" />
                   </div>
@@ -292,7 +364,7 @@ const AdminRegistrationRequests: React.FC = () => {
                       variant={filter === 'all' ? 'primary' : 'outline'}
                       size="sm"
                     >
-                      All ({requests.length})
+                      All ({totalResults})
                     </Button>
                     <Button
                       onClick={() => setFilter('pending')}
@@ -344,11 +416,11 @@ const AdminRegistrationRequests: React.FC = () => {
             </Card>
 
             {/* Requests List */}
-            {isLoading ? (
+            {isInitialLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-10 h-10 animate-spin text-primary" />
               </div>
-            ) : filteredRequests.length === 0 ? (
+            ) : requests.length === 0 ? (
               <Card>
                 <CardContent className="py-20 text-center">
                   <UserPlus className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
@@ -363,7 +435,7 @@ const AdminRegistrationRequests: React.FC = () => {
               </Card>
             ) : (
               <div className="grid gap-4">
-                {filteredRequests.map((request) => (
+                {requests.map((request) => (
                   <Card key={request._id} className="border-border/50 hover:border-border transition-all">
                     <CardContent className="pt-6">
                       <div className="flex flex-col lg:flex-row gap-6">
@@ -492,6 +564,12 @@ const AdminRegistrationRequests: React.FC = () => {
                     </CardContent>
                   </Card>
                 ))}
+                <div ref={loadMoreRef} />
+                {isFetchingMore && (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                )}
               </div>
             )}
           </div>

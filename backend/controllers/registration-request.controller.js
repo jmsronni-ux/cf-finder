@@ -67,17 +67,35 @@ export const createRegistrationRequest = async (req, res, next) => {
 export const getAllRegistrationRequests = async (req, res, next) => {
     try {
         const { status } = req.query;
-        
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
+        const search = (req.query.search || '').trim();
+
         const filter = {};
         if (status && ['pending', 'approved', 'rejected'].includes(status)) {
             filter.status = status;
         }
 
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            filter.$or = [
+                { name: searchRegex },
+                { email: searchRegex },
+                { phone: searchRegex }
+            ];
+
+            if (mongoose.Types.ObjectId.isValid(search)) {
+                filter.$or.push({ _id: search });
+            }
+        }
+
+        const total = await RegistrationRequest.countDocuments(filter);
         const requests = await RegistrationRequest.find(filter)
             .populate('reviewedBy', 'name email')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
 
-        // Remove password from response
         const sanitizedRequests = requests.map(req => {
             const reqObj = req.toObject();
             delete reqObj.password;
@@ -87,7 +105,12 @@ export const getAllRegistrationRequests = async (req, res, next) => {
         res.status(200).json({
             success: true,
             data: sanitizedRequests,
-            count: sanitizedRequests.length
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit) || 1
+            }
         });
     } catch (error) {
         next(error);

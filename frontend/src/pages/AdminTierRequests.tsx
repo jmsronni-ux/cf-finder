@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -44,25 +44,52 @@ const TIER_NAMES: { [key: number]: string } = {
 const AdminTierRequests: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const PAGE_SIZE = 20;
   const [requests, setRequests] = useState<TierRequestData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [adminNotes, setAdminNotes] = useState<{ [key: string]: string }>({});
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    fetchRequests();
-  }, [filter]);
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 400);
 
-  const fetchRequests = async () => {
-    setIsLoading(true);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const fetchRequests = useCallback(async (requestedPage = 1, append = false) => {
+    if (!token) return;
+
+    if (append) {
+      setIsFetchingMore(true);
+    } else {
+      setIsLoading(true);
+      setHasMore(true);
+    }
+
     try {
-      const url = filter === 'all' 
-        ? '/tier-request/admin/all' 
-        : `/tier-request/admin/all?status=${filter}`;
-      
-      const response = await apiFetch(url, {
+      const params = new URLSearchParams();
+      params.set('page', String(requestedPage));
+      params.set('limit', String(PAGE_SIZE));
+
+      if (filter !== 'all') {
+        params.set('status', filter);
+      }
+
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+
+      const response = await apiFetch(`/tier-request/admin/all?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -73,7 +100,36 @@ const AdminTierRequests: React.FC = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setRequests(data.data.requests);
+        const payload = data.data || {};
+        const incomingRequests: TierRequestData[] = payload.requests || [];
+        const pagination = payload.pagination || data.pagination;
+
+        setRequests(prev => append ? [...prev, ...incomingRequests] : incomingRequests);
+
+        if (!append) {
+          setAdminNotes(prevNotes => {
+            const nextNotes: { [key: string]: string } = {};
+            incomingRequests.forEach(request => {
+              if (prevNotes[request._id]) {
+                nextNotes[request._id] = prevNotes[request._id];
+              }
+            });
+            return nextNotes;
+          });
+        }
+
+        setTotalCount(prevTotal => {
+          if (pagination && typeof pagination.total === 'number') {
+            return pagination.total;
+          }
+          return append ? prevTotal : incomingRequests.length;
+        });
+
+        const hasMoreResults = pagination && typeof pagination.totalPages === 'number'
+          ? requestedPage < Math.max(pagination.totalPages, 1)
+          : incomingRequests.length === PAGE_SIZE;
+        setHasMore(hasMoreResults);
+        setPage(requestedPage);
       } else {
         toast.error(data.message || 'Failed to fetch tier requests');
       }
@@ -81,9 +137,42 @@ const AdminTierRequests: React.FC = () => {
       console.error('Error fetching tier requests:', error);
       toast.error('An error occurred while fetching tier requests');
     } finally {
-      setIsLoading(false);
+      if (append) {
+        setIsFetchingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
-  };
+  }, [PAGE_SIZE, token, filter, debouncedSearch]);
+
+  useEffect(() => {
+    setRequests([]);
+    setPage(1);
+    setHasMore(true);
+    setTotalCount(0);
+    fetchRequests(1, false);
+  }, [filter, debouncedSearch, fetchRequests]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || isLoading || !hasMore) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      const firstEntry = entries[0];
+      if (firstEntry?.isIntersecting && !isFetchingMore) {
+        fetchRequests(page + 1, true);
+      }
+    }, { rootMargin: '200px' });
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, isLoading, isFetchingMore, fetchRequests, page]);
+
+  const totalResults = totalCount || requests.length;
+  const isInitialLoading = isLoading && requests.length === 0;
 
   const handleApprove = async (requestId: string) => {
     setProcessingId(requestId);
@@ -101,7 +190,7 @@ const AdminTierRequests: React.FC = () => {
 
       if (response.ok && data.success) {
         toast.success('Tier upgrade request approved successfully!');
-        fetchRequests();
+        fetchRequests(1, false);
         // Clear the admin note for this request
         setAdminNotes(prev => {
           const newNotes = { ...prev };
@@ -135,7 +224,7 @@ const AdminTierRequests: React.FC = () => {
 
       if (response.ok && data.success) {
         toast.success('Tier upgrade request rejected');
-        fetchRequests();
+        fetchRequests(1, false);
         // Clear the admin note for this request
         setAdminNotes(prev => {
           const newNotes = { ...prev };
@@ -152,17 +241,6 @@ const AdminTierRequests: React.FC = () => {
       setProcessingId(null);
     }
   };
-
-  const filteredRequests = requests.filter((request) => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      request.userId.name.toLowerCase().includes(query) ||
-      request.userId.email.toLowerCase().includes(query) ||
-      request._id.toLowerCase().includes(query)
-    );
-  });
 
   // Check if user is admin
   if (!user?.isAdmin) {
@@ -236,7 +314,7 @@ const AdminTierRequests: React.FC = () => {
                     variant={filter === 'all' ? 'primary' : 'outline'}
                     className={filter === 'all' ? 'bg-purple-600 hover:bg-purple-700' : ''}
                   >
-                    All ({requests.length})
+                    All ({totalResults})
                   </Button>
                   <Button
                     onClick={() => setFilter('pending')}
@@ -263,18 +341,18 @@ const AdminTierRequests: React.FC = () => {
               </div>
 
               {/* Stats */}
-              <div className="flex gap-4 mt-4 pt-4 border-t border-border">
+              <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
                 <div className="flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-purple-400" />
                   <span className="text-sm text-muted-foreground">
-                    Total Requests: <span className="text-foreground font-semibold">{requests.length}</span>
+                    Total Results: <span className="text-foreground font-semibold">{totalResults}</span>
                   </span>
                 </div>
-                {searchQuery && (
+                {requests.length > 0 && (
                   <div className="flex items-center gap-2">
                     <Search className="w-4 h-4 text-green-400" />
                     <span className="text-sm text-muted-foreground">
-                      Filtered: <span className="text-foreground font-semibold">{filteredRequests.length}</span>
+                      Loaded: <span className="text-foreground font-semibold">{requests.length}</span>
                     </span>
                   </div>
                 )}
@@ -284,11 +362,11 @@ const AdminTierRequests: React.FC = () => {
             <MagicBadge title="Tier Requests" className="mt-10 mb-6"/>
 
             {/* Requests List */}
-            {isLoading ? (
+            {isInitialLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
               </div>
-            ) : filteredRequests.length === 0 ? (
+            ) : requests.length === 0 ? (
               <div className="w-full border border-border rounded-xl p-10 text-center">
                 {searchQuery ? (
                   <>
@@ -301,7 +379,7 @@ const AdminTierRequests: React.FC = () => {
               </div>
             ) : (
               <div className="grid gap-6">
-                {filteredRequests.map((request) => (
+                {requests.map((request) => (
                   <Card key={request._id} className="border border-border rounded-xl hover:border-purple-500/50 transition-colors">
                     <CardContent className="p-6">
                       <div className="space-y-4">
@@ -421,6 +499,12 @@ const AdminTierRequests: React.FC = () => {
                     </CardContent>
                   </Card>
                 ))}
+                <div ref={loadMoreRef} />
+                {isFetchingMore && (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -47,25 +47,53 @@ const AdminTierManagement: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [tierInfo, setTierInfo] = useState<TierManagementInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [newTier, setNewTier] = useState<number>(0);
   const [reason, setReason] = useState('');
   const [showTierChangeModal, setShowTierChangeModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 20;
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (!currentUser?.isAdmin) {
       toast.error('Access Denied: Admin privileges required.');
       navigate('/profile');
-    } else {
-      fetchUsers();
     }
-  }, [currentUser, navigate, token]);
+  }, [currentUser, navigate]);
 
-  const fetchUsers = async () => {
-    try {
+  const fetchUsers = useCallback(async (requestedPage = 1, append = false) => {
+    if (!token) return;
+
+    if (append) {
+      setIsFetchingMore(true);
+    } else {
       setLoading(true);
-      const response = await apiFetch('/user', {
+      setHasMore(true);
+    }
+
+    try {
+      const params = new URLSearchParams();
+      params.set('page', String(requestedPage));
+      params.set('limit', String(PAGE_SIZE));
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+
+      const response = await apiFetch(`/user?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -73,7 +101,53 @@ const AdminTierManagement: React.FC = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setUsers(data.data || []);
+        const incomingUsers: User[] = data.data || [];
+        const pagination = data.pagination || {};
+        let updatedUsersList: User[] = [];
+
+        setUsers(prevUsers => {
+          if (append) {
+            const existingIds = new Map(prevUsers.map(user => [user._id, user]));
+            const merged = [...prevUsers];
+
+            incomingUsers.forEach(user => {
+              if (existingIds.has(user._id)) {
+                const index = merged.findIndex(u => u._id === user._id);
+                if (index !== -1) {
+                  merged[index] = user;
+                }
+              } else {
+                merged.push(user);
+                existingIds.set(user._id, user);
+              }
+            });
+
+            updatedUsersList = merged;
+            return merged;
+          }
+
+          updatedUsersList = incomingUsers;
+          return incomingUsers;
+        });
+
+        setSelectedUser(prev => {
+          if (!prev) return prev;
+          const match = updatedUsersList.find(user => user._id === prev._id);
+          return match || prev;
+        });
+
+        setTotalCount(prevTotal => {
+          if (pagination && typeof pagination.total === 'number') {
+            return pagination.total;
+          }
+          return append ? prevTotal : incomingUsers.length;
+        });
+
+        const hasMoreResults = pagination && typeof pagination.totalPages === 'number'
+          ? requestedPage < Math.max(pagination.totalPages, 1)
+          : incomingUsers.length === PAGE_SIZE;
+        setHasMore(hasMoreResults);
+        setPage(requestedPage);
       } else {
         toast.error(data.message || 'Failed to fetch users');
       }
@@ -81,9 +155,43 @@ const AdminTierManagement: React.FC = () => {
       console.error('Error fetching users:', error);
       toast.error('An error occurred while fetching users');
     } finally {
-      setLoading(false);
+      if (append) {
+        setIsFetchingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
-  };
+  }, [PAGE_SIZE, token, debouncedSearch]);
+
+  useEffect(() => {
+    if (!currentUser?.isAdmin) return;
+    setUsers([]);
+    setPage(1);
+    setHasMore(true);
+    setTotalCount(0);
+    fetchUsers(1, false);
+  }, [currentUser, debouncedSearch, fetchUsers]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || loading || !hasMore) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      const firstEntry = entries[0];
+      if (firstEntry?.isIntersecting && !isFetchingMore) {
+        fetchUsers(page + 1, true);
+      }
+    }, { rootMargin: '200px' });
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, loading, isFetchingMore, fetchUsers, page]);
+
+  const totalResults = totalCount || users.length;
+  const isInitialLoading = loading && users.length === 0;
 
   const fetchUserTierInfo = async (userId: string) => {
     try {
@@ -145,7 +253,7 @@ const AdminTierManagement: React.FC = () => {
         setReason('');
         
         // Refresh user data
-        fetchUsers();
+        fetchUsers(1, false);
         if (selectedUser) {
           fetchUserTierInfo(selectedUser._id);
         }
@@ -159,11 +267,6 @@ const AdminTierManagement: React.FC = () => {
       setSaving(false);
     }
   };
-
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const getTierBadgeColor = (tier: number) => {
     switch (tier) {
@@ -224,13 +327,24 @@ const AdminTierManagement: React.FC = () => {
                   />
                 </div>
 
-                {loading ? (
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <span>Total Results: <span className="text-foreground font-semibold">{totalResults}</span></span>
+                  {users.length > 0 && (
+                    <span>Loaded: <span className="text-foreground font-semibold">{users.length}</span></span>
+                  )}
+                </div>
+
+                {isInitialLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
                   </div>
+                ) : users.length === 0 ? (
+                  <div className="w-full border border-border rounded-xl p-8 text-center text-muted-foreground">
+                    {debouncedSearch ? 'No users match your search.' : 'No users found.'}
+                  </div>
                 ) : (
                   <div className="space-y-4 max-h-96 overflow-y-auto scrollbar-hide">
-                    {filteredUsers.map((user) => (
+                    {users.map((user) => (
                       <Card 
                         key={user._id} 
                         className={`cursor-pointer transition-all hover:border-yellow-500/50 ${
@@ -258,6 +372,12 @@ const AdminTierManagement: React.FC = () => {
                         </CardContent>
                       </Card>
                     ))}
+                    <div ref={loadMoreRef} />
+                    {isFetchingMore && (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-6 h-6 animate-spin text-yellow-500" />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

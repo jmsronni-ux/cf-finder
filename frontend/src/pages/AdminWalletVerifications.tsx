@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
@@ -28,30 +28,59 @@ import WalletVerificationModal from '../components/WalletVerificationModal';
 const AdminWalletVerifications: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const PAGE_SIZE = 20;
   const [requests, setRequests] = useState<WalletVerificationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedRequest, setSelectedRequest] = useState<WalletVerificationRequest | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!user?.isAdmin) {
       toast.error('Access Denied: Admin privileges required.');
       navigate('/profile');
-    } else {
-      fetchRequests();
     }
-  }, [filter, user, navigate]);
+  }, [user, navigate]);
 
-  const fetchRequests = async () => {
-    setIsLoading(true);
+  const fetchRequests = useCallback(async (requestedPage = 1, append = false) => {
+    if (!token || !user?.isAdmin) return;
+
+    if (append) {
+      setIsFetchingMore(true);
+    } else {
+      setIsLoading(true);
+      setHasMore(true);
+    }
+
     try {
-      const url = filter === 'all' 
-        ? '/wallet-verification' 
-        : `/wallet-verification?status=${filter}`;
-      
-      const response = await apiFetch(url, {
+      const params = new URLSearchParams();
+      params.set('page', String(requestedPage));
+      params.set('limit', String(PAGE_SIZE));
+
+      if (filter !== 'all') {
+        params.set('status', filter);
+      }
+
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+
+      const response = await apiFetch(`/wallet-verification?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -62,7 +91,29 @@ const AdminWalletVerifications: React.FC = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setRequests(data.data.requests || []);
+        const payload = data.data || {};
+        const incomingRequests: WalletVerificationRequest[] = payload.requests || data.requests || [];
+        const pagination = payload.pagination || data.pagination;
+
+        setRequests(prev => append ? [...prev, ...incomingRequests] : incomingRequests);
+
+        setTotalCount(prevTotal => {
+          if (pagination && typeof pagination.totalItems === 'number') {
+            return pagination.totalItems;
+          }
+          if (pagination && typeof pagination.total === 'number') {
+            return pagination.total;
+          }
+          return append ? prevTotal : incomingRequests.length;
+        });
+
+        const totalPages = pagination?.totalPages ?? pagination?.pages;
+        const hasMoreResults = totalPages
+          ? requestedPage < Math.max(totalPages, 1)
+          : incomingRequests.length === PAGE_SIZE;
+
+        setHasMore(hasMoreResults);
+        setPage(requestedPage);
       } else {
         toast.error(data.message || 'Failed to fetch verification requests');
       }
@@ -70,9 +121,40 @@ const AdminWalletVerifications: React.FC = () => {
       console.error('Error fetching verification requests:', error);
       toast.error('An error occurred while fetching verification requests');
     } finally {
-      setIsLoading(false);
+      if (append) {
+        setIsFetchingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
-  };
+  }, [PAGE_SIZE, token, filter, debouncedSearch, user?.isAdmin]);
+
+  useEffect(() => {
+    if (!user?.isAdmin) return;
+    setRequests([]);
+    setPage(1);
+    setHasMore(true);
+    setTotalCount(0);
+    fetchRequests(1, false);
+  }, [user?.isAdmin, filter, debouncedSearch, fetchRequests]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || isLoading || !hasMore) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      const firstEntry = entries[0];
+      if (firstEntry?.isIntersecting && !isFetchingMore) {
+        fetchRequests(page + 1, true);
+      }
+    }, { rootMargin: '200px' });
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, isLoading, isFetchingMore, fetchRequests, page]);
 
   const handleRequestClick = async (request: WalletVerificationRequest) => {
     setSelectedRequest(request);
@@ -82,24 +164,11 @@ const AdminWalletVerifications: React.FC = () => {
   const handleModalClose = () => {
     setShowModal(false);
     setSelectedRequest(null);
-    fetchRequests(); // Refresh list after modal closes
+    fetchRequests(1, false); // Refresh list after modal closes
   };
 
-  const filteredRequests = requests.filter(request => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    const userId = request.userId as any;
-    const userName = userId?.name?.toLowerCase() || '';
-    const userEmail = userId?.email?.toLowerCase() || '';
-    const walletAddress = request.walletAddress.toLowerCase();
-    
-    return (
-      userName.includes(query) ||
-      userEmail.includes(query) ||
-      walletAddress.includes(query)
-    );
-  });
+  const totalResults = totalCount || requests.length;
+  const isInitialLoading = isLoading && requests.length === 0;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -203,7 +272,7 @@ const AdminWalletVerifications: React.FC = () => {
                     variant={filter === 'all' ? 'primary' : 'outline'}
                     className={filter === 'all' ? 'bg-purple-600 hover:bg-purple-700' : ''}
                   >
-                    All ({requests.length})
+                    All ({totalResults})
                   </Button>
                   <Button
                     onClick={() => setFilter('pending')}
@@ -238,14 +307,14 @@ const AdminWalletVerifications: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-purple-400" />
                   <span className="text-sm text-muted-foreground">
-                    Total Requests: <span className="text-foreground font-semibold">{requests.length}</span>
+                    Total Requests: <span className="text-foreground font-semibold">{totalResults}</span>
                   </span>
                 </div>
-                {searchQuery && (
+                {requests.length > 0 && (
                   <div className="flex items-center gap-2">
                     <Search className="w-4 h-4 text-green-400" />
                     <span className="text-sm text-muted-foreground">
-                      Filtered: <span className="text-foreground font-semibold">{filteredRequests.length}</span>
+                      Loaded: <span className="text-foreground font-semibold">{requests.length}</span>
                     </span>
                   </div>
                 )}
@@ -255,11 +324,11 @@ const AdminWalletVerifications: React.FC = () => {
             <MagicBadge title="Wallet Verification Requests" className="mt-10 mb-6" />
 
             {/* Requests List */}
-            {isLoading ? (
+            {isInitialLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
               </div>
-            ) : filteredRequests.length === 0 ? (
+            ) : requests.length === 0 ? (
               <div className="w-full border border-border rounded-xl p-10 text-center">
                 {searchQuery ? (
                   <>
@@ -272,7 +341,7 @@ const AdminWalletVerifications: React.FC = () => {
               </div>
             ) : (
               <div className="grid gap-6">
-                {filteredRequests.map((request) => {
+                {requests.map((request) => {
                   const userId = request.userId as any;
                   return (
                     <Card key={request._id} className="border border-border rounded-xl hover:border-purple-500/50 transition-colors cursor-pointer" onClick={() => handleRequestClick(request)}>
@@ -346,6 +415,12 @@ const AdminWalletVerifications: React.FC = () => {
                     </Card>
                   );
                 })}
+                <div ref={loadMoreRef} />
+                {isFetchingMore && (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+                  </div>
+                )}
               </div>
             )}
           </div>

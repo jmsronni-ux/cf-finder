@@ -7,9 +7,42 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
 export const getAllUsers = async (req, res, next) => {
-    try { 
-        const users = await User.find();
-        res.status(200).json({ success: true, message: "Users fetched successfully", data: users });
+    try {
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
+        const search = (req.query.search || '').trim();
+
+        const filter = {};
+
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            filter.$or = [
+                { name: searchRegex },
+                { email: searchRegex }
+            ];
+
+            if (mongoose.Types.ObjectId.isValid(search)) {
+                filter.$or.push({ _id: search });
+            }
+        }
+
+        const total = await User.countDocuments(filter);
+        const users = await User.find(filter)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        res.status(200).json({
+            success: true,
+            message: "Users fetched successfully",
+            data: users,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit) || 1
+            }
+        });
     } catch (error) {
         next(error);
     }

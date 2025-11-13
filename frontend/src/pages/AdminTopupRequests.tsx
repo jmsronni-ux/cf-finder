@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -36,24 +36,51 @@ interface TopupRequestData {
 const AdminTopupRequests: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const PAGE_SIZE = 20;
   const [requests, setRequests] = useState<TopupRequestData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    fetchRequests();
-  }, [filter]);
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 400);
 
-  const fetchRequests = async () => {
-    setIsLoading(true);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const fetchRequests = useCallback(async (requestedPage = 1, append = false) => {
+    if (!token) return;
+
+    if (append) {
+      setIsFetchingMore(true);
+    } else {
+      setIsLoading(true);
+      setHasMore(true);
+    }
+
     try {
-      const url = filter === 'all' 
-        ? '/topup-request/all' 
-        : `/topup-request/all?status=${filter}`;
-      
-      const response = await apiFetch(url, {
+      const params = new URLSearchParams();
+      params.set('page', String(requestedPage));
+      params.set('limit', String(PAGE_SIZE));
+
+      if (filter !== 'all') {
+        params.set('status', filter);
+      }
+
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+
+      const response = await apiFetch(`/topup-request/all?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +91,22 @@ const AdminTopupRequests: React.FC = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setRequests(data.data);
+        const incomingRequests: TopupRequestData[] = data.data || [];
+        const pagination = data.pagination || data.data?.pagination;
+        setRequests(prev => append ? [...prev, ...incomingRequests] : incomingRequests);
+
+        setTotalCount(prevTotal => {
+          if (pagination && typeof pagination.total === 'number') {
+            return pagination.total;
+          }
+          return append ? prevTotal : incomingRequests.length;
+        });
+
+        const hasMoreResults = pagination && typeof pagination.totalPages === 'number'
+          ? requestedPage < Math.max(pagination.totalPages, 1)
+          : incomingRequests.length === PAGE_SIZE;
+        setHasMore(hasMoreResults);
+        setPage(requestedPage);
       } else {
         toast.error(data.message || 'Failed to fetch requests');
       }
@@ -72,9 +114,42 @@ const AdminTopupRequests: React.FC = () => {
       console.error('Error fetching requests:', error);
       toast.error('An error occurred while fetching requests');
     } finally {
-      setIsLoading(false);
+      if (append) {
+        setIsFetchingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
-  };
+  }, [PAGE_SIZE, token, filter, debouncedSearch]);
+
+  useEffect(() => {
+    setRequests([]);
+    setPage(1);
+    setHasMore(true);
+    setTotalCount(0);
+    fetchRequests(1, false);
+  }, [filter, debouncedSearch, fetchRequests]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || isLoading || !hasMore) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      const firstEntry = entries[0];
+      if (firstEntry?.isIntersecting && !isFetchingMore) {
+        fetchRequests(page + 1, true);
+      }
+    }, { rootMargin: '200px' });
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, isLoading, isFetchingMore, fetchRequests, page]);
+
+  const totalResults = totalCount || requests.length;
+  const isInitialLoading = isLoading && requests.length === 0;
 
   const handleApprove = async (requestId: string) => {
     setProcessingId(requestId);
@@ -91,7 +166,7 @@ const AdminTopupRequests: React.FC = () => {
 
       if (response.ok && data.success) {
         toast.success('Top-up request approved successfully!');
-        fetchRequests(); // Refresh the list
+        fetchRequests(1, false); // Refresh the list
       } else {
         toast.error(data.message || 'Failed to approve request');
       }
@@ -121,7 +196,7 @@ const AdminTopupRequests: React.FC = () => {
 
       if (response.ok && data.success) {
         toast.success('Top-up request rejected');
-        fetchRequests(); // Refresh the list
+        fetchRequests(1, false); // Refresh the list
       } else {
         toast.error(data.message || 'Failed to reject request');
       }
@@ -132,19 +207,6 @@ const AdminTopupRequests: React.FC = () => {
       setProcessingId(null);
     }
   };
-
-  // Filter requests based on search query
-  const filteredRequests = requests.filter((request) => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      (request.userId?.name?.toLowerCase().includes(query)) ||
-      (request.userId?.email?.toLowerCase().includes(query)) ||
-      request._id.toLowerCase().includes(query)
-    );
-  });
-
   // Check if user is admin
   if (!user?.isAdmin) {
     return (
@@ -264,18 +326,18 @@ const AdminTopupRequests: React.FC = () => {
                   </button>
                 )}
               </div>
-              <div className="flex gap-4 mt-3 pt-3 border-t border-border">
+              <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-border">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-blue-400" />
                   <span className="text-sm text-muted-foreground">
-                    Total Requests: <span className="text-foreground font-semibold">{requests.length}</span>
+                    Total Results: <span className="text-foreground font-semibold">{totalResults}</span>
                   </span>
                 </div>
-                {searchQuery && (
+                {requests.length > 0 && (
                   <div className="flex items-center gap-2">
                     <Search className="w-4 h-4 text-green-400" />
                     <span className="text-sm text-muted-foreground">
-                      Filtered: <span className="text-foreground font-semibold">{filteredRequests.length}</span>
+                      Loaded: <span className="text-foreground font-semibold">{requests.length}</span>
                     </span>
                   </div>
                 )}
@@ -285,11 +347,11 @@ const AdminTopupRequests: React.FC = () => {
             <MagicBadge title="Requests" className="mt-10 mb-6"/>
 
             {/* Requests List */}
-            {isLoading ? (
+            {isInitialLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
               </div>
-            ) : filteredRequests.length === 0 ? (
+            ) : requests.length === 0 ? (
               <div className="w-full border border-border rounded-xl p-10 text-center">
                 {searchQuery ? (
                   <>
@@ -302,7 +364,7 @@ const AdminTopupRequests: React.FC = () => {
               </div>
             ) : (
               <div className="grid gap-6">
-                {filteredRequests.map((request) => (
+                {requests.map((request) => (
                   <Card key={request._id} className="border border-border rounded-xl hover:border-purple-500/50 transition-colors">
                     <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-4">
@@ -399,6 +461,12 @@ const AdminTopupRequests: React.FC = () => {
                 </CardContent>
               </Card>
             ))}
+                <div ref={loadMoreRef} />
+                {isFetchingMore && (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+                  </div>
+                )}
           </div>
         )}
           </div>

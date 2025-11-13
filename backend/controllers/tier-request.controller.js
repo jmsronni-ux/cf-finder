@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import TierRequest from "../models/tier-request.model.js";
 import User from "../models/user.model.js";
 import WithdrawRequest from "../models/withdraw-request.model.js";
@@ -132,14 +133,36 @@ export const getUserTierRequests = async (req, res, next) => {
 export const getAllTierRequests = async (req, res, next) => {
     try {
         const { status } = req.query;
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
+        const search = (req.query.search || '').trim();
 
-        let query = {};
+        const query = {};
         if (status && ['pending', 'approved', 'rejected'].includes(status)) {
             query.status = status;
         }
 
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            const matchedUsers = await User.find({
+                $or: [{ name: searchRegex }, { email: searchRegex }]
+            }).select('_id');
+            const userIds = matchedUsers.map(user => user._id);
+
+            query.$or = [
+                { userId: { $in: userIds } }
+            ];
+
+            if (mongoose.Types.ObjectId.isValid(search)) {
+                query.$or.push({ _id: search });
+            }
+        }
+
+        const total = await TierRequest.countDocuments(query);
         const requests = await TierRequest.find(query)
             .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
             .populate('userId', 'name email tier balance')
             .populate('reviewedBy', 'name email');
 
@@ -147,7 +170,13 @@ export const getAllTierRequests = async (req, res, next) => {
             success: true,
             message: "Tier requests retrieved successfully",
             data: {
-                requests
+                requests,
+                pagination: {
+                    total,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(total / limit) || 1
+                }
             }
         });
 

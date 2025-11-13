@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { ApiError } from '../middlewares/error.middleware.js';
 import WalletVerificationRequest from '../models/wallet-verification-request.model.js';
 import User from '../models/user.model.js';
@@ -111,9 +112,23 @@ export const getAllVerificationRequests = async (req, res, next) => {
         const filter = {};
         if (status) filter.status = status;
         if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            const matchedUsers = await User.find({
+                $or: [{ name: searchRegex }, { email: searchRegex }]
+            }).select('_id');
+            const userIds = matchedUsers.map(user => user._id);
+
             filter.$or = [
-                { walletAddress: { $regex: search, $options: 'i' } }
+                { walletAddress: { $regex: searchRegex } }
             ];
+
+            if (userIds.length > 0) {
+                filter.$or.push({ userId: { $in: userIds } });
+            }
+
+            if (mongoose.Types.ObjectId.isValid(search)) {
+                filter.$or.push({ _id: search });
+            }
         }
 
         const requests = await WalletVerificationRequest.find(filter)

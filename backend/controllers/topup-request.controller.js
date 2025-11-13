@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import TopupRequest from '../models/topup-request.model.js';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
@@ -31,20 +32,48 @@ export const createTopupRequest = async (req, res, next) => {
 export const getAllTopupRequests = async (req, res, next) => {
     try {
         const { status } = req.query;
-        
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
+        const search = (req.query.search || '').trim();
+
         const filter = {};
         if (status) {
             filter.status = status;
         }
 
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            const matchedUsers = await User.find({
+                $or: [{ name: searchRegex }, { email: searchRegex }]
+            }).select('_id');
+            const userIds = matchedUsers.map(user => user._id);
+
+            filter.$or = [
+                { userId: { $in: userIds } }
+            ];
+
+            if (mongoose.Types.ObjectId.isValid(search)) {
+                filter.$or.push({ _id: search });
+            }
+        }
+
+        const total = await TopupRequest.countDocuments(filter);
         const requests = await TopupRequest.find(filter)
             .populate('userId', 'name email balance tier phone')
             .populate('processedBy', 'name email')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
 
         res.status(200).json({
             success: true,
-            data: requests
+            data: requests,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit) || 1
+            }
         });
     } catch (error) {
         next(error);

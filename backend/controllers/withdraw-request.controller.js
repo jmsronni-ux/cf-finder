@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import WithdrawRequest from '../models/withdraw-request.model.js';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
@@ -63,7 +64,11 @@ export const createWithdrawRequest = async (req, res, next) => {
         }
 
         // Import conversion utility to calculate USDT value of selected networks
-        const { convertToUSDT } = await import('../utils/crypto-conversion.js');
+        const { convertToUSDT, fetchConversionRates } = await import('../utils/crypto-conversion.js');
+        
+        // Fetch conversion rates from database to ensure accurate conversion (same as frontend)
+        const conversionRates = await fetchConversionRates();
+        console.log(`[Withdraw Request] Using conversion rates from database:`, conversionRates);
         
         // Calculate total commission based on selected networks being withdrawn
         let totalCommission = 0;
@@ -74,12 +79,12 @@ export const createWithdrawRequest = async (req, res, next) => {
         console.log(`[Withdraw Request] Network rewards being withdrawn:`, networkRewards);
         console.log(`[Withdraw Request] Withdraw all:`, withdrawAll);
         
-        // Calculate the total USDT value of networks being withdrawn
+        // Calculate the total USDT value of networks being withdrawn using database rates
         if (networkRewards && Object.keys(networkRewards).length > 0) {
             for (const [network, amount] of Object.entries(networkRewards)) {
-                const usdtValue = convertToUSDT(amount, network);
+                const usdtValue = convertToUSDT(amount, network, conversionRates);
                 withdrawalValueUSDT += usdtValue;
-                console.log(`[Withdraw Request] ${network}: ${amount} = ${usdtValue} USDT`);
+                console.log(`[Withdraw Request] ${network}: ${amount} (using rate ${conversionRates[network]}) = ${usdtValue} USDT`);
             }
         }
         
@@ -146,33 +151,50 @@ export const createWithdrawRequest = async (req, res, next) => {
 export const getAllWithdrawRequests = async (req, res, next) => {
     try {
         const { status } = req.query;
-        
-        console.log('[Admin] Fetching withdraw requests with filter:', { status });
-        console.log('[Admin] User making request:', req.user?.email, 'isAdmin:', req.user?.isAdmin);
-        
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
+        const search = (req.query.search || '').trim();
+
         const filter = {};
         if (status) {
             filter.status = status;
         }
 
-        console.log('[Admin] Database filter:', filter);
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            const matchedUsers = await User.find({
+                $or: [{ name: searchRegex }, { email: searchRegex }]
+            }).select('_id');
+            const userIds = matchedUsers.map(user => user._id);
 
+            filter.$or = [
+                { userId: { $in: userIds } }
+            ];
+
+            if (mongoose.Types.ObjectId.isValid(search)) {
+                filter.$or.push({ _id: search });
+            }
+
+            filter.$or.push({ walletAddress: { $regex: searchRegex } });
+        }
+
+        const total = await WithdrawRequest.countDocuments(filter);
         const requests = await WithdrawRequest.find(filter)
             .populate('userId', 'name email balance tier phone')
             .populate('processedBy', 'name email')
-            .sort({ createdAt: -1 });
-
-        console.log('[Admin] Found requests:', requests.length, 'with filter:', filter);
-        console.log('[Admin] Sample request:', requests[0] ? {
-            id: requests[0]._id,
-            status: requests[0].status,
-            amount: requests[0].amount,
-            userId: requests[0].userId
-        } : 'No requests found');
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
 
         res.status(200).json({
             success: true,
-            data: requests
+            data: requests,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit) || 1
+            }
         });
     } catch (error) {
         console.error('[Admin] Error fetching withdraw requests:', error);
