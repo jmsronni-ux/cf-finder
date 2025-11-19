@@ -7,7 +7,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
 export const getAllUsers = async (req, res, next) => {
-    try {
+    try { 
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
         const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
         const search = (req.query.search || '').trim();

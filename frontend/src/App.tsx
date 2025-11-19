@@ -17,6 +17,7 @@ import AdminTierManagement from "./pages/AdminTierManagement";
 import AdminConversionRates from "./pages/AdminConversionRates";
 import AdminGlobalSettings from "./pages/AdminGlobalSettings";
 import AdminWalletVerifications from "./pages/AdminWalletVerifications";
+import AdminUserImpersonation from "./pages/AdminUserImpersonation";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -104,6 +105,11 @@ function App() {
             <Route path="/admin/global-settings" element={
               <ProtectedRoute>
                 <AdminGlobalSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/user-impersonation" element={
+              <ProtectedRoute>
+                <AdminUserImpersonation />
               </ProtectedRoute>
             } />
       </Routes>

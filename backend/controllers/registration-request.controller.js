@@ -70,7 +70,7 @@ export const getAllRegistrationRequests = async (req, res, next) => {
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
         const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
         const search = (req.query.search || '').trim();
-
+        
         const filter = {};
         if (status && ['pending', 'approved', 'rejected'].includes(status)) {
             filter.status = status;

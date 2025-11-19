@@ -36,6 +36,7 @@ interface AuthContextType {
   token: string | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  impersonateUserAccount: (userId: string) => Promise<boolean>;
   isAuthenticated: boolean;
   isLoading: boolean;
   refreshUser: () => Promise<void>;
@@ -217,11 +218,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     navigate('/');
   };
 
+  const impersonateUserAccount = async (targetUserId: string): Promise<boolean> => {
+    if (!token) {
+      toast.error('Admin authentication required to impersonate users.');
+      return false;
+    }
+
+    try {
+      const response = await apiFetch(`/auth/impersonate/${targetUserId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok && responseData.success) {
+        const { token: newToken, user: userData } = responseData.data;
+        setToken(newToken);
+        setUser(userData);
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        toast.success(`You are now logged in as ${userData.name}`);
+        navigate('/dashboard');
+        return true;
+      } else {
+        toast.error(responseData.message || 'Failed to impersonate user.');
+        return false;
+      }
+    } catch (error) {
+      console.error('Impersonation error:', error);
+      toast.error('An error occurred while impersonating the user.');
+      return false;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     token,
     login,
     logout,
+    impersonateUserAccount,
     isAuthenticated: !!user && !!token,
     isLoading,
     refreshUser,

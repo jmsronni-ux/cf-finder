@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Home,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -38,6 +39,13 @@ const AdminNavigation: React.FC = () => {
       icon: <Users className="w-5 h-5" />,
       description: 'Manage user rewards',
       color: 'from-blue-500 to-blue-600'
+    },
+    {
+      name: 'User Impersonation',
+      path: '/admin/user-impersonation',
+      icon: <Lock className="w-5 h-5" />,
+      description: 'Jump into any user account',
+      color: 'from-red-500 to-amber-500'
     },
     {
       name: 'Tier Management',

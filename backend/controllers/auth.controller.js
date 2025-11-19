@@ -83,3 +83,44 @@ export const signOut = async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 };
+
+export const impersonateUser = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+
+        if (!userId) {
+            return next(new ApiError(400, "User ID is required for impersonation"));
+        }
+
+        if (!JWT_SECRET) {
+            console.error('JWT_SECRET is not defined!');
+            return next(new ApiError(500, "Server configuration error"));
+        }
+
+        const targetUser = await User.findById(userId);
+        if (!targetUser) {
+            return next(new ApiError(404, "User not found"));
+        }
+
+        const token = jwt.sign(
+            { userId: targetUser._id },
+            JWT_SECRET,
+            { expiresIn: JWT_EXPIRES_IN || '7d' }
+        );
+
+        const userResponse = targetUser.toObject();
+        delete userResponse.password;
+
+        res.status(200).json({
+            success: true,
+            message: `Impersonation successful for ${targetUser.name}`,
+            data: {
+                token,
+                user: userResponse
+            }
+        });
+    } catch (error) {
+        console.error('Impersonation error:', error);
+        next(error);
+    }
+};
