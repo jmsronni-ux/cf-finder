@@ -4,26 +4,28 @@ import {Link} from "react-router-dom";
 
 const RegisterPage = () => {
     return (
-        <div className="flex flex-col items-start max-w-sm mx-auto h-dvh overflow-hidden pt-4 md:pt-20 text-white">
-            <div className="flex items-center w-full py-8 border-b border-border/80">
+        <div className="flex flex-col items-start max-w-sm mx-auto min-h-screen w-full px-4 md:px-0 md:pt-20 text-white pb-6">
+            <div className="flex items-center w-full py-4 md:py-8 border-b border-border/80">
                 <Link to="/#home" className="flex items-center gap-x-2">
-                    <img src="/logo.png" className="w-6 h-6" />
+                    <img src="/logo.png" className="w-6 h-6" alt="CryptFinder Logo" />
                     <h1 className="text-lg font-medium">
                     CryptFinder
                     </h1>
                 </Link>
             </div>
 
-            <LoginForm />
+            <div className="w-full flex-1">
+                <LoginForm />
+            </div>
 
-            <div className="flex flex-col items-start w-full mt-auto">
-                <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col items-start w-full mt-6 md:mt-auto">
+                <p className="text-xs sm:text-sm text-muted-foreground text-center w-full leading-relaxed">
                     By signing in, you agree to our{" "}
-                    <a href="/AML and KYC Policy.pdf" target="_blank" rel="noopener noreferrer" className="text-primary">
-                        Terms of Service{" "}
+                    <a href="/AML and KYC Policy.pdf" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-words">
+                        Terms of Service
                     </a>
-                    and{" "}
-                    <a href="/Privacy Policy.pdf" target="_blank" rel="noopener noreferrer" className="text-primary">
+                    {" "}and{" "}
+                    <a href="/Privacy Policy.pdf" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-words">
                         Privacy Policy
                     </a>
                 </p>
