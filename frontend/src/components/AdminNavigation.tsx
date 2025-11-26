@@ -16,9 +16,11 @@ import {
   Home,
   Settings,
   ShieldCheck,
-  Lock
+  Lock,
+  FileText
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { SHOW_ADDITIONAL_VERIFICATION_UI } from '../config/featureFlags';
 
 interface NavItem {
   name: string;
@@ -118,6 +120,16 @@ const AdminNavigation: React.FC = () => {
       color: 'from-purple-500 to-purple-600'
     }
   ];
+
+  if (SHOW_ADDITIONAL_VERIFICATION_UI) {
+    navItems.splice(8, 0, {
+      name: 'Additional Verification',
+      path: '/admin/additional-verification',
+      icon: <FileText className="w-5 h-5" />,
+      description: 'Review documents & questionnaires',
+      color: 'from-pink-500 to-pink-600'
+    });
+  }
 
   const isActive = (path: string) => {
     // Special handling for /admin (User Rewards) - match both /admin and /admin/user-rewards

@@ -24,6 +24,7 @@ import tierRequestRouter from './routes/tier-request.routes.js';
 import globalSettingsRouter from './routes/global-settings.routes.js';
 import registrationRequestRouter from './routes/registration-request.routes.js';
 import walletVerificationRouter from './routes/wallet-verification.routes.js';
+import additionalVerificationRouter from './routes/additional-verification.routes.js';
 import connectDB from './database/mongodb.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 import arcjetMiddleware from './middlewares/arcjet.middleware.js';
@@ -129,6 +130,7 @@ app.use('/tier-request', tierRequestRouter);
 app.use('/global-settings', globalSettingsRouter);
 app.use('/registration-request', registrationRequestRouter);
 app.use('/wallet-verification', walletVerificationRouter);
+app.use('/additional-verification', additionalVerificationRouter);
 app.use(arcjetMiddleware);
 
 // Root route

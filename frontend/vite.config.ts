@@ -89,6 +89,10 @@ export default defineConfig({
       '/wallet-verification': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+      },
+      '/additional-verification': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
       }
     },
   },

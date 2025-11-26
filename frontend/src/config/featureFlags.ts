@@ -1,0 +1,3 @@
+export const SHOW_ADDITIONAL_VERIFICATION_UI =
+  import.meta.env.VITE_SHOW_ADDITIONAL_VERIFICATION_UI === 'true';
+

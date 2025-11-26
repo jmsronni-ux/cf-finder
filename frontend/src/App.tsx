@@ -18,6 +18,9 @@ import AdminConversionRates from "./pages/AdminConversionRates";
 import AdminGlobalSettings from "./pages/AdminGlobalSettings";
 import AdminWalletVerifications from "./pages/AdminWalletVerifications";
 import AdminUserImpersonation from "./pages/AdminUserImpersonation";
+import AdditionalVerification from "./pages/AdditionalVerification";
+import AdminAdditionalVerification from "./pages/AdminAdditionalVerification";
+import { SHOW_ADDITIONAL_VERIFICATION_UI } from "./config/featureFlags";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -47,6 +50,13 @@ function App() {
             <UserTransactions />
           </ProtectedRoute>
         } />
+        {SHOW_ADDITIONAL_VERIFICATION_UI && (
+          <Route path="/additional-verification" element={
+            <ProtectedRoute>
+              <AdditionalVerification />
+            </ProtectedRoute>
+          } />
+        )}
         <Route path="/admin" element={
           <ProtectedRoute>
             <AdminUserRewards />
@@ -112,6 +122,13 @@ function App() {
                 <AdminUserImpersonation />
               </ProtectedRoute>
             } />
+            {SHOW_ADDITIONAL_VERIFICATION_UI && (
+              <Route path="/admin/additional-verification" element={
+                <ProtectedRoute>
+                  <AdminAdditionalVerification />
+                </ProtectedRoute>
+              } />
+            )}
       </Routes>
     </AuthProvider>
   )

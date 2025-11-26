@@ -21,6 +21,7 @@ import ChangeWallet from '../components/ChangeWallet';
 import WithdrawSuccessPopup from '../components/WithdrawSuccessPopup';
 import EditSettingsPopup from '../components/EditSettingsPopup';
 import { WalletVerificationRequest } from '../types/wallet-verification';
+import { SHOW_ADDITIONAL_VERIFICATION_UI } from '../config/featureFlags';
 
 interface TierInfo {
   tier: number;
@@ -495,6 +496,13 @@ const UserProfile: React.FC = () => {
                   >
                     <Users size={16} />
                     Admin Panel
+                  </Link>
+                )}
+                {SHOW_ADDITIONAL_VERIFICATION_UI && (
+                  <Link to='/additional-verification'>
+                    <Button className="bg-slate-800/60 hover:bg-slate-800 text-white flex items-center gap-2 border border-slate-600">
+                      Additional Verification
+                    </Button>
                   </Link>
                 )}
                 <Link to='/dashboard' >
