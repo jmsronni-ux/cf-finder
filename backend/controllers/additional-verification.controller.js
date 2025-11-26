@@ -80,6 +80,16 @@ export const submitAdditionalVerification = async (req, res) => {
         return res.status(400).json({ success: false, errors: documentErrors });
     }
 
+    // Validate required file fields
+    const fileFields = questionnaire.fields.filter(f => f.type === 'file' && f.required);
+    if (fileFields.length > 0 && normalizedDocuments.length === 0) {
+        const requiredFileFieldTitles = fileFields.map(f => f.title || f.key).join(', ');
+        return res.status(400).json({ 
+            success: false, 
+            errors: [`Required file upload(s) missing: ${requiredFileFieldTitles}`] 
+        });
+    }
+
     // Ensure documents exist and belong to user
     for (const doc of normalizedDocuments) {
         const fileMeta = await getFileMetadata(doc.fileId);

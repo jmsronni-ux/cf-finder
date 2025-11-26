@@ -6,14 +6,19 @@ const fieldSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    label: {
+    title: {
         type: String,
         required: true,
         trim: true
     },
+    description: {
+        type: String,
+        trim: true,
+        default: ''
+    },
     type: {
         type: String,
-        enum: ['text', 'textarea', 'select', 'date'],
+        enum: ['text', 'textarea', 'select', 'date', 'file'],
         default: 'text'
     },
     required: {
@@ -28,6 +33,11 @@ const fieldSchema = new mongoose.Schema({
     options: {
         type: [String],
         default: []
+    },
+    step: {
+        type: Number,
+        default: 1,
+        min: 1
     }
 }, { _id: false });
 

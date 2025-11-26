@@ -22,9 +22,13 @@ export const validateAnswers = (questionnaire, answers = []) => {
     const errors = [];
 
     questionnaire.fields.forEach(field => {
+        // Skip file type fields - they are validated separately via documents
+        if (field.type === 'file') {
+            return;
+        }
         const entry = normalized.find(item => item.fieldKey === field.key);
         if (field.required && (!entry || entry.value === null || entry.value === '')) {
-            errors.push(`Field "${field.label}" is required.`);
+            errors.push(`Field "${field.title || field.key}" is required.`);
         }
     });
 

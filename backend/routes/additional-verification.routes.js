@@ -59,7 +59,7 @@ adminRouter.get('/questionnaires/:id', param('id').isMongoId(), getQuestionnaire
 adminRouter.get('/submissions',
     query('page').optional().isInt({ min: 1 }).withMessage('page must be >= 1'),
     query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('limit must be between 1 and 100'),
-    query('status').optional().isIn(['pending', 'reviewed', 'approved', 'rejected']),
+    query('status').optional().isIn(['pending', 'approved', 'rejected']),
     query('userId').optional().isMongoId(),
     query('questionnaireId').optional().isMongoId(),
     listSubmissions
@@ -67,7 +67,7 @@ adminRouter.get('/submissions',
 adminRouter.get('/submissions/:id', param('id').isMongoId(), getSubmissionById);
 adminRouter.patch('/submissions/:id/status',
     param('id').isMongoId(),
-    body('status').isIn(['pending', 'reviewed', 'approved', 'rejected']),
+    body('status').isIn(['pending', 'approved', 'rejected']),
     body('reviewNote').optional().isString(),
     updateSubmissionStatus
 );
