@@ -3,6 +3,7 @@ import { validationResult } from 'express-validator';
 import AdditionalVerificationQuestionnaire from '../models/additional-verification-questionnaire.model.js';
 import AdditionalVerificationSubmission from '../models/additional-verification-submission.model.js';
 import { getFileMetadata, getFileStream } from '../services/gridfs.service.js';
+import User from '../models/user.model.js';
 
 const handleValidation = (req, res) => {
     const errors = validationResult(req);
@@ -63,12 +64,28 @@ export const getQuestionnaireById = async (req, res) => {
 export const listSubmissions = async (req, res) => {
     if (handleValidation(req, res)) return;
 
-    const { status, userId, questionnaireId } = req.query;
+    const { status, userId, questionnaireId, search } = req.query;
     const query = {};
 
     if (status) query.status = status;
     if (userId && mongoose.Types.ObjectId.isValid(userId)) query.user = userId;
     if (questionnaireId && mongoose.Types.ObjectId.isValid(questionnaireId)) query.questionnaire = questionnaireId;
+
+    // Add search functionality
+    if (search) {
+        const searchRegex = new RegExp(search, 'i');
+        const matchedUsers = await User.find({
+            $or: [{ name: searchRegex }, { email: searchRegex }]
+        }).select('_id');
+        const userIds = matchedUsers.map(user => user._id);
+
+        if (userIds.length > 0) {
+            query.user = { $in: userIds };
+        } else {
+            // If no users match, return empty results
+            query.user = { $in: [] };
+        }
+    }
 
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
