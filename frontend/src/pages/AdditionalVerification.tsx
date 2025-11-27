@@ -495,7 +495,7 @@ const AdditionalVerification: React.FC = () => {
                   Approved
                 </h3>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Your documents have been approved. Your verification level has been upgraded to 2.
+                  Your documents have been approved. Your verification badge has been upgraded to Level 2.
                 </p>
               </div>
               <Badge className="bg-green-500/20 text-green-300 border border-green-500/50 px-4 py-1">

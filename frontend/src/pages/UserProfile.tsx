@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -67,7 +67,6 @@ const UserProfile: React.FC = () => {
   const [remainingUSDT, setRemainingUSDT] = useState<number>(0);
   const [showEditSettingsPopup, setShowEditSettingsPopup] = useState(false);
   const [hasApprovedAdditionalVerification, setHasApprovedAdditionalVerification] = useState(false);
-  const approvedSubmissionIdRef = useRef<string | null>(null);
   const navigate = useNavigate();
   // Edit profile state
   const [nameInput, setNameInput] = useState<string>(user?.name || '');
@@ -200,21 +199,9 @@ const UserProfile: React.FC = () => {
       const json = await res.json();
       if (res.ok && json?.success) {
         const submissions = json.data || [];
-        // Find the approved submission
-        const approvedSubmission = submissions.find((sub: any) => sub.status === 'approved');
-        const hasApproved = !!approvedSubmission;
-        const wasApproved = hasApprovedAdditionalVerification;
+        // Check if user has any approved submission
+        const hasApproved = submissions.some((sub: any) => sub.status === 'approved');
         setHasApprovedAdditionalVerification(hasApproved);
-        
-        // Show congratulations if status changed from not approved to approved
-        // and we haven't shown the toast for this specific submission yet
-        if (hasApproved && !wasApproved && approvedSubmission?._id !== approvedSubmissionIdRef.current) {
-          approvedSubmissionIdRef.current = approvedSubmission._id;
-          toast.success('🎉 Congratulations!', {
-            description: 'Your additional verification has been approved. Your verification badge has been upgraded to Level 2!',
-            duration: 5000,
-          });
-        }
       }
     } catch (e) {
       console.error('Failed to fetch additional verification status', e);
