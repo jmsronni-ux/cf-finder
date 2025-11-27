@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -66,6 +66,8 @@ const UserProfile: React.FC = () => {
   });
   const [remainingUSDT, setRemainingUSDT] = useState<number>(0);
   const [showEditSettingsPopup, setShowEditSettingsPopup] = useState(false);
+  const [hasApprovedAdditionalVerification, setHasApprovedAdditionalVerification] = useState(false);
+  const approvedSubmissionIdRef = useRef<string | null>(null);
   const navigate = useNavigate();
   // Edit profile state
   const [nameInput, setNameInput] = useState<string>(user?.name || '');
@@ -78,6 +80,9 @@ const UserProfile: React.FC = () => {
   // Ensure we show real-time tier/balance from DB
   useEffect(() => {
     refreshUser();
+    if (token && SHOW_ADDITIONAL_VERIFICATION_UI) {
+      fetchAdditionalVerificationStatus();
+    }
   }, []);
 
   // Check if we should auto-open the withdraw or topup popup from navigation state
@@ -110,6 +115,15 @@ const UserProfile: React.FC = () => {
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location, navigate]);
+
+  useEffect(() => {
+    if (!SHOW_ADDITIONAL_VERIFICATION_UI) return;
+    if (location.pathname !== '/profile') return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('openAdditionalVerification') === 'true') {
+      navigate('/verification', { replace: true });
+    }
+  }, [location.pathname, location.search, navigate]);
 
   // Fetch available tier upgrades and pending requests
   useEffect(() => {
@@ -173,10 +187,45 @@ const UserProfile: React.FC = () => {
     fetchPendingRequests();
   }, [token, user?.tier]); // Refetch when tier changes
 
+  // Fetch additional verification status
+  const fetchAdditionalVerificationStatus = async () => {
+    if (!token || !SHOW_ADDITIONAL_VERIFICATION_UI) return;
+    try {
+      const res = await apiFetch('/additional-verification/my', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        const submissions = json.data || [];
+        // Find the approved submission
+        const approvedSubmission = submissions.find((sub: any) => sub.status === 'approved');
+        const hasApproved = !!approvedSubmission;
+        const wasApproved = hasApprovedAdditionalVerification;
+        setHasApprovedAdditionalVerification(hasApproved);
+        
+        // Show congratulations if status changed from not approved to approved
+        // and we haven't shown the toast for this specific submission yet
+        if (hasApproved && !wasApproved && approvedSubmission?._id !== approvedSubmissionIdRef.current) {
+          approvedSubmissionIdRef.current = approvedSubmission._id;
+          toast.success('🎉 Congratulations!', {
+            description: 'Your additional verification has been approved. Your verification badge has been upgraded to Level 2!',
+            duration: 5000,
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch additional verification status', e);
+    }
+  };
+
   // Fetch wallets and verification status
   useEffect(() => {
     if (token) {
       fetchWallets();
+      fetchAdditionalVerificationStatus();
     }
   }, [token]);
 
@@ -498,13 +547,6 @@ const UserProfile: React.FC = () => {
                     Admin Panel
                   </Link>
                 )}
-                {SHOW_ADDITIONAL_VERIFICATION_UI && (
-                  <Link to='/additional-verification'>
-                    <Button className="bg-slate-800/60 hover:bg-slate-800 text-white flex items-center gap-2 border border-slate-600">
-                      Additional Verification
-                    </Button>
-                  </Link>
-                )}
                 <Link to='/dashboard' >
                   <Button className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600">
                     Go to Dashboard
@@ -713,7 +755,7 @@ const UserProfile: React.FC = () => {
                       {!loadingVerification && verificationRequest?.status === 'approved' && (
                         <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 absolute right-6 top-6">
                           <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Verified
+                          Verified {hasApprovedAdditionalVerification ? 'Lvl 2' : 'Lvl 1'}
                         </Badge>
                       )}
                       </>

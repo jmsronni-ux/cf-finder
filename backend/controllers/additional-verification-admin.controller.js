@@ -149,6 +149,24 @@ export const updateSubmissionStatus = async (req, res) => {
     res.json({ success: true, data: submission });
 };
 
+export const allowResubmission = async (req, res) => {
+    if (handleValidation(req, res)) return;
+
+    const submission = await AdditionalVerificationSubmission.findById(req.params.id);
+    if (!submission) {
+        return res.status(404).json({ success: false, message: 'Submission not found' });
+    }
+
+    // Delete the submission to allow user to resubmit
+    await AdditionalVerificationSubmission.findByIdAndDelete(req.params.id);
+
+    res.json({ 
+        success: true, 
+        message: 'Submission deleted. User can now resubmit the questionnaire.',
+        data: { deleted: true }
+    });
+};
+
 export const adminDownloadDocument = async (req, res) => {
     const { fileId } = req.params;
     if (!mongoose.Types.ObjectId.isValid(fileId)) {

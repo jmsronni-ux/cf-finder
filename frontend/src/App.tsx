@@ -51,7 +51,7 @@ function App() {
           </ProtectedRoute>
         } />
         {SHOW_ADDITIONAL_VERIFICATION_UI && (
-          <Route path="/additional-verification" element={
+          <Route path="/verification" element={
             <ProtectedRoute>
               <AdditionalVerification />
             </ProtectedRoute>

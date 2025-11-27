@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { apiFetch } from '../utils/api';
@@ -58,14 +58,9 @@ const AdditionalVerification: React.FC = () => {
   const [isUploading, setIsUploading] = useState<Record<string, boolean>>({});
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const dateInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  useEffect(() => {
-    if (!token) return;
-    fetchQuestionnaire();
-    fetchSubmissions();
-  }, [token]);
-
-  const fetchQuestionnaire = async () => {
+  const fetchQuestionnaire = useCallback(async () => {
     try {
       const response = await apiFetch('/additional-verification/questionnaires/active', {
         headers: {
@@ -86,9 +81,9 @@ const AdditionalVerification: React.FC = () => {
       console.error(error);
       toast.error('Failed to load questionnaire');
     }
-  };
+  }, [token]);
 
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = useCallback(async () => {
     try {
       const response = await apiFetch('/additional-verification/my', {
         headers: {
@@ -102,7 +97,13 @@ const AdditionalVerification: React.FC = () => {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchQuestionnaire();
+    fetchSubmissions();
+  }, [token, fetchQuestionnaire, fetchSubmissions]);
 
   const getMaxStep = () => {
     if (!questionnaire || !questionnaire.fields.length) return 0;
@@ -329,10 +330,35 @@ const AdditionalVerification: React.FC = () => {
       case 'date':
         return (
           <Input
+            ref={el => {
+              if (el) dateInputRefs.current[field.key] = el;
+            }}
             type="date"
             value={value}
             onChange={e => handleAnswerChange(field.key, e.target.value)}
-            className="bg-background/50 border-border"
+            onClick={(e) => {
+              // Ensure the date picker opens on click
+              e.stopPropagation();
+              const input = dateInputRefs.current[field.key];
+              if (input) {
+                // Focus the input first
+                input.focus();
+                // Try to programmatically open the picker (modern browsers)
+                if ('showPicker' in input && typeof input.showPicker === 'function') {
+                  try {
+                    input.showPicker();
+                  } catch (err) {
+                    // showPicker might fail in some cases (e.g., not user-initiated)
+                    // That's okay, the native behavior will handle it
+                  }
+                }
+              }
+            }}
+            onMouseDown={(e) => {
+              // Prevent form handlers from interfering
+              e.stopPropagation();
+            }}
+            className="bg-background/50 border-border cursor-pointer"
             required={field.required}
           />
         );
@@ -429,8 +455,119 @@ const AdditionalVerification: React.FC = () => {
     }
   };
 
+  const latestSubmission = useMemo(() => {
+    if (!submissions.length) return null;
+    return [...submissions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  }, [submissions]);
+
+  useEffect(() => {
+    if (!token) return;
+    if (!latestSubmission || latestSubmission.status !== 'pending') return;
+
+    const interval = setInterval(() => {
+      fetchSubmissions();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [token, latestSubmission, fetchSubmissions]);
+
   const maxStep = getMaxStep();
   const currentStepFields = getStepFields(currentStep);
+  const verificationLevel = latestSubmission?.status === 'approved' ? 2 : 1;
+  // Show form if no submission OR if submission was rejected (user can resubmit)
+  const shouldShowForm = !latestSubmission || latestSubmission.status === 'rejected';
+  // Show status card if there's a submission (for all statuses: approved, pending, or rejected)
+  const shouldShowStatusCard = !!latestSubmission;
+
+  const renderStatusCard = () => {
+    if (!latestSubmission) return null;
+    const submittedAt = new Date(latestSubmission.createdAt).toLocaleString();
+
+    if (latestSubmission.status === 'approved') {
+      return (
+        <Card className="border border-green-500/40 rounded-xl bg-green-500/5">
+          <CardContent className="p-8 flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-green-300">Additional verification</p>
+                <h3 className="text-2xl font-bold text-foreground mt-2 flex items-center gap-2">
+                  <CheckCircle className="w-6 h-6 text-green-400" />
+                  Approved
+                </h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Your documents have been approved. Your verification level has been upgraded to 2.
+                </p>
+              </div>
+              <Badge className="bg-green-500/20 text-green-300 border border-green-500/50 px-4 py-1">
+                Verified Level 2
+              </Badge>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Submitted on <span className="text-foreground">{submittedAt}</span>
+            </div>
+            <div className="text-sm text-foreground">
+              You’re all set! Feel free to close this tab or return to your profile.
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (latestSubmission.status === 'rejected') {
+      return (
+        <Card className="border border-red-500/40 rounded-xl bg-red-500/5">
+          <CardContent className="p-8 flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-red-300">Additional verification</p>
+                <h3 className="text-2xl font-bold text-foreground mt-2 flex items-center gap-2">
+                  <XCircle className="w-6 h-6 text-red-400" />
+                  Rejected
+                </h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Your submission was reviewed but did not pass. You can resubmit the questionnaire below.
+                </p>
+              </div>
+              <Badge className="bg-red-500/20 text-red-300 border border-red-500/50 px-4 py-1">
+                Verified Level 1
+              </Badge>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Submitted on <span className="text-foreground">{submittedAt}</span>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card className="border border-border rounded-xl bg-background/60">
+        <CardContent className="p-8 flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Additional verification</p>
+              <h3 className="text-2xl font-bold text-foreground mt-2 flex items-center gap-2">
+                <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                Under review
+              </h3>
+              <p className="text-sm text-muted-foreground mt-2">
+                We’re reviewing your documents. This page will refresh automatically once a decision is made.
+              </p>
+            </div>
+            <Badge className="bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 px-4 py-1">
+              Verified Level {verificationLevel}
+            </Badge>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            Submitted on <span className="text-foreground">{submittedAt}</span>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            You cannot resubmit additional verification while this review is in progress.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <>
@@ -452,148 +589,156 @@ const AdditionalVerification: React.FC = () => {
             </div>
           </div>
 
-            {!questionnaire ? (
-              <Card className="border border-border rounded-xl">
-                <CardContent className="p-10 text-center">
-                  <p className="text-muted-foreground">No active questionnaire available at this time.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                {questionnaire && (
-                  <>
-                    {/* Progress Steps */}
-                    {maxStep > 1 && (
-                      <Card className="border border-border rounded-xl mb-6">
-                        <CardContent className="p-4 sm:p-6">
-                          <div className="flex items-center justify-evenly gap-2 sm:gap-0">
-                            {Array.from({ length: maxStep }, (_, i) => {
-                              const step = i + 1;
-                              const isActive = step === currentStep;
-                              const isCompleted = step < currentStep;
-                              return (
-                                <div key={step} className="flex items-center flex-1 min-w-0">
-                                  <div className="flex flex-col items-center flex-1 min-w-0">
-                                    <div
-                                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-2 transition-colors shrink-0 ${
-                                        isCompleted
-                                          ? 'bg-green-500/20 border-green-500 text-green-500'
-                                          : isActive
-                                          ? 'bg-purple-500/20 border-purple-500 text-purple-500'
-                                          : 'bg-background/50 border-border text-muted-foreground'
-                                      }`}
-                                    >
-                                      {isCompleted ? (
-                                        <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                                      ) : (
-                                        <span className="font-medium text-sm sm:text-base">{step}</span>
+            {shouldShowStatusCard && (
+              <div className="mb-6">
+                {renderStatusCard()}
+              </div>
+            )}
+            
+            {shouldShowForm && (
+              !questionnaire ? (
+                <Card className="border border-border rounded-xl">
+                  <CardContent className="p-10 text-center">
+                    <p className="text-muted-foreground">No active questionnaire available at this time.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {questionnaire && (
+                    <>
+                      {/* Progress Steps */}
+                      {maxStep > 1 && (
+                        <Card className="border border-border rounded-xl mb-6">
+                          <CardContent className="p-4 sm:p-6">
+                            <div className="flex items-center justify-evenly gap-2 sm:gap-0">
+                              {Array.from({ length: maxStep }, (_, i) => {
+                                const step = i + 1;
+                                const isActive = step === currentStep;
+                                const isCompleted = step < currentStep;
+                                return (
+                                  <div key={step} className="flex items-center flex-1 min-w-0">
+                                    <div className="flex flex-col items-center flex-1 min-w-0">
+                                      <div
+                                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-2 transition-colors shrink-0 ${
+                                          isCompleted
+                                            ? 'bg-green-500/20 border-green-500 text-green-500'
+                                            : isActive
+                                            ? 'bg-purple-500/20 border-purple-500 text-purple-500'
+                                            : 'bg-background/50 border-border text-muted-foreground'
+                                        }`}
+                                      >
+                                        {isCompleted ? (
+                                          <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        ) : (
+                                          <span className="font-medium text-sm sm:text-base">{step}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {step < maxStep && (
+                                      <div
+                                        className={`h-0.5 flex-1 min-w-[8px] sm:min-w-[16px] mx-1 sm:mx-2 transition-colors ${
+                                          isCompleted ? 'bg-green-500' : 'bg-border'
+                                        }`}
+                    />
+                  )}
+                </div>
+                                );
+                              })}
+            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Questionnaire Form */}
+                      <form 
+                        onSubmit={handleSubmit}
+                        onKeyDown={(e) => {
+                          // Prevent form submission on Enter unless we're on the last step
+                          if (e.key === 'Enter' && currentStep < maxStep) {
+                            e.preventDefault();
+                            handleNext();
+                          }
+                        }}
+                      >
+                        <Card className="border border-border rounded-xl mb-6">
+                          <CardHeader>
+                            
+                          </CardHeader>
+                          <CardContent className="space-y-6">
+                            {/* Questionnaire Fields */}
+                            <div className="space-y-4">
+                              {currentStepFields.length === 0 ? (
+                                <p className="text-muted-foreground text-center py-8">
+                                  No questions in this step.
+                                </p>
+                              ) : (
+                                currentStepFields.map(field => (
+                                  <div key={field.key} className="space-y-3">
+                                    <div className="space-y-5">
+                                      <Label className="text-lg font-semibold text-foreground">
+                                        {field.title}
+                                        {field.required && <span className="text-red-500 ml-1">*</span>}
+                                      </Label>
+                                      {field.description && (
+                                        <p className="text-xs text-muted-foreground">
+                                          {field.description}
+                                        </p>
                                       )}
+                                      {renderField(field)}
                                     </div>
                                   </div>
-                                  {step < maxStep && (
-                                    <div
-                                      className={`h-0.5 flex-1 min-w-[8px] sm:min-w-[16px] mx-1 sm:mx-2 transition-colors ${
-                                        isCompleted ? 'bg-green-500' : 'bg-border'
-                                      }`}
-                                    />
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Questionnaire Form */}
-                    <form 
-                      onSubmit={handleSubmit}
-                      onKeyDown={(e) => {
-                        // Prevent form submission on Enter unless we're on the last step
-                        if (e.key === 'Enter' && currentStep < maxStep) {
-                          e.preventDefault();
-                          handleNext();
-                        }
-                      }}
-                    >
-                      <Card className="border border-border rounded-xl mb-6">
-                        <CardHeader>
-                          
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                          {/* Questionnaire Fields */}
-                          <div className="space-y-4">
-                            {currentStepFields.length === 0 ? (
-                              <p className="text-muted-foreground text-center py-8">
-                                No questions in this step.
-                              </p>
-                            ) : (
-                              currentStepFields.map(field => (
-                                <div key={field.key} className="space-y-3">
-                                  <div className="space-y-5">
-                                    <Label className="text-lg font-semibold text-foreground">
-                                      {field.title}
-                                      {field.required && <span className="text-red-500 ml-1">*</span>}
-                                    </Label>
-                                    {field.description && (
-                                      <p className="text-xs text-muted-foreground">
-                                        {field.description}
-                                      </p>
-                                    )}
-                                    {renderField(field)}
-                </div>
-            </div>
-                              ))
+                                ))
             )}
           </div>
 
-                          {/* Navigation Buttons */}
-                          <div className="flex items-center justify-between pt-6 border-t border-border">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={handlePrevious}
-                              disabled={currentStep === 1}
-                              className="flex items-center gap-2"
-                            >
-                              <ArrowLeft className="w-4 h-4" />
-                              Previous
-                            </Button>
-                            {currentStep < maxStep ? (
+                            {/* Navigation Buttons */}
+                            <div className="flex items-center justify-between pt-6 border-t border-border">
                               <Button
                                 type="button"
-                                onClick={handleNext}
-                                className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+                                variant="outline"
+                                onClick={handlePrevious}
+                                disabled={currentStep === 1}
+                                className="flex items-center gap-2"
                               >
-                                Next
-                                <ArrowRight className="w-4 h-4" />
+                                <ArrowLeft className="w-4 h-4" />
+                                Previous
                               </Button>
-                            ) : (
-                              <Button
+                              {currentStep < maxStep ? (
+                                <Button
+                                  type="button"
+                                  onClick={handleNext}
+                                  className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+                                >
+                                  Next
+                                  <ArrowRight className="w-4 h-4" />
+                                </Button>
+                              ) : (
+                                <Button
             type="submit"
             disabled={isSubmitting}
-                                className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
-                              >
-                                {isSubmitting ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Submitting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle className="w-4 h-4" />
-                                    Submit for Review
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-        </form>
-                  </>
+                                  className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+                                >
+                                  {isSubmitting ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      Submitting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="w-4 h-4" />
+                                      Submit for Review
+                                    </>
+                                  )}
+                                </Button>
                 )}
-              </>
+              </div>
+                          </CardContent>
+                        </Card>
+                      </form>
+                    </>
+                  )}
+                </>
+              )
             )}
           </div>
         </MaxWidthWrapper>

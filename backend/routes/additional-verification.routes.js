@@ -17,6 +17,7 @@ import {
     listSubmissions,
     getSubmissionById,
     updateSubmissionStatus,
+    allowResubmission,
     adminDownloadDocument
 } from '../controllers/additional-verification-admin.controller.js';
 
@@ -70,6 +71,10 @@ adminRouter.patch('/submissions/:id/status',
     body('status').isIn(['pending', 'approved', 'rejected']),
     body('reviewNote').optional().isString(),
     updateSubmissionStatus
+);
+adminRouter.delete('/submissions/:id/resubmit',
+    param('id').isMongoId(),
+    allowResubmission
 );
 adminRouter.get('/files/:fileId', param('fileId').isMongoId(), adminDownloadDocument);
 

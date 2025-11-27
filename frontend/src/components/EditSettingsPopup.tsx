@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Loader2, User as UserIcon, Lock, Wallet, Mail, BadgeCheck } from 'lucide-react';
+import { Loader2, User as UserIcon, Lock, Wallet, Mail, BadgeCheck, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../utils/api';
 import { validateWalletAddress } from '../utils/walletValidation';
+import { SHOW_ADDITIONAL_VERIFICATION_UI } from '../config/featureFlags';
 
 interface UserLike {
   name: string;
@@ -27,6 +28,8 @@ interface EditSettingsPopupProps {
   onSuccess?: () => void; // call to refresh user + wallets in parent
 }
 
+type TabValue = 'wallet' | 'password' | 'name';
+
 const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, token, user, onSuccess }) => {
   // Name
   const [nameInput, setNameInput] = useState<string>('');
@@ -43,6 +46,7 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
   const [loadingWallets, setLoadingWallets] = useState<boolean>(false);
   const [savingWallets, setSavingWallets] = useState<boolean>(false);
   const [walletValidationError, setWalletValidationError] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<TabValue>('wallet');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -176,6 +180,20 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
     }
   };
 
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab('wallet');
+    }
+  }, [isOpen]);
+
+  const handleTabChange = (value: string) => {
+    if (value === 'additionalVerification') {
+      window.open('/profile?openAdditionalVerification=true', '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setActiveTab(value as TabValue);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-2xl h-[80vh] p-8 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl">
@@ -196,11 +214,17 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="wallet" className="h-full flex flex-col">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
               <TabsList className="bg-white/5 border border-white/10 max-w-fit">
                 <TabsTrigger value="wallet" className="min-w-[110px]">Wallet</TabsTrigger>
                 <TabsTrigger value="password" className="min-w-[110px]">Password</TabsTrigger>
                 <TabsTrigger value="name" className="min-w-[160px]">Personal information</TabsTrigger>
+                {SHOW_ADDITIONAL_VERIFICATION_UI && (
+                  <TabsTrigger value="additionalVerification" className="min-w-[190px] flex items-center gap-1">
+                    Additional verification
+                    <ArrowUpRight className="w-3 h-3" />
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="name" className="flex-1 overflow-y-auto">
