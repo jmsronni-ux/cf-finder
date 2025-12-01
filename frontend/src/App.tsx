@@ -17,7 +17,6 @@ import AdminTierManagement from "./pages/AdminTierManagement";
 import AdminConversionRates from "./pages/AdminConversionRates";
 import AdminGlobalSettings from "./pages/AdminGlobalSettings";
 import AdminWalletVerifications from "./pages/AdminWalletVerifications";
-import AdminUserImpersonation from "./pages/AdminUserImpersonation";
 import AdditionalVerification from "./pages/AdditionalVerification";
 import AdminAdditionalVerification from "./pages/AdminAdditionalVerification";
 import { SHOW_ADDITIONAL_VERIFICATION_UI } from "./config/featureFlags";
@@ -116,11 +115,6 @@ function App() {
             <Route path="/admin/global-settings" element={
               <ProtectedRoute>
                 <AdminGlobalSettings />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/user-impersonation" element={
-              <ProtectedRoute>
-                <AdminUserImpersonation />
               </ProtectedRoute>
             } />
             {SHOW_ADDITIONAL_VERIFICATION_UI && (

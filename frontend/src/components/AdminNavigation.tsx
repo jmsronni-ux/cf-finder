@@ -16,7 +16,6 @@ import {
   Home,
   Settings,
   ShieldCheck,
-  Lock,
   FileText,
   Key
 } from 'lucide-react';
@@ -42,13 +41,6 @@ const AdminNavigation: React.FC = () => {
       icon: <Users className="w-5 h-5" />,
       description: 'Manage user rewards',
       color: 'from-blue-500 to-blue-600'
-    },
-    {
-      name: 'User Impersonation',
-      path: '/admin/user-impersonation',
-      icon: <Lock className="w-5 h-5" />,
-      description: 'Jump into any user account',
-      color: 'from-red-500 to-amber-500'
     },
     {
       name: 'Tier Management',
@@ -148,9 +140,9 @@ const AdminNavigation: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
-  // Filter out User Impersonation page from navigation (hidden but not deleted)
+  // Filter out Level Management from navigation (hidden but not deleted)
   const visibleNavItems = navItems.filter(item => 
-    !item.name.toLowerCase().includes('impersonation')
+    !item.name.toLowerCase().includes('level management')
   );
 
   return (
