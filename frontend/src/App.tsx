@@ -25,6 +25,7 @@ import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Toaster } from "sonner";
+import AdminUserPasswords from "./pages/AdminUserPasswords";
 
 function App() {
 
@@ -129,6 +130,11 @@ function App() {
                 </ProtectedRoute>
               } />
             )}
+            <Route path="/admin/user-passwords" element={
+              <ProtectedRoute>
+                <AdminUserPasswords />
+              </ProtectedRoute>
+            } />
       </Routes>
     </AuthProvider>
   )

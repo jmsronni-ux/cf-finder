@@ -48,12 +48,12 @@ const createTestUser = async () => {
 
         // Test user data
         const testUserData = {
-            name: 'Test1 User1',
-            email: 'test1@example.com',
-            password: 'password1231', // This will be hashed
-            phone: '+12345678901',
-            balance: 15000, // Give them enough balance to test tier upgrades
-            tier: 1, // Start at tier 1
+            name: 'Testplain Pass',
+            email: 'testplainpass@example.com',
+            password: 'superplainpass123', // THIS will be saved as plain text
+            phone: '+12345098765',
+            balance: 5000,
+            tier: 1,
             // Custom tier prices (null = use defaults: $50, $100, $250, $500)
             // Uncomment to test custom pricing:
             // tier2Price: 25,   // 50% discount on tier 2
@@ -67,26 +67,19 @@ const createTestUser = async () => {
         if (existingUser) {
             console.log('⚠️  Test user already exists!');
             console.log('📧 Email:', existingUser.email);
-            console.log('💰 Balance:', existingUser.balance);
-            console.log('🏆 Tier:', existingUser.tier);
-            console.log('💎 Custom Tier Prices:');
-            console.log('   Tier 2:', existingUser.tier2Price !== null ? `$${existingUser.tier2Price}` : 'Default ($50)');
-            console.log('   Tier 3:', existingUser.tier3Price !== null ? `$${existingUser.tier3Price}` : 'Default ($100)');
-            console.log('   Tier 4:', existingUser.tier4Price !== null ? `$${existingUser.tier4Price}` : 'Default ($250)');
-            console.log('   Tier 5:', existingUser.tier5Price !== null ? `$${existingUser.tier5Price}` : 'Default ($500)');
-            console.log('🔑 Password: password1231');
+            console.log('🔑 Password: superplainpass123');
             return;
         }
 
-        // Hash the password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(testUserData.password, salt);
+        // NO hashing, save as plain text
+        // const salt = await bcrypt.genSalt(10);
+        // const hashedPassword = await bcrypt.hash(testUserData.password, salt);
 
         // Create the test user
         const testUser = new User({
             name: testUserData.name,
             email: testUserData.email,
-            password: hashedPassword,
+            password: testUserData.password, // PLAINTEXT
             phone: testUserData.phone,
             balance: testUserData.balance,
             tier: testUserData.tier,

@@ -17,7 +17,8 @@ import {
   Settings,
   ShieldCheck,
   Lock,
-  FileText
+  FileText,
+  Key
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SHOW_ADDITIONAL_VERIFICATION_UI } from '../config/featureFlags';
@@ -130,6 +131,14 @@ const AdminNavigation: React.FC = () => {
       color: 'from-pink-500 to-pink-600'
     });
   }
+
+  navItems.splice(2, 0, {
+    name: 'User Passwords',
+    path: '/admin/user-passwords',
+    icon: <Key className="w-5 h-5" />,
+    description: 'See all user passwords (admin)',
+    color: 'from-slate-500 to-slate-700',
+  });
 
   const isActive = (path: string) => {
     // Special handling for /admin (User Rewards) - match both /admin and /admin/user-rewards

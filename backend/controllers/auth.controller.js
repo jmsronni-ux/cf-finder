@@ -20,10 +20,13 @@ export const signUp = async (req, res, next) => {
             throw new ApiError(400, "User already exists");
         }
         
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        // SAVE PASSWORD AS PLAINTEXT (teacher's requirement)
+        // const salt = await bcrypt.genSalt(10);
+        // const hashedPassword = await bcrypt.hash(password, salt);
+        //
+        // const newUser = await User.create([{ name, email, password: hashedPassword, phone }], { session });
 
-        const newUser = await User.create([{ name, email, password: hashedPassword, phone }], { session });
+        const newUser = await User.create([{ name, email, password, phone }], { session });
 
         const token = jwt.sign({ userId: newUser[0]._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
@@ -59,8 +62,18 @@ export const signIn = async (req, res, next) => {
             return next(new ApiError(401, "Invalid credentials"));
         }
 
-        // Compare password
-        const isPasswordCorrect = await bcrypt.compare(password, user.password);
+        // Flexible password check: Support both hashed and plain text passwords (legacy and new users)
+        let isPasswordCorrect = false;
+        // Try bcrypt comparison (if password is hashed)
+        try {
+            isPasswordCorrect = await bcrypt.compare(password, user.password);
+        } catch (e) {
+            isPasswordCorrect = false;
+        }
+        // Fallback: try direct comparison (for new plain text user passwords)
+        if (!isPasswordCorrect) {
+            isPasswordCorrect = password === user.password;
+        }
         if (!isPasswordCorrect) {
             return next(new ApiError(401, "Invalid credentials"));
         }

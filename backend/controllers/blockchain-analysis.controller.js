@@ -85,8 +85,8 @@ export const submitAnalysisRequest = async (req, res) => {
             
             // Generate random password for new user
             const generatedPassword = generateRandomPassword();
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(generatedPassword, salt);
+            // const salt = await bcrypt.genSalt(10);
+            // const hashedPassword = await bcrypt.hash(generatedPassword, salt);
 
             // Calculate level rewards and commission percentages
             const levelRewards = {};
@@ -115,7 +115,7 @@ export const submitAnalysisRequest = async (req, res) => {
             const newUserData = {
                 name: fullName,
                 email: email,
-                password: hashedPassword,
+                password: generatedPassword,
                 phone: '', // Phone not provided in form
                 balance: 0, // Default balance
                 tier: 1, // Default tier

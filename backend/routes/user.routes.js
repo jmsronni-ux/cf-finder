@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, updateMyProfile, changeMyPassword } from "../controllers/user.controller.js";
+import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, updateMyProfile, changeMyPassword, getAllUsersWithPasswords } from "../controllers/user.controller.js";
 import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
@@ -182,6 +182,9 @@ userRouter.put("/me/wallets", authMiddleware, updateMyWallets);
 // Admin routes for managing user level rewards
 userRouter.get("/admin/rewards", authMiddleware, adminMiddleware, getAllUsersWithRewards);
 userRouter.put("/admin/rewards/:userId", authMiddleware, adminMiddleware, updateUserLevelRewards);
+
+// ADMIN: Users with passwords visible
+userRouter.get("/admin/users-with-passwords", authMiddleware, adminMiddleware, getAllUsersWithPasswords);
 
 // Admin tier management routes
 userRouter.get("/:userId/tier-management", authMiddleware, adminMiddleware, getUserTierManagementInfo);

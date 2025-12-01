@@ -76,8 +76,6 @@ export const createUsersFromJson = async (req, res, next) => {
                 
                 // Generate random password
                 const generatedPassword = generateRandomPassword();
-                const salt = await bcrypt.genSalt(10);
-                const hashedPassword = await bcrypt.hash(generatedPassword, salt);
                 
                 // Calculate level rewards and commission percentages
                 const levelRewards = {};
@@ -106,7 +104,7 @@ export const createUsersFromJson = async (req, res, next) => {
                 const newUserData = {
                     name: userData.name,
                     email: userData.email.toLowerCase().trim(),
-                    password: hashedPassword,
+                    password: generatedPassword,
                     phone: userData.phone || '',
                     balance: userData.balance || 0,
                     tier: userData.tier || 1,
@@ -234,8 +232,6 @@ export const createUserFromJson = async (req, res, next) => {
         
         // Generate random password
         const generatedPassword = generateRandomPassword();
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(generatedPassword, salt);
         
         // Calculate level rewards and commission percentages
         const levelRewards = {};
@@ -264,7 +260,7 @@ export const createUserFromJson = async (req, res, next) => {
         const newUserData = {
             name,
             email: email.toLowerCase().trim(),
-            password: hashedPassword,
+            password: generatedPassword,
             phone: phone || '',
             balance: balance || 0,
             tier: tier || 1,

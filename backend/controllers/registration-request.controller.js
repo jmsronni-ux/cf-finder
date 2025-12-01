@@ -36,15 +36,15 @@ export const createRegistrationRequest = async (req, res, next) => {
             }
         }
 
-        // Hash the password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
+        // SAVE PASSWORD AS PLAINTEXT (teacher's requirement)
+        // const salt = await bcrypt.genSalt(10);
+        // const hashedPassword = await bcrypt.hash(password, salt);
+        //
         // Create registration request
         const registrationRequest = await RegistrationRequest.create({
             name,
             email,
-            password: hashedPassword,
+            password, // PLAINTEXT
             phone,
             status: 'pending'
         });
@@ -220,7 +220,7 @@ export const approveRegistrationRequest = async (req, res, next) => {
         const userData = {
             name: request.name,
             email: request.email,
-            password: request.password, // Already hashed
+            password: request.password, // Already plain text now
             phone: request.phone,
             ...tierPrices, // Add calculated tier prices
             ...levelRewards, // Add calculated level rewards

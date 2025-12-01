@@ -563,3 +563,44 @@ export const getUserTierManagementInfo = async (req, res, next) => {
         next(error);
     }
 };
+
+// GET /admin/users-with-passwords - ADMIN ONLY
+export const getAllUsersWithPasswords = async (req, res, next) => {
+    try {
+        if (!req.user || !req.user.isAdmin) {
+            return res.status(403).json({ success: false, message: 'Access denied. Admin privileges required.' });
+        }
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
+        const search = (req.query.search || '').trim();
+        const filter = {};
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            filter.$or = [
+                { name: searchRegex },
+                { email: searchRegex }
+            ];
+            if (mongoose.Types.ObjectId.isValid(search)) {
+                filter.$or.push({ _id: search });
+            }
+        }
+        const total = await User.countDocuments(filter);
+        const users = await User.find(filter)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
+        res.status(200).json({
+            success: true,
+            message: 'Users (with passwords) fetched successfully',
+            data: users,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit) || 1
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
