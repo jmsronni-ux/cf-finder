@@ -7,7 +7,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
 export const getAllUsers = async (req, res, next) => {
-    try { 
+    try {
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
         const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
         const search = (req.query.search || '').trim();
@@ -66,64 +66,64 @@ export const createUser = async (req, res, next) => {
     try {
         // Get global rewards for all levels
         const globalRewards = await NetworkReward.find({ isActive: true });
-        
+
         // Get conversion rates
         const conversionRates = await ConversionRate.find({});
         const conversionRatesMap = {};
         conversionRates.forEach(rate => {
             conversionRatesMap[rate.network] = rate.rateToUSD;
         });
-        
+
         // Create user with global rewards populated
         const userData = { ...req.body };
-        
+
         // Calculate level rewards (lvl1reward, lvl2reward, etc.) from network rewards and conversion rates
         const levelRewards = {};
         for (let level = 1; level <= 5; level++) {
             const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
             let totalUSDValue = 0;
-            
+
             // Calculate total USD value for this level
             for (const reward of levelNetworkRewards) {
                 const conversionRate = conversionRatesMap[reward.network] || 1;
                 const usdValue = reward.rewardAmount * conversionRate;
                 totalUSDValue += usdValue;
             }
-            
+
             // Round to 2 decimal places
             levelRewards[`lvl${level}reward`] = Math.round(totalUSDValue * 100) / 100;
         }
-        
+
         // Store commission percentages per level (use first network's commission for each level)
         const levelCommissions = {};
         for (let level = 1; level <= 5; level++) {
             const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
             let commissionPercent = 0;
-            
+
             // Use the first network's commission percent for this level
             if (levelNetworkRewards.length > 0 && typeof levelNetworkRewards[0].commissionPercent === 'number') {
                 commissionPercent = levelNetworkRewards[0].commissionPercent;
             }
-            
+
             levelCommissions[`lvl${level}Commission`] = commissionPercent;
         }
 
         // Add calculated level rewards and commissions to user data
         Object.assign(userData, levelRewards, levelCommissions);
-        
+
         // Populate network rewards for each level with global defaults
         for (let level = 1; level <= 5; level++) {
             const levelNetworkRewards = {};
             const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
-            
+
             for (const network of networks) {
                 const globalReward = globalRewards.find(r => r.level === level && r.network === network);
                 levelNetworkRewards[network] = globalReward ? globalReward.rewardAmount : 0;
             }
-            
+
             userData[`lvl${level}NetworkRewards`] = levelNetworkRewards;
         }
-        
+
         const user = await User.create(userData, { session });
         await session.commitTransaction();
         session.endSession();
@@ -135,7 +135,7 @@ export const createUser = async (req, res, next) => {
     }
 };
 
-export const updateUser = async (req, res, next) => {       
+export const updateUser = async (req, res, next) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
@@ -253,7 +253,7 @@ export const updateMyWallets = async (req, res, next) => {
         // Whitelist fields and build update object with dot notation
         const allowed = ['btc', 'eth', 'tron', 'usdtErc20', 'custom'];
         const update = {};
-        
+
         for (const key of allowed) {
             if (key in wallets) {
                 // Skip validation for empty strings (removing wallet)
@@ -261,9 +261,9 @@ export const updateMyWallets = async (req, res, next) => {
                     // Validate wallet address
                     const validation = validateWalletAddress(wallets[key], key);
                     if (!validation.isValid) {
-                        return res.status(400).json({ 
-                            success: false, 
-                            message: validation.error || 'Invalid wallet address' 
+                        return res.status(400).json({
+                            success: false,
+                            message: validation.error || 'Invalid wallet address'
                         });
                     }
                 }
@@ -275,23 +275,39 @@ export const updateMyWallets = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'No valid wallet fields provided' });
         }
 
-        // Reset wallet verification status when wallets are updated
-        update.walletVerified = false;
-        
+        // Fetch current user to compare wallets
+        const currentUser = await User.findById(req.user._id);
+        if (!currentUser) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
         const updated = await User.findByIdAndUpdate(
             req.user._id,
             { $set: update },
             { new: true, runValidators: true }
         ).select('wallets walletVerified');
 
+        // Check if we need to reset wallet verification
+        // Only reset if BTC wallet is being updated and it's different
+        if (wallets.btc !== undefined) {
+            const currentBtc = currentUser.wallets?.btc || '';
+            const newBtc = wallets.btc || '';
+
+            if (currentBtc !== newBtc) {
+                // BTC wallet changed, reset verification
+                await User.findByIdAndUpdate(req.user._id, { walletVerified: false });
+                updated.walletVerified = false;
+            }
+        }
+
         if (!updated) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        res.status(200).json({ 
-            success: true, 
-            message: 'Wallets updated. Wallet verification status has been reset.', 
-            data: { 
+        res.status(200).json({
+            success: true,
+            message: 'Wallets updated. Wallet verification status has been reset.',
+            data: {
                 wallets: updated.wallets || {},
                 walletVerified: updated.walletVerified
             }
@@ -307,24 +323,24 @@ export const getAllUsersWithRewards = async (req, res, next) => {
     try {
         // Check if user is admin
         if (!req.user || !req.user.isAdmin) {
-            return res.status(403).json({ 
-                success: false, 
-                message: "Access denied. Admin privileges required." 
+            return res.status(403).json({
+                success: false,
+                message: "Access denied. Admin privileges required."
             });
         }
 
         const users = await User.find()
             .select('name email balance tier lvl1reward lvl2reward lvl3reward lvl4reward lvl5reward lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim lvl1Commission lvl2Commission lvl3Commission lvl4Commission lvl5Commission wallets createdAt')
             .sort({ createdAt: -1 });
-        
+
         // Import wallet balance utility
         const { getAllWalletBalances } = await import('../utils/wallet-balance.js');
-        
+
         // Fetch balances for all users in parallel (with rate limiting)
         const usersWithBalances = await Promise.all(
             users.map(async (user) => {
                 const userObj = user.toObject();
-                
+
                 // Fetch wallet balances
                 if (userObj.wallets) {
                     try {
@@ -336,15 +352,15 @@ export const getAllUsersWithRewards = async (req, res, next) => {
                 } else {
                     userObj.walletBalances = {};
                 }
-                
+
                 return userObj;
             })
         );
-        
-        res.status(200).json({ 
-            success: true, 
-            message: "Users fetched successfully", 
-            data: usersWithBalances 
+
+        res.status(200).json({
+            success: true,
+            message: "Users fetched successfully",
+            data: usersWithBalances
         });
     } catch (error) {
         console.error('Error fetching users with rewards:', error);
@@ -357,9 +373,9 @@ export const updateUserLevelRewards = async (req, res, next) => {
     try {
         // Check if user is admin
         if (!req.user || !req.user.isAdmin) {
-            return res.status(403).json({ 
-                success: false, 
-                message: "Access denied. Admin privileges required." 
+            return res.status(403).json({
+                success: false,
+                message: "Access denied. Admin privileges required."
             });
         }
 
@@ -367,12 +383,12 @@ export const updateUserLevelRewards = async (req, res, next) => {
         const { lvl1reward, lvl2reward, lvl3reward, lvl4reward, lvl5reward } = req.body;
 
         // Validate that at least one reward is provided
-        if (lvl1reward === undefined && lvl2reward === undefined && 
-            lvl3reward === undefined && lvl4reward === undefined && 
+        if (lvl1reward === undefined && lvl2reward === undefined &&
+            lvl3reward === undefined && lvl4reward === undefined &&
             lvl5reward === undefined) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "At least one level reward must be provided" 
+            return res.status(400).json({
+                success: false,
+                message: "At least one level reward must be provided"
             });
         }
 
@@ -391,16 +407,16 @@ export const updateUserLevelRewards = async (req, res, next) => {
         ).select('name email lvl1reward lvl2reward lvl3reward lvl4reward lvl5reward');
 
         if (!user) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "User not found" 
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
             });
         }
 
-        res.status(200).json({ 
-            success: true, 
-            message: "Level rewards updated successfully", 
-            data: user 
+        res.status(200).json({
+            success: true,
+            message: "Level rewards updated successfully",
+            data: user
         });
     } catch (error) {
         console.error('Error updating user level rewards:', error);
