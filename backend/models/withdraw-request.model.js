@@ -14,7 +14,7 @@ const withdrawRequestSchema = new mongoose.Schema({
     },
     walletAddress: {
         type: String,
-        required: function() {
+        required: function () {
             // Wallet address is required for direct balance withdrawal, not for addToBalance
             return !this.addToBalance;
         },
@@ -22,7 +22,7 @@ const withdrawRequestSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'approved', 'rejected'],
+        enum: ['pending', 'approved', 'rejected', 'completed'],
         default: 'pending'
     },
     // Admin-confirmed wallet and amount

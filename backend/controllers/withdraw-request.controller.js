@@ -65,20 +65,20 @@ export const createWithdrawRequest = async (req, res, next) => {
 
         // Import conversion utility to calculate USDT value of selected networks
         const { convertToUSDT, fetchConversionRates } = await import('../utils/crypto-conversion.js');
-        
+
         // Fetch conversion rates from database to ensure accurate conversion (same as frontend)
         const conversionRates = await fetchConversionRates();
         console.log(`[Withdraw Request] Using conversion rates from database:`, conversionRates);
-        
+
         // Calculate total commission based on selected networks being withdrawn
         let totalCommission = 0;
         let withdrawalValueUSDT = 0;
         const levelsToWithdraw = [1, 2, 3, 4, 5];
-        
+
         console.log(`[Withdraw Request] Networks being withdrawn:`, networks);
         console.log(`[Withdraw Request] Network rewards being withdrawn:`, networkRewards);
         console.log(`[Withdraw Request] Withdraw all:`, withdrawAll);
-        
+
         // Calculate the total USDT value of networks being withdrawn using database rates
         if (networkRewards && Object.keys(networkRewards).length > 0) {
             for (const [network, amount] of Object.entries(networkRewards)) {
@@ -87,9 +87,9 @@ export const createWithdrawRequest = async (req, res, next) => {
                 console.log(`[Withdraw Request] ${network}: ${amount} (using rate ${conversionRates[network]}) = ${usdtValue} USDT`);
             }
         }
-        
+
         console.log(`[Withdraw Request] Total withdrawal value: $${withdrawalValueUSDT} USDT`);
-        
+
         // Calculate commission strictly from selected networks and user's current tier commission percent
         const currentTier = user.tier || 1;
         const commissionPercent = user[`lvl${currentTier}Commission`] || 0;
@@ -104,19 +104,19 @@ export const createWithdrawRequest = async (req, res, next) => {
 
         // Deduct commission from user balance
         user.balance -= totalCommission;
-        
+
         // If addToBalance is true, add network rewards to user balance instead of direct withdrawal
         if (addToBalance) {
             user.balance += withdrawalValueUSDT;
             console.log(`[Withdraw Request] Network rewards added to balance: $${withdrawalValueUSDT}`);
-            
+
             // Note: We no longer reset network rewards in user model
             // Withdrawn networks are tracked via WithdrawRequest model only
             console.log(`[Withdraw Request] Withdrawn networks tracked via WithdrawRequest model: ${networks.join(', ')}`);
         }
-        
+
         await user.save();
-        
+
         console.log(`[Withdraw Request] Commission deducted: $${totalCommission}`);
         console.log(`[Withdraw Request] New balance: $${user.balance}`);
 
@@ -281,38 +281,38 @@ export const approveWithdrawRequest = async (req, res, next) => {
             throw new ApiError(400, 'This request is for adding to balance and is already auto-approved. Cannot manually approve.');
         }
 
-        // Fetch fresh user data to ensure we have the latest balance
+        // Fetch user data to verify they have sufficient balance for when they complete the payment
         const user = await User.findById(withdrawRequest.userId._id);
         if (!user) {
             throw new ApiError(404, 'User not found');
         }
 
-        // Ensure balance and amount are valid numbers
+        // Check balance against the ORIGINAL withdrawal amount (what will be deducted from user)
         const currentBalance = Number(user.balance) || 0;
-        const amountToDeduct = Number(confirmedAmount) || 0;
+        const originalWithdrawalAmount = Number(withdrawRequest.amount) || 0;
         const balanceBefore = currentBalance;
-        
-        console.log(`[Approve Withdraw] User ${user._id} balance before: $${balanceBefore}, deducting: $${amountToDeduct}`);
 
-        if (currentBalance < amountToDeduct) {
-            throw new ApiError(400, `Insufficient balance for confirmed amount. Available: $${currentBalance}, Required: $${amountToDeduct}`);
+        console.log(`[Approve Withdraw] User ${user._id} balance: $${currentBalance}`);
+        console.log(`[Approve Withdraw] Original withdrawal amount (will be deducted): $${originalWithdrawalAmount}`);
+        console.log(`[Approve Withdraw] Admin confirmed amount (admin receives): $${confirmedAmount}`);
+
+        if (currentBalance < originalWithdrawalAmount) {
+            throw new ApiError(400, `User has insufficient balance for withdrawal. Available: $${currentBalance}, Required: $${originalWithdrawalAmount}`);
         }
 
-        // Update user balance (deduct the confirmed amount)
-        const balanceAfter = Math.max(0, currentBalance - amountToDeduct); // Prevent negative balance
-        
+        // Deduct the ORIGINAL withdrawal amount from user's balance
+        const balanceAfter = Math.max(0, currentBalance - originalWithdrawalAmount);
         user.balance = balanceAfter;
-        
-        // Save user with balance deduction
-        const savedUser = await user.save();
-        console.log(`[Approve Withdraw] User ${user._id} balance after: $${balanceAfter}`);
+        await user.save();
+
+        console.log(`[Approve Withdraw] Balance deducted: $${originalWithdrawalAmount}`);
+        console.log(`[Approve Withdraw] Balance after: $${balanceAfter}`);
 
         // Verify the balance was actually saved
         const verifyUser = await User.findById(user._id);
         const actualBalance = Number(verifyUser.balance) || 0;
         if (Math.abs(actualBalance - balanceAfter) > 0.01) {
             console.error(`[Approve Withdraw] Balance mismatch! Expected: $${balanceAfter}, Actual: $${actualBalance}`);
-            // Retry the save with explicit balance update
             verifyUser.balance = balanceAfter;
             await verifyUser.save();
             console.log(`[Approve Withdraw] Balance corrected and saved again`);
@@ -328,22 +328,18 @@ export const approveWithdrawRequest = async (req, res, next) => {
         withdrawRequest.processedBy = adminId;
         await withdrawRequest.save();
 
-        // Get final verified balance
-        const finalUser = await User.findById(user._id);
-        const finalBalance = Number(finalUser.balance) || 0;
-        
-        console.log(`[Approve Withdraw] Request ${requestId} approved. Balance deducted: $${confirmedAmount}`);
-        console.log(`[Approve Withdraw] Final balance: $${finalBalance}`);
+        console.log(`[Approve Withdraw] Request ${requestId} approved and balance deducted.`);
 
         res.status(200).json({
             success: true,
-            message: 'Withdraw request approved successfully',
+            message: 'Withdraw request approved successfully. Balance has been deducted.',
             data: {
                 request: withdrawRequest,
-                newBalance: finalBalance,
+                newBalance: balanceAfter,
                 balanceBefore,
                 balanceAfter,
-                amountDeducted: confirmedAmount
+                amountDeducted: originalWithdrawalAmount,
+                adminReceives: confirmedAmount
             }
         });
     } catch (error) {
@@ -387,10 +383,101 @@ export const rejectWithdrawRequest = async (req, res, next) => {
     }
 };
 
+// Complete withdraw request (user confirms payment sent)
+export const completeWithdrawRequest = async (req, res, next) => {
+    try {
+        const { requestId } = req.params;
+        const userId = req.user._id;
+
+        const withdrawRequest = await WithdrawRequest.findById(requestId).populate('userId');
+
+        if (!withdrawRequest) {
+            throw new ApiError(404, 'Withdraw request not found');
+        }
+
+        // Verify this is the user's own request
+        if (withdrawRequest.userId._id.toString() !== userId.toString()) {
+            throw new ApiError(403, 'You can only complete your own withdrawal requests');
+        }
+
+        if (withdrawRequest.status !== 'approved') {
+            throw new ApiError(400, `Cannot complete request with status: ${withdrawRequest.status}. Request must be approved first.`);
+        }
+
+        // Fetch fresh user data to ensure we have the latest balance
+        const user = await User.findById(userId);
+        if (!user) {
+            throw new ApiError(404, 'User not found');
+        }
+
+        // Deduct the ORIGINAL amount that user requested to withdraw, not the admin's confirmed amount
+        const currentBalance = Number(user.balance) || 0;
+        const amountToDeduct = Number(withdrawRequest.amount) || 0;
+        const balanceBefore = currentBalance;
+
+        console.log(`[Complete Withdraw] User ${user._id} balance before: $${balanceBefore}, deducting original withdrawal amount: $${amountToDeduct}`);
+        console.log(`[Complete Withdraw] Admin confirmed amount: $${withdrawRequest.confirmedAmount} (this is what admin receives, not what we deduct)`);
+
+        if (currentBalance < amountToDeduct) {
+            throw new ApiError(400, `Insufficient balance. Available: $${currentBalance}, Required: $${amountToDeduct}`);
+        }
+
+        // Update user balance (deduct the original withdrawal amount)
+        const balanceAfter = Math.max(0, currentBalance - amountToDeduct); // Prevent negative balance
+
+        user.balance = balanceAfter;
+
+        // Save user with balance deduction
+        await user.save();
+        console.log(`[Complete Withdraw] User ${user._id} balance after: $${balanceAfter}`);
+
+        // Verify the balance was actually saved
+        const verifyUser = await User.findById(user._id);
+        const actualBalance = Number(verifyUser.balance) || 0;
+        if (Math.abs(actualBalance - balanceAfter) > 0.01) {
+            console.error(`[Complete Withdraw] Balance mismatch! Expected: $${balanceAfter}, Actual: $${actualBalance}`);
+            // Retry the save with explicit balance update
+            verifyUser.balance = balanceAfter;
+            await verifyUser.save();
+            console.log(`[Complete Withdraw] Balance corrected and saved again`);
+        } else {
+            console.log(`[Complete Withdraw] Balance verified: $${actualBalance}`);
+        }
+
+        // Update request status to completed
+        withdrawRequest.status = 'completed';
+        await withdrawRequest.save();
+
+        // Get final verified balance
+        const finalUser = await User.findById(user._id);
+        const finalBalance = Number(finalUser.balance) || 0;
+
+        console.log(`[Complete Withdraw] Request ${requestId} completed. Balance deducted: $${amountToDeduct}`);
+        console.log(`[Complete Withdraw] Final balance: $${finalBalance}`);
+
+        res.status(200).json({
+            success: true,
+            message: 'Withdrawal completed successfully. Balance has been deducted.',
+            data: {
+                request: withdrawRequest,
+                newBalance: finalBalance,
+                balanceBefore,
+                balanceAfter,
+                amountDeducted: amountToDeduct
+            }
+        });
+    } catch (error) {
+        console.error('[Complete Withdraw] Error:', error);
+        next(error);
+    }
+};
+
+
 export default {
     createWithdrawRequest,
     getAllWithdrawRequests,
     getMyWithdrawRequests,
     approveWithdrawRequest,
+    completeWithdrawRequest,
     rejectWithdrawRequest
 };

@@ -6,6 +6,7 @@ import {
     getMyWithdrawRequests,
     getWithdrawRequestById,
     approveWithdrawRequest,
+    completeWithdrawRequest,
     rejectWithdrawRequest
 } from '../controllers/withdraw-request.controller.js';
 
@@ -23,6 +24,7 @@ router.get('/:requestId', authMiddleware, getWithdrawRequestById);
 
 // Admin routes
 router.put('/:requestId/approve', authMiddleware, adminMiddleware, approveWithdrawRequest);
+router.put('/:requestId/complete', authMiddleware, completeWithdrawRequest);
 router.put('/:requestId/reject', authMiddleware, adminMiddleware, rejectWithdrawRequest);
 
 export default router;
