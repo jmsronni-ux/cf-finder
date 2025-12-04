@@ -11,6 +11,11 @@ const topupRequestSchema = new mongoose.Schema({
         required: [true, 'Amount is required'],
         min: [1, 'Amount must be at least 1']
     },
+    cryptocurrency: {
+        type: String,
+        enum: ['BTC', 'USDT', 'ETH'],
+        default: 'BTC'
+    },
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected'],

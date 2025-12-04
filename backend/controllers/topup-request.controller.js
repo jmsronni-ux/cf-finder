@@ -6,7 +6,7 @@ import { ApiError } from '../middlewares/error.middleware.js';
 // User creates a top-up request
 export const createTopupRequest = async (req, res, next) => {
     try {
-        const { amount } = req.body;
+        const { amount, cryptocurrency } = req.body;
         const userId = req.user._id;
 
         if (!amount || amount <= 0) {
@@ -15,7 +15,8 @@ export const createTopupRequest = async (req, res, next) => {
 
         const topupRequest = await TopupRequest.create({
             userId,
-            amount
+            amount,
+            cryptocurrency: cryptocurrency || 'BTC'
         });
 
         res.status(201).json({

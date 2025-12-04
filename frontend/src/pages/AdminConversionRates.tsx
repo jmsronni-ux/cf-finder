@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Switch } from '../components/ui/switch';
 import { toast } from 'sonner';
-import { 
-  ArrowLeft, 
-  Save, 
+import {
+  ArrowLeft,
+  Save,
   RefreshCw,
   DollarSign,
   TrendingUp,
@@ -33,8 +34,8 @@ const NETWORKS = [
 const AdminConversionRates: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { rates, ratesMap, loading, error, refetch, updateRates } = useConversionRates();
-  
+  const { rates, ratesMap, isAuto, loading, error, refetch, updateRates } = useConversionRates();
+
   const [editedRates, setEditedRates] = useState<{ [key: string]: string }>({});
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,10 +65,35 @@ const AdminConversionRates: React.FC = () => {
     }));
   };
 
+  const handleAutoToggle = async (checked: boolean) => {
+    try {
+      setIsSaving(true);
+      const success = await updateRates({}, checked);
+      if (success) {
+        toast.success(`Switched to ${checked ? 'Real-time' : 'Manual'} rates`);
+        // If switching to manual, we might want to refresh editedRates with current values
+        if (!checked) {
+          const resetRates: { [key: string]: string } = {};
+          rates.forEach(rate => {
+            resetRates[rate.network] = rate.rateToUSD.toString();
+          });
+          setEditedRates(resetRates);
+        }
+      } else {
+        toast.error('Failed to update rate mode');
+      }
+    } catch (error) {
+      console.error('Error toggling auto mode:', error);
+      toast.error('Failed to update rate mode');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      
+
       // Validate all rates
       const ratesToUpdate: { [key: string]: number } = {};
       for (const [network, rateStr] of Object.entries(editedRates)) {
@@ -79,9 +105,9 @@ const AdminConversionRates: React.FC = () => {
         }
         ratesToUpdate[network] = rate;
       }
-      
+
       const success = await updateRates(ratesToUpdate);
-      
+
       if (success) {
         toast.success('Conversion rates updated successfully!');
         setIsEditing(false);
@@ -108,13 +134,13 @@ const AdminConversionRates: React.FC = () => {
 
   const getLastUpdated = () => {
     if (rates.length === 0) return 'Never';
-    
+
     const mostRecent = rates.reduce((latest, rate) => {
       const rateDate = new Date(rate.metadata.updatedAt);
       const latestDate = new Date(latest.metadata.updatedAt);
       return rateDate > latestDate ? rate : latest;
     });
-    
+
     const date = new Date(mostRecent.metadata.updatedAt);
     return date.toLocaleString();
   };
@@ -154,7 +180,7 @@ const AdminConversionRates: React.FC = () => {
                   <div>
                     <p className="text-sm text-blue-400 font-medium mb-1">Important</p>
                     <p className="text-xs text-blue-300/80">
-                      These conversion rates are used to convert network rewards to USD for display in animations. 
+                      These conversion rates are used to convert network rewards to USD for display in animations.
                       Changes affect all future animations immediately. Current rates are cached for 5 minutes.
                     </p>
                   </div>
@@ -163,8 +189,25 @@ const AdminConversionRates: React.FC = () => {
             </Card>
 
             {/* Last Updated */}
-            <div className="mb-6 text-sm text-muted-foreground">
-              Last Updated: <span className="text-foreground">{getLastUpdated()}</span>
+            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="text-sm text-muted-foreground">
+                Last Updated: <span className="text-foreground">{getLastUpdated()}</span>
+              </div>
+
+              <div className="flex items-center gap-3 bg-card border border-border p-3 rounded-lg">
+                <Switch
+                  id="auto-mode"
+                  checked={isAuto}
+                  onCheckedChange={handleAutoToggle}
+                  disabled={isSaving}
+                />
+                <div className="flex flex-col">
+                  <Label htmlFor="auto-mode" className="font-medium cursor-pointer">Real-time Rates</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {isAuto ? 'Rates update automatically via CoinGecko' : 'Manually set fixed rates'}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Error Display */}
@@ -191,10 +234,10 @@ const AdminConversionRates: React.FC = () => {
                   {NETWORKS.map(network => {
                     const currentRate = ratesMap[network.key] || 0;
                     const editedRate = editedRates[network.key] || '0';
-                    
+
                     return (
-                      <Card 
-                        key={network.key} 
+                      <Card
+                        key={network.key}
                         className={`border ${network.borderColor} ${network.bgColor} hover:scale-[1.02] transition-transform`}
                       >
                         <CardHeader>
@@ -221,7 +264,13 @@ const AdminConversionRates: React.FC = () => {
                                 onChange={(e) => handleRateChange(network.key, e.target.value)}
                                 className="bg-background/50 border-border text-foreground"
                                 placeholder="0.00"
+                                disabled={isAuto}
                               />
+                              {isAuto && (
+                                <p className="text-xs text-amber-500 mt-1">
+                                  Managed automatically
+                                </p>
+                              )}
                             </div>
                           ) : (
                             <div>
@@ -274,9 +323,10 @@ const AdminConversionRates: React.FC = () => {
                     <Button
                       onClick={() => setIsEditing(true)}
                       className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600"
+                      disabled={isAuto}
                     >
                       <TrendingUp size={16} />
-                      Edit Conversion Rates
+                      {isAuto ? 'Switch to Manual to Edit' : 'Edit Conversion Rates'}
                     </Button>
                   )}
                 </div>

@@ -16,6 +16,10 @@ const conversionRateSchema = new mongoose.Schema({
       message: 'Conversion rate must be non-negative'
     }
   },
+  isAuto: {
+    type: Boolean,
+    default: false
+  },
   metadata: {
     createdAt: {
       type: Date,
@@ -36,7 +40,7 @@ const conversionRateSchema = new mongoose.Schema({
 conversionRateSchema.index({ network: 1 });
 
 // Update the updatedAt field on save
-conversionRateSchema.pre('save', function(next) {
+conversionRateSchema.pre('save', function (next) {
   this.metadata.updatedAt = new Date();
   next();
 });

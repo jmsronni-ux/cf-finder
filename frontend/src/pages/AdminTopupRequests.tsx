@@ -23,6 +23,7 @@ interface TopupRequestData {
     phone?: string;
   } | null;
   amount: number;
+  cryptocurrency?: 'BTC' | 'USDT' | 'ETH';
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
   processedAt?: string;
@@ -180,7 +181,7 @@ const AdminTopupRequests: React.FC = () => {
 
   const handleReject = async (requestId: string) => {
     const notes = prompt('Enter rejection reason (optional):');
-    
+
     setProcessingId(requestId);
     try {
       const response = await apiFetch(`/topup-request/${requestId}/reject`, {
@@ -249,7 +250,7 @@ const AdminTopupRequests: React.FC = () => {
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-10">
               <div>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium font-heading text-foreground">
-                  Top-Up <br/> <span className="text-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text">
+                  Top-Up <br /> <span className="text-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text">
                     Management
                   </span>
                 </h1>
@@ -260,47 +261,43 @@ const AdminTopupRequests: React.FC = () => {
             {/* Admin Navigation */}
             <AdminNavigation />
 
-            <MagicBadge title="Filter & Search" className="mb-6"/>
+            <MagicBadge title="Filter & Search" className="mb-6" />
 
             {/* Filter Tabs */}
             <div className="flex gap-2 border-b border-border pb-2 mb-6">
               <button
                 onClick={() => setFilter('all')}
-                className={`px-4 py-2 rounded-t-lg transition-colors ${
-                  filter === 'all' 
-                    ? 'bg-blue-500/20 text-blue-500 border-b-2 border-blue-500' 
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'all'
+                    ? 'bg-blue-500/20 text-blue-500 border-b-2 border-blue-500'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 All
               </button>
               <button
                 onClick={() => setFilter('pending')}
-                className={`px-4 py-2 rounded-t-lg transition-colors ${
-                  filter === 'pending' 
-                    ? 'bg-yellow-500/20 text-yellow-500 border-b-2 border-yellow-500' 
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'pending'
+                    ? 'bg-yellow-500/20 text-yellow-500 border-b-2 border-yellow-500'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 Pending
               </button>
               <button
                 onClick={() => setFilter('approved')}
-                className={`px-4 py-2 rounded-t-lg transition-colors ${
-                  filter === 'approved' 
-                    ? 'bg-green-500/20 text-green-500 border-b-2 border-green-500' 
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'approved'
+                    ? 'bg-green-500/20 text-green-500 border-b-2 border-green-500'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 Approved
               </button>
               <button
                 onClick={() => setFilter('rejected')}
-                className={`px-4 py-2 rounded-t-lg transition-colors ${
-                  filter === 'rejected' 
-                    ? 'bg-red-500/20 text-red-500 border-b-2 border-red-500' 
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'rejected'
+                    ? 'bg-red-500/20 text-red-500 border-b-2 border-red-500'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 Rejected
               </button>
@@ -344,7 +341,7 @@ const AdminTopupRequests: React.FC = () => {
               </div>
             </div>
 
-            <MagicBadge title="Requests" className="mt-10 mb-6"/>
+            <MagicBadge title="Requests" className="mt-10 mb-6" />
 
             {/* Requests List */}
             {isInitialLoading ? (
@@ -367,108 +364,115 @@ const AdminTopupRequests: React.FC = () => {
                 {requests.map((request) => (
                   <Card key={request._id} className="border border-border rounded-xl hover:border-purple-500/50 transition-colors">
                     <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    {/* User Info */}
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-full bg-transparent border border-border flex items-center justify-center">
-                            <User className="w-6 h-6" />
+                      <div className="flex items-start justify-between gap-4">
+                        {/* User Info */}
+                        <div className="flex-1 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-full bg-transparent border border-border flex items-center justify-center">
+                                <User className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-bold">{request.userId?.name || 'Unknown User'}</h3>
+                                <div className="flex items-center gap-2 text-sm text-gray-400">
+                                  <Mail size={14} />
+                                  {request.userId?.email || 'N/A'}
+                                </div>
+                              </div>
+                            </div>
+                            {getStatusBadge(request.status)}
                           </div>
-                          <div>
-                            <h3 className="text-lg font-bold">{request.userId?.name || 'Unknown User'}</h3>
-                            <div className="flex items-center gap-2 text-sm text-gray-400">
-                              <Mail size={14} />
-                              {request.userId?.email || 'N/A'}
+
+                          {/* User Details Grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-3 border-t border-border">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="w-4 h-4 text-yellow-500" />
+                              <div>
+                                <p className="text-xs text-gray-400">Requested</p>
+                                <p className="font-bold text-green-400">${request.amount}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Coins className="w-4 h-4 text-orange-500" />
+                              <div>
+                                <p className="text-xs text-gray-400">Crypto</p>
+                                <p className="font-bold">{request.cryptocurrency || 'BTC'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Wallet className="w-4 h-4 text-blue-500" />
+                              <div>
+                                <p className="text-xs text-gray-400">Current Balance</p>
+                                <p className="font-bold">${request.userId?.balance ?? 'N/A'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Trophy className="w-4 h-4 text-purple-500" />
+                              <div>
+                                <p className="text-xs text-gray-400">Tier Level</p>
+                                <p className="font-bold">Tier {request.userId?.tier ?? 'N/A'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-gray-500" />
+                              <div>
+                                <p className="text-xs text-gray-400">Requested</p>
+                                <p className="font-bold text-sm">{new Date(request.createdAt).toLocaleDateString()}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        {getStatusBadge(request.status)}
-                      </div>
 
-                      {/* User Details Grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-border">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4 text-yellow-500" />
-                          <div>
-                            <p className="text-xs text-gray-400">Requested</p>
-                            <p className="font-bold text-green-400">${request.amount}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Wallet className="w-4 h-4 text-blue-500" />
-                          <div>
-                            <p className="text-xs text-gray-400">Current Balance</p>
-                            <p className="font-bold">${request.userId?.balance ?? 'N/A'}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Trophy className="w-4 h-4 text-purple-500" />
-                          <div>
-                            <p className="text-xs text-gray-400">Tier Level</p>
-                            <p className="font-bold">Tier {request.userId?.tier ?? 'N/A'}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-500" />
-                          <div>
-                            <p className="text-xs text-gray-400">Requested</p>
-                            <p className="font-bold text-sm">{new Date(request.createdAt).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {request.processedAt && (
-                        <div className="text-xs text-gray-500 pt-2">
-                          Processed on {new Date(request.processedAt).toLocaleString()}
-                          {request.processedBy && ` by ${request.processedBy.name}`}
-                        </div>
-                      )}
-
-                      {request.notes && (
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
-                          <p className="text-sm text-red-400"><strong>Note:</strong> {request.notes}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    {request.status === 'pending' && (
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleApprove(request._id)}
-                          disabled={processingId === request._id}
-                          className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600"
-                        >
-                          {processingId === request._id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <CheckCircle className="w-4 h-4" />
+                          {request.processedAt && (
+                            <div className="text-xs text-gray-500 pt-2">
+                              Processed on {new Date(request.processedAt).toLocaleString()}
+                              {request.processedBy && ` by ${request.processedBy.name}`}
+                            </div>
                           )}
-                          Approve
-                        </Button>
-                        <Button
-                          onClick={() => handleReject(request._id)}
-                          disabled={processingId === request._id}
-                          className="border-red-500/50 text-red-500 hover:bg-red-500/10 flex items-center gap-2"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          Reject
-                        </Button>
+
+                          {request.notes && (
+                            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
+                              <p className="text-sm text-red-400"><strong>Note:</strong> {request.notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        {request.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleApprove(request._id)}
+                              disabled={processingId === request._id}
+                              className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600"
+                            >
+                              {processingId === request._id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                              Approve
+                            </Button>
+                            <Button
+                              onClick={() => handleReject(request._id)}
+                              disabled={processingId === request._id}
+                              className="border-red-500/50 text-red-500 hover:bg-red-500/10 flex items-center gap-2"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </CardContent>
+                  </Card>
+                ))}
                 <div ref={loadMoreRef} />
                 {isFetchingMore && (
                   <div className="flex items-center justify-center py-6">
                     <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
                   </div>
                 )}
-          </div>
-        )}
+              </div>
+            )}
           </div>
         </MaxWidthWrapper>
       </div>

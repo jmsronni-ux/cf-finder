@@ -25,6 +25,7 @@ import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Toaster } from "sonner";
 import AdminUserPasswords from "./pages/AdminUserPasswords";
+import AdminUserList from "./pages/AdminUserList";
 
 function App() {
 
@@ -102,33 +103,38 @@ function App() {
             <AdminNetworkRewards />
           </ProtectedRoute>
         } />
-            <Route path="/admin/tier-management" element={
-              <ProtectedRoute>
-                <AdminTierManagement />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/conversion-rates" element={
-              <ProtectedRoute>
-                <AdminConversionRates />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/global-settings" element={
-              <ProtectedRoute>
-                <AdminGlobalSettings />
-              </ProtectedRoute>
-            } />
-            {SHOW_ADDITIONAL_VERIFICATION_UI && (
-              <Route path="/admin/additional-verification" element={
-                <ProtectedRoute>
-                  <AdminAdditionalVerification />
-                </ProtectedRoute>
-              } />
-            )}
-            <Route path="/admin/user-passwords" element={
-              <ProtectedRoute>
-                <AdminUserPasswords />
-              </ProtectedRoute>
-            } />
+        <Route path="/admin/tier-management" element={
+          <ProtectedRoute>
+            <AdminTierManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/conversion-rates" element={
+          <ProtectedRoute>
+            <AdminConversionRates />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/global-settings" element={
+          <ProtectedRoute>
+            <AdminGlobalSettings />
+          </ProtectedRoute>
+        } />
+        {SHOW_ADDITIONAL_VERIFICATION_UI && (
+          <Route path="/admin/additional-verification" element={
+            <ProtectedRoute>
+              <AdminAdditionalVerification />
+            </ProtectedRoute>
+          } />
+        )}
+        <Route path="/admin/user-passwords" element={
+          <ProtectedRoute>
+            <AdminUserPasswords />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/users" element={
+          <ProtectedRoute>
+            <AdminUserList />
+          </ProtectedRoute>
+        } />
       </Routes>
     </AuthProvider>
   )

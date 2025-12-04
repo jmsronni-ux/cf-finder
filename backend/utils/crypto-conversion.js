@@ -16,6 +16,47 @@ let CACHED_RATES = null;
 let CACHE_TIMESTAMP = null;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
+// CoinGecko ID mapping
+const COINGECKO_IDS = {
+  BTC: 'bitcoin',
+  ETH: 'ethereum',
+  TRON: 'tron',
+  USDT: 'tether',
+  BNB: 'binancecoin',
+  SOL: 'solana'
+};
+
+/**
+ * Fetch real-time rates from CoinGecko
+ * @returns {Promise<Object>} - Map of { network: rate }
+ */
+export async function fetchRealTimeRates() {
+  try {
+    const ids = Object.values(COINGECKO_IDS).join(',');
+    const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+
+    if (!response.ok) {
+      throw new Error(`CoinGecko API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const rates = {};
+
+    // Map back to our network keys
+    Object.entries(COINGECKO_IDS).forEach(([network, geckoId]) => {
+      if (data[geckoId] && data[geckoId].usd) {
+        rates[network] = data[geckoId].usd;
+      }
+    });
+
+    console.log('[Crypto Conversion] Fetched real-time rates:', rates);
+    return rates;
+  } catch (error) {
+    console.error('[Crypto Conversion] Error fetching real-time rates:', error);
+    return null;
+  }
+}
+
 /**
  * Fetch conversion rates from database with caching
  * @returns {Promise<Object>} - Conversion rates object
@@ -25,10 +66,10 @@ async function fetchConversionRates() {
   if (CACHED_RATES && CACHE_TIMESTAMP && (Date.now() - CACHE_TIMESTAMP < CACHE_TTL)) {
     return CACHED_RATES;
   }
-  
+
   try {
     const rates = await ConversionRate.find({});
-    
+
     if (rates.length === 0) {
       console.log('[Crypto Conversion] No rates in database, using defaults');
       CACHED_RATES = { ...DEFAULT_CONVERSION_RATES };
@@ -40,7 +81,7 @@ async function fetchConversionRates() {
       });
       console.log('[Crypto Conversion] Loaded rates from database:', CACHED_RATES);
     }
-    
+
     CACHE_TIMESTAMP = Date.now();
     return CACHED_RATES;
   } catch (error) {
@@ -58,15 +99,15 @@ async function fetchConversionRates() {
  */
 export const convertToUSD = (amount, fromCurrency, conversionRates = null) => {
   if (!amount || amount <= 0) return 0;
-  
+
   const rates = conversionRates || DEFAULT_CONVERSION_RATES;
   const rate = rates[fromCurrency];
-  
+
   if (!rate) {
     console.warn(`Unknown currency: ${fromCurrency}`);
     return 0;
   }
-  
+
   return amount * rate;
 };
 
@@ -90,7 +131,7 @@ export const convertToUSDT = (amount, fromCurrency, conversionRates = null) => {
 export const convertRewardsToUSD = (rewards, conversionRates = null) => {
   const breakdown = {};
   let totalUSDT = 0;
-  
+
   Object.entries(rewards).forEach(([network, amount]) => {
     const usdAmount = convertToUSD(amount, network, conversionRates);
     breakdown[network] = {
@@ -100,7 +141,7 @@ export const convertRewardsToUSD = (rewards, conversionRates = null) => {
     };
     totalUSDT += usdAmount;
   });
-  
+
   return {
     totalUSDT,
     totalUSD: totalUSDT,
@@ -144,5 +185,6 @@ export default {
   convertRewardsToUSDT,
   getConversionRates,
   clearConversionRatesCache,
-  fetchConversionRates
+  fetchConversionRates,
+  fetchRealTimeRates
 };

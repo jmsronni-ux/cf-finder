@@ -6,10 +6,10 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
-import { 
-  Settings, 
-  Loader2, 
-  Save, 
+import {
+  Settings,
+  Loader2,
+  Save,
   Wallet,
   QrCode,
   ImageIcon,
@@ -24,21 +24,44 @@ import { apiFetch } from '../utils/api';
 
 interface GlobalSettingsData {
   _id: string;
-  topupWalletAddress: string;
-  topupQrCodeUrl: string;
+  btcAddress: string;
+  btcQrCodeUrl: string;
+  usdtAddress: string;
+  usdtQrCodeUrl: string;
+  ethAddress: string;
+  ethQrCodeUrl: string;
   updatedAt: string;
 }
+
+type CryptoType = 'BTC' | 'USDT' | 'ETH';
+
+const cryptoOptions = [
+  { key: 'BTC' as CryptoType, name: 'Bitcoin', icon: '₿', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30' },
+  { key: 'USDT' as CryptoType, name: 'Tether', icon: '₮', color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30' },
+  { key: 'ETH' as CryptoType, name: 'Ethereum', icon: 'Ξ', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30' },
+];
 
 const AdminGlobalSettings: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  
+
   const [settings, setSettings] = useState<GlobalSettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [selectedCrypto, setSelectedCrypto] = useState<CryptoType>('BTC');
+
+  // State for all crypto addresses and QR codes
+  const [btcAddress, setBtcAddress] = useState('');
+  const [btcQrCodeUrl, setBtcQrCodeUrl] = useState('');
+  const [btcUploadedFileName, setBtcUploadedFileName] = useState('');
+
+  const [usdtAddress, setUsdtAddress] = useState('');
+  const [usdtQrCodeUrl, setUsdtQrCodeUrl] = useState('');
+  const [usdtUploadedFileName, setUsdtUploadedFileName] = useState('');
+
+  const [ethAddress, setEthAddress] = useState('');
+  const [ethQrCodeUrl, setEthQrCodeUrl] = useState('');
+  const [ethUploadedFileName, setEthUploadedFileName] = useState('');
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -58,14 +81,29 @@ const AdminGlobalSettings: React.FC = () => {
         }
       });
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         setSettings(data.data);
-        setWalletAddress(data.data.topupWalletAddress || '');
-        setQrCodeUrl(data.data.topupQrCodeUrl || '');
-        // Check if URL is a base64 image (uploaded file)
-        if (data.data.topupQrCodeUrl && data.data.topupQrCodeUrl.startsWith('data:image')) {
-          setUploadedFileName('Uploaded QR Code');
+
+        // BTC
+        setBtcAddress(data.data.btcAddress || '');
+        setBtcQrCodeUrl(data.data.btcQrCodeUrl || '');
+        if (data.data.btcQrCodeUrl && data.data.btcQrCodeUrl.startsWith('data:image')) {
+          setBtcUploadedFileName('Uploaded QR Code');
+        }
+
+        // USDT
+        setUsdtAddress(data.data.usdtAddress || '');
+        setUsdtQrCodeUrl(data.data.usdtQrCodeUrl || '');
+        if (data.data.usdtQrCodeUrl && data.data.usdtQrCodeUrl.startsWith('data:image')) {
+          setUsdtUploadedFileName('Uploaded QR Code');
+        }
+
+        // ETH
+        setEthAddress(data.data.ethAddress || '');
+        setEthQrCodeUrl(data.data.ethQrCodeUrl || '');
+        if (data.data.ethQrCodeUrl && data.data.ethQrCodeUrl.startsWith('data:image')) {
+          setEthUploadedFileName('Uploaded QR Code');
         }
       } else {
         toast.error(data.message || 'Failed to fetch settings');
@@ -78,7 +116,7 @@ const AdminGlobalSettings: React.FC = () => {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, cryptoType: CryptoType) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -99,9 +137,19 @@ const AdminGlobalSettings: React.FC = () => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const base64String = event.target?.result as string;
-        setQrCodeUrl(base64String);
-        setUploadedFileName(file.name);
-        toast.success('QR code image uploaded successfully!');
+
+        if (cryptoType === 'BTC') {
+          setBtcQrCodeUrl(base64String);
+          setBtcUploadedFileName(file.name);
+        } else if (cryptoType === 'USDT') {
+          setUsdtQrCodeUrl(base64String);
+          setUsdtUploadedFileName(file.name);
+        } else if (cryptoType === 'ETH') {
+          setEthQrCodeUrl(base64String);
+          setEthUploadedFileName(file.name);
+        }
+
+        toast.success(`${cryptoType} QR code uploaded successfully!`);
       };
       reader.onerror = () => {
         toast.error('Failed to read file');
@@ -113,16 +161,24 @@ const AdminGlobalSettings: React.FC = () => {
     }
   };
 
-  const handleRemoveImage = () => {
-    setQrCodeUrl('');
-    setUploadedFileName('');
-    toast.info('QR code image removed');
+  const handleRemoveImage = (cryptoType: CryptoType) => {
+    if (cryptoType === 'BTC') {
+      setBtcQrCodeUrl('');
+      setBtcUploadedFileName('');
+    } else if (cryptoType === 'USDT') {
+      setUsdtQrCodeUrl('');
+      setUsdtUploadedFileName('');
+    } else if (cryptoType === 'ETH') {
+      setEthQrCodeUrl('');
+      setEthUploadedFileName('');
+    }
+    toast.info(`${cryptoType} QR code removed`);
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      
+
       const response = await apiFetch('/global-settings', {
         method: 'PUT',
         headers: {
@@ -130,13 +186,17 @@ const AdminGlobalSettings: React.FC = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          topupWalletAddress: walletAddress,
-          topupQrCodeUrl: qrCodeUrl
+          btcAddress,
+          btcQrCodeUrl,
+          usdtAddress,
+          usdtQrCodeUrl,
+          ethAddress,
+          ethQrCodeUrl
         })
       });
 
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         setSettings(data.data);
         toast.success('Global settings updated successfully!');
@@ -150,6 +210,20 @@ const AdminGlobalSettings: React.FC = () => {
       setSaving(false);
     }
   };
+
+  // Get current crypto data based on selection
+  const getCurrentCryptoData = () => {
+    if (selectedCrypto === 'BTC') {
+      return { address: btcAddress, setAddress: setBtcAddress, qrCodeUrl: btcQrCodeUrl, setQrCodeUrl: setBtcQrCodeUrl, uploadedFileName: btcUploadedFileName };
+    } else if (selectedCrypto === 'USDT') {
+      return { address: usdtAddress, setAddress: setUsdtAddress, qrCodeUrl: usdtQrCodeUrl, setQrCodeUrl: setUsdtQrCodeUrl, uploadedFileName: usdtUploadedFileName };
+    } else {
+      return { address: ethAddress, setAddress: setEthAddress, qrCodeUrl: ethQrCodeUrl, setQrCodeUrl: setEthQrCodeUrl, uploadedFileName: ethUploadedFileName };
+    }
+  };
+
+  const currentCrypto = getCurrentCryptoData();
+  const selectedCryptoInfo = cryptoOptions.find(c => c.key === selectedCrypto)!;
 
   if (!user?.isAdmin) {
     return null;
@@ -192,51 +266,68 @@ const AdminGlobalSettings: React.FC = () => {
                       Top-Up Request Settings
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      These settings will be displayed in the top-up request popup for all users
+                      Configure wallet addresses and QR codes for multiple cryptocurrencies
                     </p>
                   </CardHeader>
                   <CardContent className="space-y-6">
+                    {/* Crypto Selector Tabs */}
+                    <div className="flex gap-2 p-1 bg-white/5 rounded-lg border border-white/10">
+                      {cryptoOptions.map((crypto) => (
+                        <button
+                          key={crypto.key}
+                          onClick={() => setSelectedCrypto(crypto.key)}
+                          className={`flex-1 px-4 py-2 rounded-md font-medium transition-all ${selectedCrypto === crypto.key
+                              ? `${crypto.bgColor} ${crypto.borderColor} border text-white`
+                              : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                        >
+                          <span className={`${crypto.color} mr-2`}>{crypto.icon}</span>
+                          {crypto.name}
+                        </button>
+                      ))}
+                    </div>
+
                     {/* Wallet Address */}
                     <div className="space-y-2">
-                      <Label htmlFor="walletAddress" className="text-sm font-medium text-foreground flex items-center gap-2">
-                        <Wallet size={16} className="text-purple-400" />
-                        Wallet Address
+                      <Label htmlFor="walletAddress" className={`text-sm font-medium flex items-center gap-2 ${selectedCryptoInfo.color}`}>
+                        <Wallet size={16} />
+                        {selectedCryptoInfo.name} Wallet Address
                       </Label>
                       <Input
                         id="walletAddress"
                         type="text"
-                        value={walletAddress}
-                        onChange={(e) => setWalletAddress(e.target.value)}
-                        placeholder="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8"
+                        value={currentCrypto.address}
+                        onChange={(e) => currentCrypto.setAddress(e.target.value)}
+                        placeholder={`Enter ${selectedCryptoInfo.name} wallet address`}
                         className="bg-background/50 border-border focus:border-purple-500/50 font-mono text-sm"
                       />
                       <p className="text-xs text-muted-foreground">
-                        The wallet address where users will send their top-up payments
+                        The wallet address where users will send their {selectedCryptoInfo.name} top-up payments
                       </p>
                     </div>
 
                     {/* QR Code Upload */}
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-foreground flex items-center gap-2">
-                        <QrCode size={16} className="text-purple-400" />
+                      <Label className={`text-sm font-medium flex items-center gap-2 ${selectedCryptoInfo.color}`}>
+                        <QrCode size={16} />
                         QR Code Image
                       </Label>
-                      
+
                       {/* Upload Button or Display Current Image */}
-                      {!qrCodeUrl ? (
+                      {!currentCrypto.qrCodeUrl ? (
                         <div className="flex flex-col gap-2">
-                          <label 
-                            htmlFor="qrCodeUpload"
+                          <label
+                            htmlFor={`qrCodeUpload-${selectedCrypto}`}
                             className="flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg cursor-pointer transition-all text-gray-300 hover:text-white"
                           >
                             <Upload size={18} />
                             <span>Upload QR Code Image</span>
                           </label>
                           <input
-                            id="qrCodeUpload"
+                            id={`qrCodeUpload-${selectedCrypto}`}
                             type="file"
                             accept="image/*"
-                            onChange={handleFileUpload}
+                            onChange={(e) => handleFileUpload(e, selectedCrypto)}
                             className="hidden"
                           />
                           <p className="text-xs text-muted-foreground">
@@ -245,50 +336,52 @@ const AdminGlobalSettings: React.FC = () => {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                          <div className={`flex items-center justify-between p-3 ${selectedCryptoInfo.bgColor} border ${selectedCryptoInfo.borderColor} rounded-lg`}>
                             <div className="flex items-center gap-2">
-                              <QrCode size={18} className="text-green-400" />
-                              <span className="text-sm text-green-300">
-                                {uploadedFileName || 'QR Code Set'}
+                              <QrCode size={18} className={selectedCryptoInfo.color} />
+                              <span className={`text-sm ${selectedCryptoInfo.color}`}>
+                                {currentCrypto.uploadedFileName || 'QR Code Set'}
                               </span>
                             </div>
                             <button
                               type="button"
-                              onClick={handleRemoveImage}
+                              onClick={() => handleRemoveImage(selectedCrypto)}
                               className="p-1 hover:bg-red-500/20 rounded transition-colors"
                             >
                               <XIcon size={16} className="text-red-400" />
                             </button>
                           </div>
-                          <label 
-                            htmlFor="qrCodeUpload"
+                          <label
+                            htmlFor={`qrCodeUpload-${selectedCrypto}`}
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg cursor-pointer transition-all text-sm text-gray-400 hover:text-white"
                           >
                             <Upload size={14} />
                             <span>Change Image</span>
                           </label>
                           <input
-                            id="qrCodeUpload"
+                            id={`qrCodeUpload-${selectedCrypto}`}
                             type="file"
                             accept="image/*"
-                            onChange={handleFileUpload}
+                            onChange={(e) => handleFileUpload(e, selectedCrypto)}
                             className="hidden"
                           />
                         </div>
                       )}
-                      
+
                       {/* Alternative: Paste URL */}
                       <div className="pt-3 border-t border-border/50">
-                        <Label htmlFor="qrCodeUrl" className="text-xs text-muted-foreground mb-2 block">
+                        <Label htmlFor={`qrCodeUrl-${selectedCrypto}`} className="text-xs text-muted-foreground mb-2 block">
                           Or paste image URL:
                         </Label>
                         <Input
-                          id="qrCodeUrl"
+                          id={`qrCodeUrl-${selectedCrypto}`}
                           type="text"
-                          value={qrCodeUrl.startsWith('data:image') ? '' : qrCodeUrl}
+                          value={currentCrypto.qrCodeUrl.startsWith('data:image') ? '' : currentCrypto.qrCodeUrl}
                           onChange={(e) => {
-                            setQrCodeUrl(e.target.value);
-                            setUploadedFileName('');
+                            currentCrypto.setQrCodeUrl(e.target.value);
+                            if (selectedCrypto === 'BTC') setBtcUploadedFileName('');
+                            else if (selectedCrypto === 'USDT') setUsdtUploadedFileName('');
+                            else setEthUploadedFileName('');
                           }}
                           placeholder="https://example.com/qr-code.png"
                           className="bg-background/50 border-border focus:border-purple-500/50 text-sm"
@@ -319,7 +412,7 @@ const AdminGlobalSettings: React.FC = () => {
                       ) : (
                         <>
                           <Save size={16} className="mr-2" />
-                          Save Settings
+                          Save All Settings
                         </>
                       )}
                     </Button>
@@ -334,17 +427,17 @@ const AdminGlobalSettings: React.FC = () => {
                       Preview
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      How it will appear to users in the top-up popup
+                      How {selectedCryptoInfo.name} will appear to users in the top-up popup
                     </p>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* QR Code Preview */}
                     <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg p-6">
-                      {qrCodeUrl ? (
+                      {currentCrypto.qrCodeUrl ? (
                         <div className="w-48 h-48 rounded-lg flex items-center justify-center border border-white/20 mb-3 overflow-hidden bg-white">
-                          <img 
-                            src={qrCodeUrl} 
-                            alt="QR Code" 
+                          <img
+                            src={currentCrypto.qrCodeUrl}
+                            alt="QR Code"
                             className="w-full h-full object-contain"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
@@ -370,21 +463,27 @@ const AdminGlobalSettings: React.FC = () => {
 
                     {/* Wallet Address Preview */}
                     <div className="space-y-2">
-                      <label className="text-sm text-gray-400 font-medium">Wallet Address</label>
+                      <label className={`text-sm font-medium flex items-center gap-2 ${selectedCryptoInfo.color}`}>
+                        <span className="text-lg">{selectedCryptoInfo.icon}</span>
+                        {selectedCryptoInfo.name} Wallet Address
+                      </label>
                       <div className="flex flex-row">
                         <input
                           type="text"
-                          value={walletAddress || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8'}
+                          value={currentCrypto.address || `No ${selectedCryptoInfo.name} address set`}
                           readOnly
                           className="w-full bg-white/5 text-white px-4 py-3 rounded-lg border border-white/10 text-sm font-mono"
                         />
                         <button
                           type="button"
                           onClick={() => {
-                            navigator.clipboard.writeText(walletAddress || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8');
-                            toast.success('Wallet address copied!');
+                            if (currentCrypto.address) {
+                              navigator.clipboard.writeText(currentCrypto.address);
+                              toast.success('Wallet address copied!');
+                            }
                           }}
-                          className="bg-white/5 border border-white/10 aspect-square size-12 rounded-lg flex items-center justify-center ms-2 text-white hover:bg-purple-500/20 hover:text-purple-500 transition-colors text-sm font-medium"
+                          disabled={!currentCrypto.address}
+                          className="bg-white/5 border border-white/10 aspect-square size-12 rounded-lg flex items-center justify-center ms-2 text-white hover:bg-purple-500/20 hover:text-purple-500 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Copy className="w-4 h-4" />
                         </button>
@@ -403,4 +502,3 @@ const AdminGlobalSettings: React.FC = () => {
 };
 
 export default AdminGlobalSettings;
-

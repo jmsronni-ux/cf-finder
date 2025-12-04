@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
+import {
   LayoutDashboard,
   Users,
   Crown,
@@ -41,6 +41,13 @@ const AdminNavigation: React.FC = () => {
       icon: <Users className="w-5 h-5" />,
       description: 'Manage user rewards',
       color: 'from-blue-500 to-blue-600'
+    },
+    {
+      name: 'Manage Users',
+      path: '/admin/users',
+      icon: <UserCog className="w-5 h-5" />,
+      description: 'List & delete users',
+      color: 'from-red-500 to-orange-500'
     },
     {
       name: 'Tier Management',
@@ -141,7 +148,7 @@ const AdminNavigation: React.FC = () => {
   };
 
   // Filter out Level Management from navigation (hidden but not deleted)
-  const visibleNavItems = navItems.filter(item => 
+  const visibleNavItems = navItems.filter(item =>
     !item.name.toLowerCase().includes('level management')
   );
 
@@ -188,12 +195,12 @@ const AdminNavigation: React.FC = () => {
               {active && (
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
               )}
-              
+
               <div className="relative flex items-start gap-3">
                 {/* Icon */}
                 <div className={cn(
                   "flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-all",
-                  active 
+                  active
                     ? `bg-gradient-to-br ${item.color} text-white shadow-lg`
                     : "bg-white/10 text-gray-400 group-hover:bg-white/20"
                 )}>
@@ -211,8 +218,8 @@ const AdminNavigation: React.FC = () => {
                     </h3>
                     <ChevronRight className={cn(
                       "w-4 h-4 transition-all",
-                      active 
-                        ? "text-white translate-x-0 opacity-100" 
+                      active
+                        ? "text-white translate-x-0 opacity-100"
                         : "text-gray-500 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
                     )} />
                   </div>
