@@ -29,6 +29,7 @@ import connectDB from './database/mongodb.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 import arcjetMiddleware from './middlewares/arcjet.middleware.js';
 import { FRONTEND_URL, NODE_ENV } from './config/env.js';
+import conversionRateCron from './services/conversion-rate-cron.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +51,12 @@ if (process.env.NODE_ENV === 'production' || process.env.MIGRATE_ON_STARTUP === 
     console.error('Migration failed:', error);
   });
 }
+
+// Start conversion rate cron job (updates rates every 5 minutes when auto mode is enabled)
+// Wait a bit for DB connection to be ready
+setTimeout(() => {
+  conversionRateCron.start();
+}, 2000);
 
 // CORS configuration - allow requests from frontend
 // Always include localhost URLs for development

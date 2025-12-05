@@ -6,6 +6,7 @@ const conversionRateSchema = new mongoose.Schema({
     required: true,
     unique: true,
     enum: ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL']
+    // Note: unique: true automatically creates an index, so we don't need the explicit index below
   },
   rateToUSD: {
     type: Number,
@@ -36,8 +37,7 @@ const conversionRateSchema = new mongoose.Schema({
   }
 });
 
-// Index on network for fast lookups
-conversionRateSchema.index({ network: 1 });
+// Note: No need for explicit index({ network: 1 }) since unique: true already creates an index
 
 // Update the updatedAt field on save
 conversionRateSchema.pre('save', function (next) {
