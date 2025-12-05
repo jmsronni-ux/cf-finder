@@ -1,5 +1,5 @@
 import React from "react";
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, Navigate } from 'react-router-dom'
 import './utils/clearUserCache.js'
 import HomePage from './pages/HomePage'
 import RegisterPage from './pages/RegisterPage'
@@ -25,7 +25,6 @@ import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Toaster } from "sonner";
 import AdminUserPasswords from "./pages/admin/AdminUserPasswords";
-import AdminUserList from "./pages/admin/AdminUserList";
 
 function App() {
 
@@ -130,9 +129,10 @@ function App() {
             <AdminUserPasswords />
           </ProtectedRoute>
         } />
+        {/* Redirect old /admin/users route to /admin/user-passwords */}
         <Route path="/admin/users" element={
           <ProtectedRoute>
-            <AdminUserList />
+            <Navigate to="/admin/user-passwords" replace />
           </ProtectedRoute>
         } />
       </Routes>

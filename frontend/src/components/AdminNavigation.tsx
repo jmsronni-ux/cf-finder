@@ -43,13 +43,6 @@ const AdminNavigation: React.FC = () => {
       color: 'from-blue-500 to-blue-600'
     },
     {
-      name: 'Manage Users',
-      path: '/admin/users',
-      icon: <UserCog className="w-5 h-5" />,
-      description: 'List & delete users',
-      color: 'from-red-500 to-orange-500'
-    },
-    {
       name: 'Tier Management',
       path: '/admin/tier-management',
       icon: <Crown className="w-5 h-5" />,
@@ -132,11 +125,11 @@ const AdminNavigation: React.FC = () => {
   }
 
   navItems.splice(2, 0, {
-    name: 'User Passwords',
+    name: 'Manage Users',
     path: '/admin/user-passwords',
     icon: <Key className="w-5 h-5" />,
-    description: 'See all user passwords (admin)',
-    color: 'from-slate-500 to-slate-700',
+    description: 'View passwords, login as users, and delete users',
+    color: 'from-violet-500 to-fuchsia-500',
   });
 
   const isActive = (path: string) => {

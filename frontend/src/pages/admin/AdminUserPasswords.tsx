@@ -3,12 +3,22 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Loader2, Search, X, User, Mail, Key, LogIn, Download, Calendar, Copy, Check } from 'lucide-react';
+import { Loader2, Search, X, User, Mail, Key, LogIn, Download, Calendar, Copy, Check, Trash2, AlertTriangle } from 'lucide-react';
 import AdminNavigation from '../../components/AdminNavigation';
 import { apiFetch } from '../../utils/api';
 import { toast } from 'sonner';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
 
 interface UserData {
   _id: string;
@@ -35,6 +45,8 @@ const AdminUserPasswords: React.FC = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [copiedPasswordId, setCopiedPasswordId] = useState<string | null>(null);
   const [copiedEmailId, setCopiedEmailId] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const totalResults = totalCount || users.length;
@@ -236,6 +248,37 @@ const AdminUserPasswords: React.FC = () => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete || !token) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await apiFetch(`/user/${userToDelete._id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(`User ${userToDelete.name} deleted successfully`);
+        // Remove from list
+        setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
+        setTotalCount(prev => Math.max(0, prev - 1));
+        setUserToDelete(null);
+      } else {
+        toast.error(data.message || 'Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('An error occurred while deleting user');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Check if user is admin
   if (!user?.isAdmin) {
     return (
@@ -265,11 +308,11 @@ const AdminUserPasswords: React.FC = () => {
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-10">
               <div>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium font-heading text-foreground">
-                  User <br/> <span className="text-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text">
-                    Passwords
+                  Manage <br/> <span className="text-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text">
+                    Users
                   </span>
                 </h1>
-                <p className="text-muted-foreground mt-4">View and manage user passwords (Admin Only)</p>
+                <p className="text-muted-foreground mt-4">View passwords, login as users, and delete users (Admin Only)</p>
               </div>
             </div>
 
@@ -322,7 +365,7 @@ const AdminUserPasswords: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between mt-10 mb-6">
-              <MagicBadge title="User Passwords" />
+              <MagicBadge title="All Users" />
               {users.length > 0 && (
                 <Button
                   onClick={downloadCSV}
@@ -392,8 +435,11 @@ const AdminUserPasswords: React.FC = () => {
                       <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2">
                           <LogIn className="w-4 h-4" />
-                          Actions
+                          Login
                         </div>
+                      </th>
+                      <th className="px-6 py-3 text-right text-sm font-semibold text-foreground">
+                        Actions
                       </th>
                     </tr>
                   </thead>
@@ -460,6 +506,16 @@ const AdminUserPasswords: React.FC = () => {
                             )}
                           </Button>
                         </td>
+                        <td className="px-6 py-3">
+                          <Button
+                            onClick={() => setUserToDelete(user)}
+                            size="icon"
+                            variant="destructive"
+                            className="bg-red-600/20 hover:bg-red-600/40 text-red-500 hover:text-red-400 border border-red-600/50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -475,6 +531,42 @@ const AdminUserPasswords: React.FC = () => {
           </div>
         </MaxWidthWrapper>
       </div>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-500">
+              <AlertTriangle className="w-5 h-5" />
+              Delete User
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{userToDelete?.name}</strong> ({userToDelete?.email})?
+              <br /><br />
+              <span className="text-red-500 font-semibold">This action cannot be undone.</span> The user and all their data will be permanently removed from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteUser();
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete User'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
