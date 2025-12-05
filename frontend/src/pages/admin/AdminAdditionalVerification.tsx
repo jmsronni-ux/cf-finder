@@ -1,24 +1,24 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuth } from '../contexts/AuthContext';
-import { apiFetch } from '../utils/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { Input } from '../components/ui/input';
-import { Textarea } from '../components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Label } from '../components/ui/label';
+import { useAuth } from '../../contexts/AuthContext';
+import { apiFetch } from '../../utils/api';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Input } from '../../components/ui/input';
+import { Textarea } from '../../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Label } from '../../components/ui/label';
 import { 
   FileText, User, Mail, CheckCircle, XCircle, Eye, RefreshCw, Loader2, X, FileDown, 
   ClipboardList, Send, Image as ImageIcon, File, Search, Plus, Trash2, Edit2, 
   ChevronUp, ChevronDown, Layers
 } from 'lucide-react';
-import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
-import MagicBadge from '../components/ui/magic-badge';
-import AdminNavigation from '../components/AdminNavigation';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
+import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
+import MagicBadge from '../../components/ui/magic-badge';
+import AdminNavigation from '../../components/AdminNavigation';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 
 interface QuestionnaireField {
   key: string;
@@ -106,6 +106,7 @@ const AdminAdditionalVerification: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [fields, setFields] = useState<QuestionnaireField[]>([]);
+  const [isQuestionnaireExpanded, setIsQuestionnaireExpanded] = useState(false);
 
   const fetchSubmissions = useCallback(async (requestedPage = 1) => {
     if (!token || !user?.isAdmin) return;
@@ -526,11 +527,26 @@ const AdminAdditionalVerification: React.FC = () => {
             {/* Questionnaire Builder Section */}
             <Card className="border border-border rounded-xl mb-10">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5" />
-                  {currentQuestionnaire ? 'Edit Questionnaire' : 'Create Questionnaire'}
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5" />
+                    {currentQuestionnaire ? 'Edit Questionnaire' : 'Create Questionnaire'}
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsQuestionnaireExpanded(!isQuestionnaireExpanded)}
+                    className="h-8 w-8"
+                  >
+                    {isQuestionnaireExpanded ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
+              {isQuestionnaireExpanded && (
               <CardContent className="space-y-6">
                 {/* Basic Info */}
                 <div>
@@ -672,6 +688,7 @@ const AdminAdditionalVerification: React.FC = () => {
                 </Button>
                           </div>
               </CardContent>
+              )}
             </Card>
 
 

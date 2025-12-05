@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 import { toast } from 'sonner';
 import {
   Settings,
@@ -17,10 +17,10 @@ import {
   Upload,
   X as XIcon
 } from 'lucide-react';
-import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
-import MagicBadge from '../components/ui/magic-badge';
-import AdminNavigation from '../components/AdminNavigation';
-import { apiFetch } from '../utils/api';
+import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
+import MagicBadge from '../../components/ui/magic-badge';
+import AdminNavigation from '../../components/AdminNavigation';
+import { apiFetch } from '../../utils/api';
 
 interface GlobalSettingsData {
   _id: string;
@@ -36,9 +36,9 @@ interface GlobalSettingsData {
 type CryptoType = 'BTC' | 'USDT' | 'ETH';
 
 const cryptoOptions = [
-  { key: 'BTC' as CryptoType, name: 'Bitcoin', icon: '₿', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30' },
-  { key: 'USDT' as CryptoType, name: 'Tether', icon: '₮', color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30' },
-  { key: 'ETH' as CryptoType, name: 'Ethereum', icon: 'Ξ', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30' },
+  { key: 'BTC' as CryptoType, name: 'BTC', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30' },
+  { key: 'USDT' as CryptoType, name: 'USDT', icon: '/assets/crypto-logos/tether-usdt-logo.svg', color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30' },
+  { key: 'ETH' as CryptoType, name: 'ETH', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30' },
 ];
 
 const AdminGlobalSettings: React.FC = () => {
@@ -276,13 +276,17 @@ const AdminGlobalSettings: React.FC = () => {
                         <button
                           key={crypto.key}
                           onClick={() => setSelectedCrypto(crypto.key)}
-                          className={`flex-1 px-4 py-2 rounded-md font-medium transition-all ${selectedCrypto === crypto.key
+                          className={`flex-1 px-4 py-2 rounded-md font-medium transition-all flex flex-col items-center justify-center ${selectedCrypto === crypto.key
                               ? `${crypto.bgColor} ${crypto.borderColor} border text-white`
                               : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
                         >
-                          <span className={`${crypto.color} mr-2`}>{crypto.icon}</span>
-                          {crypto.name}
+                          <img 
+                            src={crypto.icon} 
+                            alt={crypto.name} 
+                            className={`w-6 h-6 ${selectedCrypto === crypto.key ? '' : 'opacity-70'}`}
+                          />
+                          <span className="text-xs mt-1">{crypto.name}</span>
                         </button>
                       ))}
                     </div>
@@ -464,7 +468,11 @@ const AdminGlobalSettings: React.FC = () => {
                     {/* Wallet Address Preview */}
                     <div className="space-y-2">
                       <label className={`text-sm font-medium flex items-center gap-2 ${selectedCryptoInfo.color}`}>
-                        <span className="text-lg">{selectedCryptoInfo.icon}</span>
+                        <img 
+                          src={selectedCryptoInfo.icon} 
+                          alt={selectedCryptoInfo.name} 
+                          className="w-5 h-5"
+                        />
                         {selectedCryptoInfo.name} Wallet Address
                       </label>
                       <div className="flex flex-row">

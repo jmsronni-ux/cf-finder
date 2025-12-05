@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
 import { toast } from 'sonner';
 import { 
   Upload, 
@@ -18,11 +18,11 @@ import {
   CheckCircle,
   RefreshCw
 } from 'lucide-react';
-import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
-import MagicBadge from '../components/ui/magic-badge';
-import AdminNavigation from '../components/AdminNavigation';
-import { useLevelData } from '../hooks/useLevelData';
-import { apiFetch } from '../utils/api';
+import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
+import MagicBadge from '../../components/ui/magic-badge';
+import AdminNavigation from '../../components/AdminNavigation';
+import { useLevelData } from '../../hooks/useLevelData';
+import { apiFetch } from '../../utils/api';
 
 interface LevelUploadData {
   level: number;

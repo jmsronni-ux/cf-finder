@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { Input } from '../components/ui/input';
+import { Card, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
 import { 
   Loader2,
@@ -18,12 +18,12 @@ import {
   Trophy,
   X
 } from 'lucide-react';
-import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
-import MagicBadge from '../components/ui/magic-badge';
-import AdminNavigation from '../components/AdminNavigation';
-import { apiFetch } from '../utils/api';
-import { WalletVerificationRequest } from '../types/wallet-verification';
-import WalletVerificationModal from '../components/WalletVerificationModal';
+import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
+import MagicBadge from '../../components/ui/magic-badge';
+import AdminNavigation from '../../components/AdminNavigation';
+import { apiFetch } from '../../utils/api';
+import { WalletVerificationRequest } from '../../types/wallet-verification';
+import WalletVerificationModal from '../../components/WalletVerificationModal';
 
 const AdminWalletVerifications: React.FC = () => {
   const { user, token } = useAuth();

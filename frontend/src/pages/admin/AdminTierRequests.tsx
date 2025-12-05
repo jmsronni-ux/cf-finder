@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { Textarea } from '../components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Textarea } from '../../components/ui/textarea';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, DollarSign, User, Mail, Trophy, Calendar, Loader2, ArrowLeft, Search, X, UserRoundSearch, Wallet } from 'lucide-react';
-import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
-import MagicBadge from '../components/ui/magic-badge';
-import AdminNavigation from '../components/AdminNavigation';
-import { apiFetch } from '../utils/api';
+import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
+import MagicBadge from '../../components/ui/magic-badge';
+import AdminNavigation from '../../components/AdminNavigation';
+import { apiFetch } from '../../utils/api';
 
 interface TierRequestData {
   _id: string;

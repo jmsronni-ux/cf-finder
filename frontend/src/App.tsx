@@ -6,26 +6,26 @@ import RegisterPage from './pages/RegisterPage'
 import SignupPage from './pages/SignupPage'
 import Dashboard from "./pages/Dashboard";
 import UserProfile from "./pages/UserProfile";
-import AdminTopupRequests from "./pages/AdminTopupRequests";
-import AdminUserRewards from "./pages/AdminUserRewards";
-import AdminWithdrawRequests from "./pages/AdminWithdrawRequests";
-import AdminTierRequests from "./pages/AdminTierRequests";
-import AdminRegistrationRequests from "./pages/AdminRegistrationRequests";
-import AdminLevelManagement from "./pages/AdminLevelManagement";
-import AdminNetworkRewards from "./pages/AdminNetworkRewards";
-import AdminTierManagement from "./pages/AdminTierManagement";
-import AdminConversionRates from "./pages/AdminConversionRates";
-import AdminGlobalSettings from "./pages/AdminGlobalSettings";
-import AdminWalletVerifications from "./pages/AdminWalletVerifications";
+import AdminTopupRequests from "./pages/admin/AdminTopupRequests";
+import AdminUserRewards from "./pages/admin/AdminUserRewards";
+import AdminWithdrawRequests from "./pages/admin/AdminWithdrawRequests";
+import AdminTierRequests from "./pages/admin/AdminTierRequests";
+import AdminRegistrationRequests from "./pages/admin/AdminRegistrationRequests";
+import AdminLevelManagement from "./pages/admin/AdminLevelManagement";
+import AdminNetworkRewards from "./pages/admin/AdminNetworkRewards";
+import AdminTierManagement from "./pages/admin/AdminTierManagement";
+import AdminConversionRates from "./pages/admin/AdminConversionRates";
+import AdminGlobalSettings from "./pages/admin/AdminGlobalSettings";
+import AdminWalletVerifications from "./pages/admin/AdminWalletVerifications";
 import AdditionalVerification from "./pages/AdditionalVerification";
-import AdminAdditionalVerification from "./pages/AdminAdditionalVerification";
+import AdminAdditionalVerification from "./pages/admin/AdminAdditionalVerification";
 import { SHOW_ADDITIONAL_VERIFICATION_UI } from "./config/featureFlags";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Toaster } from "sonner";
-import AdminUserPasswords from "./pages/AdminUserPasswords";
-import AdminUserList from "./pages/AdminUserList";
+import AdminUserPasswords from "./pages/admin/AdminUserPasswords";
+import AdminUserList from "./pages/admin/AdminUserList";
 
 function App() {
 

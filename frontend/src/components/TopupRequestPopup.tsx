@@ -12,9 +12,9 @@ interface TopupRequestPopupProps {
 type CryptoType = 'BTC' | 'USDT' | 'ETH';
 
 const cryptoOptions = [
-  { key: 'BTC' as CryptoType, name: 'Bitcoin', icon: '₿', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30' },
-  { key: 'USDT' as CryptoType, name: 'Tether', icon: '₮', color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30' },
-  { key: 'ETH' as CryptoType, name: 'Ethereum', icon: 'Ξ', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30' },
+  { key: 'BTC' as CryptoType, name: 'BTC', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30' },
+  { key: 'USDT' as CryptoType, name: 'USDT', icon: '/assets/crypto-logos/tether-usdt-logo.svg', color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30' },
+  { key: 'ETH' as CryptoType, name: 'ETH', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30' },
 ];
 
 const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }) => {
@@ -190,13 +190,17 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                       type="button"
                       onClick={() => setSelectedCrypto(crypto.key)}
                       disabled={isLoading}
-                      className={`px-3 py-2 rounded-md font-medium transition-all ${selectedCrypto === crypto.key
+                      className={`px-3 py-2 rounded-md font-medium transition-all flex flex-col items-center justify-center ${selectedCrypto === crypto.key
                           ? `${crypto.bgColor} ${crypto.borderColor} border text-white`
                           : 'text-gray-400 hover:text-white hover:bg-white/5'
                         }`}
                     >
-                      <span className={`${crypto.color} text-lg block mb-1`}>{crypto.icon}</span>
-                      <span className="text-xs">{crypto.name}</span>
+                      <img 
+                        src={crypto.icon} 
+                        alt={crypto.name} 
+                        className={`w-6 h-6 ${selectedCrypto === crypto.key ? '' : 'opacity-70'}`}
+                      />
+                      <span className="text-xs mt-3">{crypto.name}</span>
                     </button>
                   ))}
                 </div>
@@ -250,7 +254,11 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               {/* Wallet Address */}
               <div className="space-y-2">
                 <label className={`text-sm font-medium flex items-center gap-2 ${selectedCryptoInfo.color}`}>
-                  <span className="text-lg">{selectedCryptoInfo.icon}</span>
+                  <img 
+                    src={selectedCryptoInfo.icon} 
+                    alt={selectedCryptoInfo.name} 
+                    className="w-5 h-5"
+                  />
                   {selectedCryptoInfo.name} Wallet Address
                 </label>
                 <div className="flex flex-row">

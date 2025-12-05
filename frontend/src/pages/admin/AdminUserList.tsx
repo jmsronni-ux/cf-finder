@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { Loader2, Search, X, User, Mail, Calendar, Trash2, AlertTriangle } from 'lucide-react';
-import AdminNavigation from '../components/AdminNavigation';
-import { apiFetch } from '../utils/api';
+import AdminNavigation from '../../components/AdminNavigation';
+import { apiFetch } from '../../utils/api';
 import { toast } from 'sonner';
-import MaxWidthWrapper from '../components/helpers/max-width-wrapper';
-import MagicBadge from '../components/ui/magic-badge';
+import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
+import MagicBadge from '../../components/ui/magic-badge';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -18,7 +18,7 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from "../components/ui/alert-dialog";
+} from "../../components/ui/alert-dialog";
 
 interface UserData {
     _id: string;
