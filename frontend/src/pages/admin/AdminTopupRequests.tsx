@@ -3,10 +3,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, DollarSign, User, Mail, Wallet, Trophy, Calendar, Loader2, ArrowLeft, Search, X, UserRoundSearch, Coins } from 'lucide-react';
+import { CheckCircle, XCircle, DollarSign, User, Mail, Wallet, Trophy, Calendar, Loader2, ArrowLeft, Search, X, UserRoundSearch, Coins, Clock } from 'lucide-react';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
 import AdminNavigation from '../../components/AdminNavigation';
@@ -50,8 +49,7 @@ const AdminTopupRequests: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
-  const [customAmount, setCustomAmount] = useState<string>('');
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -176,8 +174,11 @@ const AdminTopupRequests: React.FC = () => {
 
       if (response.ok && data.success) {
         toast.success('Top-up request approved successfully!');
-        setEditingAmountId(null);
-        setCustomAmount('');
+        setCustomAmounts(prev => {
+          const updated = { ...prev };
+          delete updated[requestId];
+          return updated;
+        });
         fetchRequests(1, false); // Refresh the list
       } else {
         toast.error(data.message || 'Failed to approve request');
@@ -191,8 +192,9 @@ const AdminTopupRequests: React.FC = () => {
   };
 
   const handleApproveWithAmount = (requestId: string, originalAmount: number) => {
-    if (editingAmountId === requestId) {
-      const amount = parseFloat(customAmount);
+    const customAmountValue = customAmounts[requestId];
+    if (customAmountValue !== undefined && customAmountValue !== '') {
+      const amount = parseFloat(customAmountValue);
       if (isNaN(amount) || amount < 0) {
         toast.error('Please enter a valid amount');
         return;
@@ -251,16 +253,29 @@ const AdminTopupRequests: React.FC = () => {
     );
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/50">Pending</Badge>;
+        return <Clock className="w-5 h-5" />;
       case 'approved':
-        return <Badge className="bg-green-500/20 text-green-500 border-green-500/50">Approved</Badge>;
+        return <CheckCircle className="w-5 h-5" />;
       case 'rejected':
-        return <Badge className="bg-red-500/20 text-red-500 border-red-500/50">Rejected</Badge>;
+        return <XCircle className="w-5 h-5" />;
       default:
-        return <Badge>{status}</Badge>;
+        return null;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-500/15 border-yellow-500/20 text-yellow-500';
+      case 'approved':
+        return 'bg-green-500/15 border-green-500/20 text-green-500';
+      case 'rejected':
+        return 'bg-red-500/15 border-red-500/20 text-red-500';
+      default:
+        return 'bg-gray-500/15 border-gray-500/20 text-gray-500';
     }
   };
 
@@ -386,12 +401,17 @@ const AdminTopupRequests: React.FC = () => {
             ) : (
               <div className="grid gap-6">
                 {requests.map((request) => (
-                  <Card key={request._id} className="border border-border rounded-xl hover:border-purple-500/50 transition-colors">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between gap-4">
-                        {/* User Info */}
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center justify-between">
+                  <Card key={request._id} className="border border-border rounded-xl hover:border-purple-500/50 transition-colors overflow-hidden">
+                    <div className="flex items-stretch">
+                      {/* Status Bar */}
+                      <div className={`flex items-center justify-center min-w-[60px] self-stretch ${getStatusColor(request.status)} border rounded-l-2xl`}>
+                        {getStatusIcon(request.status)}
+                      </div>
+                      
+                      <CardContent className="p-6 flex-1">
+                        <div className="flex items-start justify-between gap-4">
+                          {/* User Info */}
+                          <div className="flex-1 space-y-3">
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-full bg-transparent border border-border flex items-center justify-center">
                                 <User className="w-6 h-6" />
@@ -404,8 +424,6 @@ const AdminTopupRequests: React.FC = () => {
                                 </div>
                               </div>
                             </div>
-                            {getStatusBadge(request.status)}
-                          </div>
 
                           {/* User Details Grid */}
                           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-3 border-t border-border">
@@ -436,7 +454,7 @@ const AdminTopupRequests: React.FC = () => {
                               <Wallet className="w-4 h-4 text-blue-500" />
                               <div>
                                 <p className="text-xs text-gray-400">Current Balance</p>
-                                <p className="font-bold">${request.userId?.balance ?? 'N/A'}</p>
+                                <p className="font-bold">${request.userId?.balance.toFixed(2) ?? 'N/A'}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -467,74 +485,57 @@ const AdminTopupRequests: React.FC = () => {
                               <p className="text-sm text-red-400"><strong>Note:</strong> {request.notes}</p>
                             </div>
                           )}
-                        </div>
+                          </div>
 
-                        {/* Action Buttons */}
-                        {request.status === 'pending' && (
-                          <div className="flex flex-col gap-2">
-                            {editingAmountId === request._id && (
-                              <div className="flex items-center gap-2 mb-2">
+                          {/* Action Buttons */}
+                          {request.status === 'pending' && (
+                            <div className="flex flex-col gap-3 min-w-[200px]">
+                              <div className="flex flex-col gap-2">
+                                <label className="text-xs text-muted-foreground">Approval Amount</label>
                                 <Input
                                   type="number"
-                                  placeholder={`Original: $${request.amount}`}
-                                  value={customAmount}
-                                  onChange={(e) => setCustomAmount(e.target.value)}
-                                  className="w-32 bg-background/50 border-border text-foreground"
+                                  placeholder={`Requested: $${request.amount}`}
+                                  value={customAmounts[request._id] ?? request.amount.toString()}
+                                  onChange={(e) => setCustomAmounts(prev => ({
+                                    ...prev,
+                                    [request._id]: e.target.value
+                                  }))}
+                                  className="bg-background/50 border-border text-foreground"
                                   min="0"
                                   step="0.01"
                                 />
+                              </div>
+                              <div className="flex gap-2">
                                 <Button
-                                  onClick={() => {
-                                    setEditingAmountId(null);
-                                    setCustomAmount('');
-                                  }}
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs"
+                                  onClick={() => handleApproveWithAmount(request._id, request.amount)}
+                                  disabled={processingId === request._id}
+                                  className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600 flex-1"
                                 >
-                                  Cancel
+                                  {processingId === request._id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="w-4 h-4" />
+                                  )}
+                                  Approve
+                                </Button>
+                                <Button
+                                  onClick={() => handleReject(request._id)}
+                                  disabled={processingId === request._id}
+                                  className="bg-red-600/50 hover:bg-red-700 text-white flex items-center gap-2 border border-red-600 flex-1"
+                                >
+                                  {processingId === request._id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <XCircle className="w-4 h-4" />
+                                  )}
+                                  Reject
                                 </Button>
                               </div>
-                            )}
-                            <div className="flex gap-2">
-                              {!editingAmountId || editingAmountId !== request._id ? (
-                                <Button
-                                  onClick={() => {
-                                    setEditingAmountId(request._id);
-                                    setCustomAmount(request.amount.toString());
-                                  }}
-                                  variant="outline"
-                                  className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10 flex items-center gap-2"
-                                >
-                                  <DollarSign className="w-4 h-4" />
-                                  Edit Amount
-                                </Button>
-                              ) : null}
-                              <Button
-                                onClick={() => handleApproveWithAmount(request._id, request.amount)}
-                                disabled={processingId === request._id}
-                                className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600"
-                              >
-                                {processingId === request._id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="w-4 h-4" />
-                                )}
-                                Approve {editingAmountId === request._id && customAmount ? `$${customAmount}` : ''}
-                              </Button>
-                              <Button
-                                onClick={() => handleReject(request._id)}
-                                disabled={processingId === request._id}
-                                className="border-red-500/50 text-red-500 hover:bg-red-500/10 flex items-center gap-2"
-                              >
-                                <XCircle className="w-4 h-4" />
-                                Reject
-                              </Button>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
+                          )}
+                        </div>
+                      </CardContent>
+                    </div>
                   </Card>
                 ))}
                 <div ref={loadMoreRef} />
