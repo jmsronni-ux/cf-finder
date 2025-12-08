@@ -102,6 +102,7 @@ export const getMyTopupRequests = async (req, res, next) => {
 export const approveTopupRequest = async (req, res, next) => {
     try {
         const { requestId } = req.params;
+        const { approvedAmount } = req.body;
         const adminId = req.user._id;
 
         const topupRequest = await TopupRequest.findById(requestId).populate('userId');
@@ -114,19 +115,30 @@ export const approveTopupRequest = async (req, res, next) => {
             throw new ApiError(400, `Request already ${topupRequest.status}`);
         }
 
+        // Determine the amount to add (use approvedAmount if provided, otherwise use original amount)
+        const amountToAdd = approvedAmount !== undefined && approvedAmount !== null
+            ? Number(approvedAmount)
+            : topupRequest.amount;
+
+        // Validate the approved amount
+        if (amountToAdd < 0) {
+            throw new ApiError(400, 'Approved amount cannot be negative');
+        }
+
         // Update user balance
         const user = await User.findById(topupRequest.userId._id);
         if (!user) {
             throw new ApiError(404, 'User not found');
         }
 
-        user.balance += topupRequest.amount;
+        user.balance += amountToAdd;
         await user.save();
 
         // Update request status
         topupRequest.status = 'approved';
         topupRequest.processedAt = new Date();
         topupRequest.processedBy = adminId;
+        topupRequest.approvedAmount = amountToAdd;
         await topupRequest.save();
 
         res.status(200).json({

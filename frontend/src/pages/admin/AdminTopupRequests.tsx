@@ -32,6 +32,7 @@ interface TopupRequestData {
     email: string;
   };
   notes?: string;
+  approvedAmount?: number;
 }
 
 const AdminTopupRequests: React.FC = () => {
@@ -49,6 +50,8 @@ const AdminTopupRequests: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
+  const [customAmount, setCustomAmount] = useState<string>('');
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -152,21 +155,29 @@ const AdminTopupRequests: React.FC = () => {
   const totalResults = totalCount || requests.length;
   const isInitialLoading = isLoading && requests.length === 0;
 
-  const handleApprove = async (requestId: string) => {
+  const handleApprove = async (requestId: string, approvedAmount?: number) => {
     setProcessingId(requestId);
     try {
+      const body: { approvedAmount?: number } = {};
+      if (approvedAmount !== undefined) {
+        body.approvedAmount = approvedAmount;
+      }
+
       const response = await apiFetch(`/topup-request/${requestId}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
         toast.success('Top-up request approved successfully!');
+        setEditingAmountId(null);
+        setCustomAmount('');
         fetchRequests(1, false); // Refresh the list
       } else {
         toast.error(data.message || 'Failed to approve request');
@@ -176,6 +187,19 @@ const AdminTopupRequests: React.FC = () => {
       toast.error('An error occurred while approving the request');
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleApproveWithAmount = (requestId: string, originalAmount: number) => {
+    if (editingAmountId === requestId) {
+      const amount = parseFloat(customAmount);
+      if (isNaN(amount) || amount < 0) {
+        toast.error('Please enter a valid amount');
+        return;
+      }
+      handleApprove(requestId, amount);
+    } else {
+      handleApprove(requestId, originalAmount);
     }
   };
 
@@ -268,8 +292,8 @@ const AdminTopupRequests: React.FC = () => {
               <button
                 onClick={() => setFilter('all')}
                 className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'all'
-                    ? 'bg-blue-500/20 text-blue-500 border-b-2 border-blue-500'
-                    : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-blue-500/20 text-blue-500 border-b-2 border-blue-500'
+                  : 'text-muted-foreground hover:text-foreground'
                   }`}
               >
                 All
@@ -277,8 +301,8 @@ const AdminTopupRequests: React.FC = () => {
               <button
                 onClick={() => setFilter('pending')}
                 className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'pending'
-                    ? 'bg-yellow-500/20 text-yellow-500 border-b-2 border-yellow-500'
-                    : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-yellow-500/20 text-yellow-500 border-b-2 border-yellow-500'
+                  : 'text-muted-foreground hover:text-foreground'
                   }`}
               >
                 Pending
@@ -286,8 +310,8 @@ const AdminTopupRequests: React.FC = () => {
               <button
                 onClick={() => setFilter('approved')}
                 className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'approved'
-                    ? 'bg-green-500/20 text-green-500 border-b-2 border-green-500'
-                    : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-green-500/20 text-green-500 border-b-2 border-green-500'
+                  : 'text-muted-foreground hover:text-foreground'
                   }`}
               >
                 Approved
@@ -295,8 +319,8 @@ const AdminTopupRequests: React.FC = () => {
               <button
                 onClick={() => setFilter('rejected')}
                 className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'rejected'
-                    ? 'bg-red-500/20 text-red-500 border-b-2 border-red-500'
-                    : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-red-500/20 text-red-500 border-b-2 border-red-500'
+                  : 'text-muted-foreground hover:text-foreground'
                   }`}
               >
                 Rejected
@@ -392,6 +416,15 @@ const AdminTopupRequests: React.FC = () => {
                                 <p className="font-bold text-green-400">${request.amount}</p>
                               </div>
                             </div>
+                            {request.approvedAmount !== undefined && request.status === 'approved' && (
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="w-4 h-4 text-blue-500" />
+                                <div>
+                                  <p className="text-xs text-gray-400">Approved</p>
+                                  <p className="font-bold text-blue-400">${request.approvedAmount}</p>
+                                </div>
+                              </div>
+                            )}
                             <div className="flex items-center gap-2">
                               <Coins className="w-4 h-4 text-orange-500" />
                               <div>
@@ -438,27 +471,66 @@ const AdminTopupRequests: React.FC = () => {
 
                         {/* Action Buttons */}
                         {request.status === 'pending' && (
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => handleApprove(request._id)}
-                              disabled={processingId === request._id}
-                              className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600"
-                            >
-                              {processingId === request._id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CheckCircle className="w-4 h-4" />
-                              )}
-                              Approve
-                            </Button>
-                            <Button
-                              onClick={() => handleReject(request._id)}
-                              disabled={processingId === request._id}
-                              className="border-red-500/50 text-red-500 hover:bg-red-500/10 flex items-center gap-2"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              Reject
-                            </Button>
+                          <div className="flex flex-col gap-2">
+                            {editingAmountId === request._id && (
+                              <div className="flex items-center gap-2 mb-2">
+                                <Input
+                                  type="number"
+                                  placeholder={`Original: $${request.amount}`}
+                                  value={customAmount}
+                                  onChange={(e) => setCustomAmount(e.target.value)}
+                                  className="w-32 bg-background/50 border-border text-foreground"
+                                  min="0"
+                                  step="0.01"
+                                />
+                                <Button
+                                  onClick={() => {
+                                    setEditingAmountId(null);
+                                    setCustomAmount('');
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              {!editingAmountId || editingAmountId !== request._id ? (
+                                <Button
+                                  onClick={() => {
+                                    setEditingAmountId(request._id);
+                                    setCustomAmount(request.amount.toString());
+                                  }}
+                                  variant="outline"
+                                  className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10 flex items-center gap-2"
+                                >
+                                  <DollarSign className="w-4 h-4" />
+                                  Edit Amount
+                                </Button>
+                              ) : null}
+                              <Button
+                                onClick={() => handleApproveWithAmount(request._id, request.amount)}
+                                disabled={processingId === request._id}
+                                className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600"
+                              >
+                                {processingId === request._id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-4 h-4" />
+                                )}
+                                Approve {editingAmountId === request._id && customAmount ? `$${customAmount}` : ''}
+                              </Button>
+                              <Button
+                                onClick={() => handleReject(request._id)}
+                                disabled={processingId === request._id}
+                                className="border-red-500/50 text-red-500 hover:bg-red-500/10 flex items-center gap-2"
+                              >
+                                <XCircle className="w-4 h-4" />
+                                Reject
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>

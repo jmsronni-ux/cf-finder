@@ -34,6 +34,10 @@ const topupRequestSchema = new mongoose.Schema({
     },
     notes: {
         type: String
+    },
+    approvedAmount: {
+        type: Number,
+        min: [0, 'Approved amount cannot be negative']
     }
 });
 
