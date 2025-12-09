@@ -165,17 +165,35 @@ export const deleteUser = async (req, res, next) => {
     }
 };
 
-// Update authenticated user's basic profile (name only)
+// Update authenticated user's basic profile (name and phone)
 export const updateMyProfile = async (req, res, next) => {
     try {
-        const { name } = req.body || {};
-        if (!name || typeof name !== 'string' || !name.trim()) {
-            return res.status(400).json({ success: false, message: 'Name is required' });
+        const { name, phone } = req.body || {};
+        const updateFields = {};
+        
+        if (name !== undefined) {
+            if (!name || typeof name !== 'string' || !name.trim()) {
+                return res.status(400).json({ success: false, message: 'Name is required' });
+            }
+            updateFields.name = name.trim();
         }
+        
+        if (phone !== undefined) {
+            if (!phone || typeof phone !== 'string' || !phone.trim()) {
+                return res.status(400).json({ success: false, message: 'Phone is required' });
+            }
+            updateFields.phone = phone.trim();
+        }
+        
+        if (Object.keys(updateFields).length === 0) {
+            return res.status(400).json({ success: false, message: 'At least one field (name or phone) must be provided' });
+        }
+        
+        updateFields.updatedAt = new Date();
 
         const updated = await User.findByIdAndUpdate(
             req.user._id,
-            { $set: { name: name.trim(), updatedAt: new Date() } },
+            { $set: updateFields },
             { new: true, runValidators: true }
         ).select('-password');
 
@@ -617,6 +635,137 @@ export const getAllUsersWithPasswords = async (req, res, next) => {
             }
         });
     } catch (error) {
+        next(error);
+    }
+};
+
+// Get authenticated user's company details
+export const getMyCompanyDetails = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user._id).select('companyDetails');
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+        res.status(200).json({ success: true, data: user.companyDetails || {} });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Update authenticated user's company details
+export const updateMyCompanyDetails = async (req, res, next) => {
+    try {
+        const { companyDetails } = req.body || {};
+        if (!companyDetails || typeof companyDetails !== 'object') {
+            return res.status(400).json({ success: false, message: 'Invalid company details payload' });
+        }
+
+        // Whitelist fields
+        const allowed = [
+            'companyName',
+            'companyRegistrationNumber',
+            'companyAddress',
+            'companyCity',
+            'companyState',
+            'companyCountry',
+            'companyPostalCode',
+            'companyTaxId'
+        ];
+        const update = {};
+
+        for (const key of allowed) {
+            if (key in companyDetails) {
+                update[`companyDetails.${key}`] = companyDetails[key]?.trim() || '';
+            }
+        }
+
+        if (Object.keys(update).length === 0) {
+            return res.status(400).json({ success: false, message: 'No valid company detail fields provided' });
+        }
+
+        const updated = await User.findByIdAndUpdate(
+            req.user._id,
+            { $set: update },
+            { new: true, runValidators: true }
+        ).select('companyDetails');
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Company details updated successfully',
+            data: updated.companyDetails || {}
+        });
+    } catch (error) {
+        console.error('Error updating company details:', error);
+        next(error);
+    }
+};
+
+// Get authenticated user's banking details
+export const getMyBankingDetails = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user._id).select('bankingDetails');
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+        res.status(200).json({ success: true, data: user.bankingDetails || {} });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Update authenticated user's banking details
+export const updateMyBankingDetails = async (req, res, next) => {
+    try {
+        const { bankingDetails } = req.body || {};
+        if (!bankingDetails || typeof bankingDetails !== 'object') {
+            return res.status(400).json({ success: false, message: 'Invalid banking details payload' });
+        }
+
+        // Whitelist fields
+        const allowed = [
+            'bankName',
+            'accountHolderName',
+            'accountNumber',
+            'routingNumber',
+            'swiftCode',
+            'iban',
+            'bankAddress',
+            'bankCity',
+            'bankCountry'
+        ];
+        const update = {};
+
+        for (const key of allowed) {
+            if (key in bankingDetails) {
+                update[`bankingDetails.${key}`] = bankingDetails[key]?.trim() || '';
+            }
+        }
+
+        if (Object.keys(update).length === 0) {
+            return res.status(400).json({ success: false, message: 'No valid banking detail fields provided' });
+        }
+
+        const updated = await User.findByIdAndUpdate(
+            req.user._id,
+            { $set: update },
+            { new: true, runValidators: true }
+        ).select('bankingDetails');
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Banking details updated successfully',
+            data: updated.bankingDetails || {}
+        });
+    } catch (error) {
+        console.error('Error updating banking details:', error);
         next(error);
     }
 };

@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Loader2, Search, X, User, Mail, Key, LogIn, Download, Calendar, Copy, Check, Trash2, AlertTriangle } from 'lucide-react';
+import { Loader2, Search, X, User, Mail, Key, LogIn, Download, Calendar, Copy, Check, Trash2, AlertTriangle, Info } from 'lucide-react';
 import AdminNavigation from '../../components/AdminNavigation';
 import { apiFetch } from '../../utils/api';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
+import UserDetailsPopup, { FullUserData } from "../../components/admin/UserDetailsPopup";
 
 interface UserData {
   _id: string;
@@ -27,6 +28,7 @@ interface UserData {
   password: string;
   createdAt?: string;
 }
+
 
 const PAGE_SIZE = 20;
 
@@ -47,6 +49,8 @@ const AdminUserPasswords: React.FC = () => {
   const [copiedEmailId, setCopiedEmailId] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<FullUserData | null>(null);
+  const [loadingUserDetails, setLoadingUserDetails] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const totalResults = totalCount || users.length;
@@ -279,6 +283,32 @@ const AdminUserPasswords: React.FC = () => {
     }
   };
 
+  const handleViewUserDetails = async (userId: string) => {
+    if (!token) return;
+    
+    setLoadingUserDetails(true);
+    try {
+      const response = await apiFetch(`/user/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSelectedUser(data.data);
+      } else {
+        toast.error(data.message || 'Failed to fetch user details');
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      toast.error('An error occurred while fetching user details');
+    } finally {
+      setLoadingUserDetails(false);
+    }
+  };
+
   // Check if user is admin
   if (!user?.isAdmin) {
     return (
@@ -404,41 +434,44 @@ const AdminUserPasswords: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="overflow-auto rounded-xl border border-border">
-                <table className="min-w-full">
+              <div className="rounded-xl border border-border">
+                <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                      <th className="w-10 px-3 py-3 text-center text-sm font-semibold text-foreground">
+                        Info
+                      </th>
+                      <th className="w-[12rem] px-3 py-3 text-left text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4" />
                           Name
                         </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                      <th className="w-[16rem] px-3 py-3 text-left text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2">
                           <Mail className="w-4 h-4" />
                           Email
                         </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                      <th className="w-[7rem] px-3 py-3 text-left text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2">
                           <Key className="w-4 h-4" />
                           Password
                         </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                      <th className="w-20 px-3 py-3 text-left text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
                           Date
                         </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                      <th className="w-16 px-3 py-3 text-left text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2">
                           <LogIn className="w-4 h-4" />
                           Login
                         </div>
                       </th>
-                      <th className="px-6 py-3 text-right text-sm font-semibold text-foreground">
+                      <th className="w-20 px-6 py-3 text-right text-sm font-semibold text-foreground">
                         Actions
                       </th>
                     </tr>
@@ -446,10 +479,23 @@ const AdminUserPasswords: React.FC = () => {
                   <tbody>
                     {users.map((user) => (
                       <tr key={user._id} className="border-b border-border hover:bg-background/50 transition-colors">
-                        <td className="px-6 py-3 font-semibold text-foreground">{user.name}</td>
-                        <td className="px-6 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground max-w-[250px] truncate">
+                        <td className="px-3 py-3 text-center">
+                          <Button
+                            onClick={() => handleViewUserDetails(user._id)}
+                            size="icon"
+                            variant="ghost"
+                            className="hover:bg-blue-600/20 text-blue-500 hover:text-blue-400"
+                            title="View user details"
+                          >
+                            <Info className="w-4 h-4" />
+                          </Button>
+                        </td>
+                        <td className="px-3 py-3 font-semibold text-foreground truncate" title={user.name}>
+                          {user.name}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-muted-foreground truncate min-w-0">
                               {user.email}
                             </span>
                             <button
@@ -465,10 +511,10 @@ const AdminUserPasswords: React.FC = () => {
                             </button>
                           </div>
                         </td>
-                        <td className="px-6 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-foreground max-w-[200px] truncate">
-                              {user.password.length > 20 ? `${user.password.substring(0, 20)}...` : user.password}
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono text-xs text-foreground truncate min-w-0">
+                              {user.password.length > 15 ? `${user.password.substring(0, 15)}...` : user.password}
                             </span>
                             <button
                               onClick={() => handleCopyPassword(user.password, user._id)}
@@ -483,37 +529,37 @@ const AdminUserPasswords: React.FC = () => {
                             </button>
                           </div>
                         </td>
-                        <td className="px-6 py-3 text-muted-foreground text-sm">
+                        <td className="px-3 py-3 text-muted-foreground text-sm whitespace-nowrap">
                           {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                         </td>
-                        <td className="px-6 py-3">
+                        <td className="px-3 py-3">
                           <Button
                             onClick={() => handleImpersonate(user)}
                             disabled={impersonatingId === user._id}
                             size="sm"
-                            className="bg-indigo-600/60 hover:bg-indigo-700 text-white border border-indigo-600 flex items-center gap-2"
+                            className="bg-indigo-600/60 hover:bg-indigo-700 text-white border border-indigo-600 flex items-center gap-1.5 text-xs px-2 py-1"
                           >
                             {impersonatingId === user._id ? (
                               <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Switching...
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span className="hidden sm:inline">Switching...</span>
                               </>
                             ) : (
                               <>
-                                <LogIn className="w-4 h-4" />
-                                Login as User
+                                <LogIn className="w-3 h-3" />
+                                <span className="hidden sm:inline">Login</span>
                               </>
                             )}
                           </Button>
                         </td>
-                        <td className="px-6 py-3">
+                        <td className="flex justify-center items-center px-3 py-3">
                           <Button
                             onClick={() => setUserToDelete(user)}
                             size="icon"
                             variant="destructive"
-                            className="bg-red-600/20 hover:bg-red-600/40 text-red-500 hover:text-red-400 border border-red-600/50"
+                            className="bg-red-600/20 hover:bg-red-600/40 text-red-500 hover:text-red-400 border border-red-600/50 h-8 w-8"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </td>
                       </tr>
@@ -531,6 +577,13 @@ const AdminUserPasswords: React.FC = () => {
           </div>
         </MaxWidthWrapper>
       </div>
+
+      <UserDetailsPopup
+        isOpen={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        user={selectedUser}
+        loading={loadingUserDetails}
+      />
 
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
         <AlertDialogContent>

@@ -184,6 +184,27 @@ const userSchema = new mongoose.Schema({
     walletVerified: {
         type: Boolean,
         default: false
+    },
+    companyDetails: {
+        companyName: { type: String, trim: true, default: '' },
+        companyRegistrationNumber: { type: String, trim: true, default: '' },
+        companyAddress: { type: String, trim: true, default: '' },
+        companyCity: { type: String, trim: true, default: '' },
+        companyState: { type: String, trim: true, default: '' },
+        companyCountry: { type: String, trim: true, default: '' },
+        companyPostalCode: { type: String, trim: true, default: '' },
+        companyTaxId: { type: String, trim: true, default: '' }
+    },
+    bankingDetails: {
+        bankName: { type: String, trim: true, default: '' },
+        accountHolderName: { type: String, trim: true, default: '' },
+        accountNumber: { type: String, trim: true, default: '' },
+        routingNumber: { type: String, trim: true, default: '' },
+        swiftCode: { type: String, trim: true, default: '' },
+        iban: { type: String, trim: true, default: '' },
+        bankAddress: { type: String, trim: true, default: '' },
+        bankCity: { type: String, trim: true, default: '' },
+        bankCountry: { type: String, trim: true, default: '' }
     }
 });
 

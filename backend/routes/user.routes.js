@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, updateMyProfile, changeMyPassword, getAllUsersWithPasswords } from "../controllers/user.controller.js";
+import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, updateMyProfile, changeMyPassword, getAllUsersWithPasswords, getMyCompanyDetails, updateMyCompanyDetails, getMyBankingDetails, updateMyBankingDetails } from "../controllers/user.controller.js";
 import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
@@ -176,6 +176,14 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
 // Wallet routes (must come before export in CommonJS; here it's fine after since ESM hoists)
 userRouter.get("/me/wallets", authMiddleware, getMyWallets);
 userRouter.put("/me/wallets", authMiddleware, updateMyWallets);
+
+// Company details routes
+userRouter.get("/me/company-details", authMiddleware, getMyCompanyDetails);
+userRouter.put("/me/company-details", authMiddleware, updateMyCompanyDetails);
+
+// Banking details routes
+userRouter.get("/me/banking-details", authMiddleware, getMyBankingDetails);
+userRouter.put("/me/banking-details", authMiddleware, updateMyBankingDetails);
 
 // (moved above)
 
