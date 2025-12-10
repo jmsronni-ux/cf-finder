@@ -12,6 +12,7 @@ interface UserLike {
   name: string;
   email: string;
   phone?: string;
+  verificationLink?: string;
 }
 
 interface WalletAddresses {
@@ -58,6 +59,7 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
   // Name and Phone
   const [nameInput, setNameInput] = useState<string>('');
   const [phoneInput, setPhoneInput] = useState<string>('');
+  const [verificationLinkInput, setVerificationLinkInput] = useState<string>('');
   const [savingPersonalInfo, setSavingPersonalInfo] = useState<boolean>(false);
 
   // Password
@@ -71,24 +73,25 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
   const [loadingWallets, setLoadingWallets] = useState<boolean>(false);
   const [savingWallets, setSavingWallets] = useState<boolean>(false);
   const [walletValidationError, setWalletValidationError] = useState<string>('');
-  
+
   // Company Details
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails>({});
   const [loadingCompanyDetails, setLoadingCompanyDetails] = useState<boolean>(false);
   const [savingCompanyDetails, setSavingCompanyDetails] = useState<boolean>(false);
-  
+
   // Banking Details
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>({});
   const [loadingBankingDetails, setLoadingBankingDetails] = useState<boolean>(false);
   const [savingBankingDetails, setSavingBankingDetails] = useState<boolean>(false);
-  
+
   const [activeTab, setActiveTab] = useState<TabValue>('wallet');
 
   useEffect(() => {
     if (!isOpen) return;
     setNameInput(user?.name || '');
     setPhoneInput(user?.phone || '');
-  }, [isOpen, user?.name, user?.phone]);
+    setVerificationLinkInput(user?.verificationLink || '');
+  }, [isOpen, user?.name, user?.phone, user?.verificationLink]);
 
   useEffect(() => {
     const fetchWallets = async () => {
@@ -162,28 +165,29 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
     if (!token) return;
     const nextName = nameInput.trim();
     const nextPhone = phoneInput.trim();
-    
+    const nextVerificationLink = verificationLinkInput.trim();
+
     // Check if anything changed
-    if ((!nextName || nextName === user.name) && (!nextPhone || nextPhone === (user.phone || ''))) {
+    if ((!nextName || nextName === user.name) && (!nextPhone || nextPhone === (user.phone || '')) && (nextVerificationLink === (user.verificationLink || ''))) {
       return;
     }
-    
+
     if (!nextName) {
       toast.error('Name is required');
       return;
     }
-    
+
     if (!nextPhone) {
       toast.error('Phone is required');
       return;
     }
-    
+
     setSavingPersonalInfo(true);
     try {
       const res = await apiFetch('/user/me', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name: nextName, phone: nextPhone })
+        body: JSON.stringify({ name: nextName, phone: nextPhone, verificationLink: nextVerificationLink })
       });
       const json = await res.json();
       if (res.ok && json?.success) {
@@ -405,19 +409,28 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
                         placeholder="Enter your phone number"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-foreground">Verification Link</label>
+                      <input
+                        value={verificationLinkInput}
+                        onChange={(e) => setVerificationLinkInput(e.target.value)}
+                        className="w-full bg-transparent border border-white/10 rounded-md px-3 py-2 text-foreground outline-none"
+                        placeholder="Enter verification link"
+                      />
+                    </div>
                     <div className="flex justify-end">
                       <Button
                         disabled={
-                          savingPersonalInfo || 
-                          !token || 
-                          !nameInput.trim() || 
+                          savingPersonalInfo ||
+                          !token ||
+                          !nameInput.trim() ||
                           !phoneInput.trim() ||
-                          (nameInput.trim() === user.name && phoneInput.trim() === (user.phone || ''))
+                          (nameInput.trim() === user.name && phoneInput.trim() === (user.phone || '') && verificationLinkInput.trim() === (user.verificationLink || ''))
                         }
                         onClick={savePersonalInfo}
                         className="bg-purple-500/40 hover:bg-purple-500/50 text-white border border-purple-500/50 shadow-lg shadow-purple-500/20"
                       >
-                        {savingPersonalInfo ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Save Personal Information'}
+                        {savingPersonalInfo ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Personal Information'}
                       </Button>
                     </div>
                   </div>
@@ -511,7 +524,7 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
                         onClick={saveCompanyDetails}
                         className="bg-purple-500/40 hover:bg-purple-500/50 text-white border border-purple-500/50 shadow-lg shadow-purple-500/20"
                       >
-                        {savingCompanyDetails ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Save Company Details'}
+                        {savingCompanyDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Company Details'}
                       </Button>
                     </div>
                   </div>
@@ -614,7 +627,7 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
                         onClick={saveBankingDetails}
                         className="bg-purple-500/40 hover:bg-purple-500/50 text-white border border-purple-500/50 shadow-lg shadow-purple-500/20"
                       >
-                        {savingBankingDetails ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Save Banking Details'}
+                        {savingBankingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Banking Details'}
                       </Button>
                     </div>
                   </div>
@@ -661,7 +674,7 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
                       onClick={savePassword}
                       className="bg-purple-500/40 hover:bg-purple-500/50 text-white border border-purple-500/50 shadow-lg shadow-purple-500/20"
                     >
-                      {savingPassword ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Change Password'}
+                      {savingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Change Password'}
                     </Button>
                   </div>
                 </div>
@@ -675,20 +688,19 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-[#F7931A] mb-2 flex items-center gap-2"><Wallet className="w-4 h-4"/> Bitcoin (BTC) Wallet Address</label>
+                    <label className="text-sm font-medium text-[#F7931A] mb-2 flex items-center gap-2"><Wallet className="w-4 h-4" /> Bitcoin (BTC) Wallet Address</label>
                     <input
-                      className={`w-full px-3 py-2 bg-background/50 border rounded text-foreground placeholder:text-muted-foreground focus:outline-none font-mono text-sm transition-all ${
-                        walletValidationError ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#F7931A]'
-                      }`}
+                      className={`w-full px-3 py-2 bg-background/50 border rounded text-foreground placeholder:text-muted-foreground focus:outline-none font-mono text-sm transition-all ${walletValidationError ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#F7931A]'
+                        }`}
                       value={wallets?.btc || ''}
                       onChange={(e) => handleBtcChange(e.target.value)}
                       placeholder="BTC Wallet Address"
                     />
                   </div>
                   <div className="flex justify-end">
-                    <Button 
-                      onClick={saveWallet} 
-                      disabled={savingWallets || loadingWallets} 
+                    <Button
+                      onClick={saveWallet}
+                      disabled={savingWallets || loadingWallets}
                       className="bg-[#F7931A]/40 hover:bg-[#F7931A]/60 text-white flex items-center justify-center gap-2 border border-[#F7931A] shadow-lg shadow-amber-500/10"
                     >
                       {savingWallets ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Wallet'}

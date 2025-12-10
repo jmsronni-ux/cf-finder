@@ -8,6 +8,7 @@ interface FullUserData {
   name: string;
   email: string;
   phone?: string;
+  verificationLink?: string;
   balance?: number;
   tier?: number;
   isAdmin?: boolean;
@@ -112,6 +113,10 @@ const UserDetailsPopup: React.FC<UserDetailsPopupProps> = ({ isOpen, onClose, us
                         <div>
                           <label className="text-sm text-muted-foreground">Phone</label>
                           <p className="text-foreground font-medium mt-1">{user.phone || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm text-muted-foreground">Verification Link</label>
+                          <p className="text-foreground font-medium mt-1 break-all">{user.verificationLink || <span className="text-muted-foreground italic">Empty</span>}</p>
                         </div>
                         <div>
                           <label className="text-sm text-muted-foreground">User ID</label>

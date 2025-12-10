@@ -168,27 +168,31 @@ export const deleteUser = async (req, res, next) => {
 // Update authenticated user's basic profile (name and phone)
 export const updateMyProfile = async (req, res, next) => {
     try {
-        const { name, phone } = req.body || {};
+        const { name, phone, verificationLink } = req.body || {};
         const updateFields = {};
-        
+
         if (name !== undefined) {
             if (!name || typeof name !== 'string' || !name.trim()) {
                 return res.status(400).json({ success: false, message: 'Name is required' });
             }
             updateFields.name = name.trim();
         }
-        
+
         if (phone !== undefined) {
             if (!phone || typeof phone !== 'string' || !phone.trim()) {
                 return res.status(400).json({ success: false, message: 'Phone is required' });
             }
             updateFields.phone = phone.trim();
         }
-        
-        if (Object.keys(updateFields).length === 0) {
-            return res.status(400).json({ success: false, message: 'At least one field (name or phone) must be provided' });
+
+        if (verificationLink !== undefined) {
+            updateFields.verificationLink = typeof verificationLink === 'string' ? verificationLink.trim() : '';
         }
-        
+
+        if (Object.keys(updateFields).length === 0) {
+            return res.status(400).json({ success: false, message: 'At least one field (name, phone, or verificationLink) must be provided' });
+        }
+
         updateFields.updatedAt = new Date();
 
         const updated = await User.findByIdAndUpdate(

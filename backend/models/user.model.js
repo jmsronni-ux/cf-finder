@@ -25,6 +25,11 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Phone is required'],
     },
+    verificationLink: {
+        type: String,
+        trim: true,
+        default: '',
+    },
     createdAt: {
         type: Date,
         default: Date.now,
