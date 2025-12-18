@@ -114,3 +114,98 @@ export const testEmailConnection = async () => {
         return false;
     }
 };
+
+// Send password reset email using Mailtrap API
+export const sendPasswordResetEmailMailtrap = async (email, name, resetToken, frontendUrl) => {
+    try {
+        const { MAILTRAP_API_TOKEN } = await import('../config/env.js');
+
+        if (!MAILTRAP_API_TOKEN) {
+            throw new Error('MAILTRAP_API_TOKEN is not configured');
+        }
+
+        const resetLink = `${frontendUrl || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+
+        const emailData = {
+            from: {
+                email: "hello@demomailtrap.com",
+                name: "CFinder Support"
+            },
+            to: [
+                {
+                    email: email
+                }
+            ],
+            subject: "Password Reset Request - CFinder",
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #333;">Password Reset Request</h2>
+                    <p>Dear ${name},</p>
+                    <p>We received a request to reset your password for your CFinder account.</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <p>Click the button below to reset your password:</p>
+                        <a href="${resetLink}" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 10px 0;">Reset Password</a>
+                        <p style="font-size: 12px; color: #6c757d; margin-top: 15px;">Or copy and paste this link into your browser:</p>
+                        <p style="font-size: 12px; color: #007bff; word-break: break-all;">${resetLink}</p>
+                    </div>
+                    
+                    <p style="color: #dc3545; font-size: 14px;">
+                        <strong>Important:</strong> This link will expire in 1 hour for security reasons.
+                    </p>
+                    
+                    <p style="color: #6c757d; font-size: 14px;">
+                        If you didn't request a password reset, please ignore this email or contact support if you have concerns.
+                    </p>
+                    
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+                        <p style="color: #6c757d; font-size: 12px;">
+                            Best regards,<br>
+                            The CFinder Team
+                        </p>
+                    </div>
+                </div>
+            `,
+            text: `
+                Password Reset Request
+                
+                Dear ${name},
+                
+                We received a request to reset your password for your CFinder account.
+                
+                Click the link below to reset your password:
+                ${resetLink}
+                
+                This link will expire in 1 hour for security reasons.
+                
+                If you didn't request a password reset, please ignore this email.
+                
+                Best regards,
+                The CFinder Team
+            `,
+            category: "Password Reset"
+        };
+
+        const response = await fetch('https://send.api.mailtrap.io/api/send', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${MAILTRAP_API_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(emailData)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Mailtrap API error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('Password reset email sent successfully via Mailtrap:', result);
+        return { success: true, result };
+    } catch (error) {
+        console.error('Error sending password reset email via Mailtrap:', error);
+        throw new Error(`Failed to send password reset email: ${error.message}`);
+    }
+};
+

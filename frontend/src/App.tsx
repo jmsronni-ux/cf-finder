@@ -4,6 +4,8 @@ import './utils/clearUserCache.js'
 import HomePage from './pages/HomePage'
 import RegisterPage from './pages/RegisterPage'
 import SignupPage from './pages/SignupPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import Dashboard from "./pages/Dashboard";
 import UserProfile from "./pages/UserProfile";
 import AdminTopupRequests from "./pages/admin/AdminTopupRequests";
@@ -35,6 +37,8 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<RegisterPage />} />
         <Route path="/register" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />

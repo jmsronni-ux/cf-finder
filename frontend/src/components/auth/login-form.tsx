@@ -20,15 +20,15 @@ const LoginForm = () => {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-    
+
         // Check if all fields are filled
         if (!email.trim() || !password.trim()) {
             toast.error("Please fill in all fields.");
             return;
         }
-    
+
         setIsLoading(true);
-        
+
         try {
             const success = await login(email.trim(), password);
             if (success) {
@@ -63,7 +63,7 @@ const LoginForm = () => {
                         required
                     />
                 </div>
-                
+
                 <div className="mt-4 space-y-2 w-full">
                     <Label htmlFor="password" className="text-sm">
                         Password
@@ -93,7 +93,7 @@ const LoginForm = () => {
                         </Button>
                     </div>
                 </div>
-                
+
                 <div className="mt-6 w-full">
                     <Button
                         type="submit"
@@ -107,12 +107,22 @@ const LoginForm = () => {
                 </div>
             </form>
 
+            <div className="flex items-center justify-center w-full mt-4">
+                <button
+                    type="button"
+                    onClick={() => router("/forgot-password")}
+                    className="text-primary hover:underline text-sm font-medium touch-manipulation"
+                >
+                    Forgot password?
+                </button>
+            </div>
+
             <div className="flex items-center justify-center w-full mt-4 sm:mt-6">
                 <p className="text-xs sm:text-sm text-muted-foreground text-center">
                     Don't have an account?{" "}
-                    <button 
+                    <button
                         type="button"
-                        onClick={() => router("/register")} 
+                        onClick={() => router("/register")}
                         className="text-primary hover:underline font-medium touch-manipulation"
                     >
                         Sign up

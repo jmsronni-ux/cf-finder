@@ -24,7 +24,7 @@ const ForgotPasswordForm = () => {
 
         setIsSubmitting(true);
         try {
-            const response = await apiFetch("/auth/forgot-password", {
+            const response = await apiFetch("/password-recovery/forgot-password", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: email.trim() }),
@@ -32,9 +32,9 @@ const ForgotPasswordForm = () => {
             const data = await response.json();
             if (response.ok && data.success) {
                 setIsComplete(true);
-                toast.success(data.message || "Check your email for the new password.");
+                toast.success(data.message || "Check your email for the password reset link.");
             } else {
-                toast.error(data.message || "Unable to reset password. Try again later.");
+                toast.error(data.message || "Unable to send reset email. Try again later.");
             }
         } catch (error) {
             console.error("Forgot password error:", error);
@@ -50,7 +50,7 @@ const ForgotPasswordForm = () => {
                 Forgot your password?
             </h2>
             <p className="text-sm text-muted-foreground">
-                Enter your account email. We&apos;ll send a temporary password you can use to sign in and change it from your profile.
+                Enter your email address and we'll send you a link to reset your password.
             </p>
 
             <form onSubmit={handleSubmit} className="w-full space-y-4">
@@ -72,13 +72,13 @@ const ForgotPasswordForm = () => {
                     className="w-full h-11 sm:h-10 text-sm sm:text-base font-medium"
                     disabled={isSubmitting}
                 >
-                    {isSubmitting ? <LoaderIcon className="w-5 h-5 animate-spin" /> : "Send Temporary Password"}
+                    {isSubmitting ? <LoaderIcon className="w-5 h-5 animate-spin" /> : "Send Reset Link"}
                 </Button>
             </form>
 
             {isComplete && (
                 <div className="mt-4 p-4 bg-muted/50 rounded-md w-full text-sm text-muted-foreground">
-                    If the email is registered, a temporary password is on its way. Be sure to change it after signing in.
+                    If an account exists with that email, a password reset link has been sent. Please check your inbox and spam folder.
                 </div>
             )}
 
@@ -96,9 +96,3 @@ const ForgotPasswordForm = () => {
 };
 
 export default ForgotPasswordForm;
-
-
-
-
-
-

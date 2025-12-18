@@ -93,6 +93,10 @@ export default defineConfig({
       '/additional-verification': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+      },
+      '/password-recovery': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
       }
     },
   },

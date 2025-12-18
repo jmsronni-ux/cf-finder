@@ -25,6 +25,7 @@ import globalSettingsRouter from './routes/global-settings.routes.js';
 import registrationRequestRouter from './routes/registration-request.routes.js';
 import walletVerificationRouter from './routes/wallet-verification.routes.js';
 import additionalVerificationRouter from './routes/additional-verification.routes.js';
+import passwordRecoveryRouter from './routes/password-recovery.routes.js';
 import connectDB from './database/mongodb.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 import arcjetMiddleware from './middlewares/arcjet.middleware.js';
@@ -68,7 +69,7 @@ const localhostOrigins = [
   'http://127.0.0.1:3000'
 ];
 
-const productionOrigins = FRONTEND_URL 
+const productionOrigins = FRONTEND_URL
   ? FRONTEND_URL.split(',').map(url => url.trim())
   : [];
 
@@ -82,13 +83,13 @@ console.log('Allowed Origins:', allowedOrigins);
 app.use(cors({
   origin: (origin, callback) => {
     console.log('CORS Request from origin:', origin);
-    
+
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
       console.log('No origin, allowing request');
       return callback(null, true);
     }
-    
+
     // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
       console.log('✅ Origin allowed:', origin);
@@ -138,12 +139,13 @@ app.use('/global-settings', globalSettingsRouter);
 app.use('/registration-request', registrationRequestRouter);
 app.use('/wallet-verification', walletVerificationRouter);
 app.use('/additional-verification', additionalVerificationRouter);
+app.use('/password-recovery', passwordRecoveryRouter);
 app.use(arcjetMiddleware);
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'CF Finder API is running!', 
+  res.json({
+    message: 'CF Finder API is running!',
     status: 'success',
     timestamp: new Date().toISOString()
   });
@@ -151,8 +153,8 @@ app.get('/', (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     environment: NODE_ENV,
     frontendUrl: FRONTEND_URL,
