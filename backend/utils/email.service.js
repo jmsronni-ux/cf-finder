@@ -128,7 +128,7 @@ export const sendPasswordResetEmailMailtrap = async (email, name, resetToken, fr
 
         const emailData = {
             from: {
-                email: "hello@demomailtrap.com",
+                email: "hello@crypto-finders.com",
                 name: "CFinder Support"
             },
             to: [
