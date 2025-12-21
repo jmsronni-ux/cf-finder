@@ -2,7 +2,7 @@ import express from "express";
 import { authMiddleware as authenticate } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
-import { sendEmail } from "../services/email.service.js";
+import { sendEmail, loadEmailTemplate } from "../services/email.service.js";
 import mongoose from "mongoose";
 
 const balanceRouter = express.Router();
@@ -68,23 +68,20 @@ balanceRouter.post("/withdraw", authenticate, async (req, res, next) => {
         
         if (adminEmail) {
             try {
+                // Load and process template
+                const html = loadEmailTemplate('withdrawal-notification', {
+                    userName: user.name,
+                    userEmail: user.email,
+                    wallet,
+                    amount,
+                    remainingBalance: user.balance,
+                    date: new Date().toLocaleString()
+                });
+                
                 await sendEmail({
                     to: adminEmail,
                     subject: `New Withdrawal Request - ${user.name}`,
-                    html: `
-                        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-                            <h2 style="color: #333;">New Withdrawal Request</h2>
-                            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                                <p style="margin: 10px 0;"><strong>User Name:</strong> ${user.name}</p>
-                                <p style="margin: 10px 0;"><strong>User Email:</strong> ${user.email}</p>
-                                <p style="margin: 10px 0;"><strong>Wallet Address:</strong> ${wallet}</p>
-                                <p style="margin: 10px 0;"><strong>Amount:</strong> $${amount}</p>
-                                <p style="margin: 10px 0;"><strong>Remaining Balance:</strong> $${user.balance}</p>
-                                <p style="margin: 10px 0;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-                            </div>
-                            <p style="color: #666; font-size: 14px;">Please process this withdrawal request as soon as possible.</p>
-                        </div>
-                    `
+                    html
                 });
                 console.log('Withdrawal notification email sent successfully');
             } catch (emailError) {

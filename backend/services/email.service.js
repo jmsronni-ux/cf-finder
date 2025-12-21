@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer';
-import { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM } from '../config/env.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, FRONTEND_URL } from '../config/env.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Create reusable transporter object using SMTP transport
 const createTransporter = () => {
@@ -14,46 +20,53 @@ const createTransporter = () => {
     });
 };
 
+// Load and process email template
+export const loadEmailTemplate = (templateName, variables) => {
+    try {
+        const templatePath = path.join(__dirname, '..', 'email', `${templateName}.html`);
+        let template = fs.readFileSync(templatePath, 'utf-8');
+        
+        // Add logo URL if not provided
+        if (!variables.logoUrl) {
+            variables.logoUrl = FRONTEND_URL ? `${FRONTEND_URL}/logo.png` : '/logo.png';
+        }
+        
+        // Add current year if not provided
+        if (!variables.year) {
+            variables.year = new Date().getFullYear();
+        }
+        
+        // Replace all placeholders with actual values
+        template = template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+            return variables[key] !== undefined ? variables[key] : match;
+        });
+        
+        return template;
+    } catch (error) {
+        console.error(`Error loading email template ${templateName}:`, error);
+        throw new Error(`Failed to load email template: ${error.message}`);
+    }
+};
+
 // Send login credentials to new user
 export const sendLoginCredentials = async (email, name, password) => {
     try {
         const transporter = createTransporter();
+        
+        // Load and process template
+        const html = loadEmailTemplate('login-credentials', {
+            name,
+            email,
+            password
+        });
 
         const mailOptions = {
             from: EMAIL_FROM || EMAIL_USER,
             to: email,
-            subject: 'Welcome to CFinder - Your Login Credentials',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #333;">Welcome to CFinder!</h2>
-                    <p>Dear ${name},</p>
-                    <p>Your account has been successfully created. Here are your login credentials:</p>
-                    
-                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <h3 style="color: #495057; margin-top: 0;">Login Information:</h3>
-                        <p><strong>Email:</strong> ${email}</p>
-                        <p><strong>Password:</strong> ${password}</p>
-                    </div>
-                    
-                    <p style="color: #6c757d; font-size: 14px;">
-                        <strong>Important:</strong> For security reasons, please change your password after your first login.
-                    </p>
-                    
-                    <p>You can now access your account and start using CFinder.</p>
-                    
-                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
-                        <p style="color: #6c757d; font-size: 12px;">
-                            If you have any questions, please contact our support team.
-                        </p>
-                        <p style="color: #6c757d; font-size: 12px;">
-                            Best regards,<br>
-                            The CFinder Team
-                        </p>
-                    </div>
-                </div>
-            `,
+            subject: 'Welcome to CryptoFinders - Your Login Credentials',
+            html,
             text: `
-                Welcome to CFinder!
+                Welcome to CryptoFinders!
                 
                 Dear ${name},
                 
@@ -62,12 +75,12 @@ export const sendLoginCredentials = async (email, name, password) => {
                 Email: ${email}
                 Password: ${password}
                 
-                You can now access your account and start using CFinder.
+                You can now access your account and start using CryptoFinders.
                 
                 If you have any questions, please contact our support team.
                 
                 Best regards,
-                The CFinder Team
+                The CryptoFinders Team
             `
         };
 
@@ -125,53 +138,31 @@ export const sendPasswordResetEmailMailtrap = async (email, name, resetToken, fr
         }
 
         const resetLink = `${frontendUrl || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+        
+        // Load and process template
+        const html = loadEmailTemplate('password-reset', {
+            name,
+            resetLink
+        });
 
         const emailData = {
             from: {
                 email: "hello@crypto-finders.com",
-                name: "CFinder Support"
+                name: "CryptoFinders Support"
             },
             to: [
                 {
                     email: email
                 }
             ],
-            subject: "Password Reset Request - CFinder",
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #333;">Password Reset Request</h2>
-                    <p>Dear ${name},</p>
-                    <p>We received a request to reset your password for your CFinder account.</p>
-                    
-                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <p>Click the button below to reset your password:</p>
-                        <a href="${resetLink}" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 10px 0;">Reset Password</a>
-                        <p style="font-size: 12px; color: #6c757d; margin-top: 15px;">Or copy and paste this link into your browser:</p>
-                        <p style="font-size: 12px; color: #007bff; word-break: break-all;">${resetLink}</p>
-                    </div>
-                    
-                    <p style="color: #dc3545; font-size: 14px;">
-                        <strong>Important:</strong> This link will expire in 1 hour for security reasons.
-                    </p>
-                    
-                    <p style="color: #6c757d; font-size: 14px;">
-                        If you didn't request a password reset, please ignore this email or contact support if you have concerns.
-                    </p>
-                    
-                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
-                        <p style="color: #6c757d; font-size: 12px;">
-                            Best regards,<br>
-                            The CFinder Team
-                        </p>
-                    </div>
-                </div>
-            `,
+            subject: "Reset Your Password - CryptoFinders",
+            html,
             text: `
                 Password Reset Request
                 
                 Dear ${name},
                 
-                We received a request to reset your password for your CFinder account.
+                We received a request to reset your password for your CryptoFinders account.
                 
                 Click the link below to reset your password:
                 ${resetLink}
@@ -181,7 +172,7 @@ export const sendPasswordResetEmailMailtrap = async (email, name, resetToken, fr
                 If you didn't request a password reset, please ignore this email.
                 
                 Best regards,
-                The CFinder Team
+                The CryptoFinders Team
             `,
             category: "Password Reset"
         };

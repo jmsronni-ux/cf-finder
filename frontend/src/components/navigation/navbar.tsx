@@ -57,7 +57,7 @@ const Navbar = () => {
                         <Link to="/#home" className="flex flex-row gap-4 items-center">
                             <img src="/logo.png" alt="logo" className="w-6 h-6" />
                             <span className="text-lg font-bold font-heading !leading-none text-white">
-                                CryptFinder
+                                CryptoFinders
                             </span>
                         </Link>
 

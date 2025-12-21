@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Withdrawal Request - CryptoFinders Admin</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #0A0A0A;
+            color: #FAFAFA;
+        }
+        .email-wrapper {
+            width: 100%;
+            background-color: #0A0A0A;
+            background-image: 
+                linear-gradient(to right, #262626 1px, transparent 1px),
+                linear-gradient(to bottom, #262626 1px, transparent 1px);
+            background-size: 3rem 3rem;
+            padding: 40px 20px;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #0A0A0A;
+        }
+        .logo-section {
+            text-align: center;
+            padding: 30px 0;
+        }
+        .logo-section img {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+        }
+        .brand-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: #FAFAFA;
+            margin: 0;
+            letter-spacing: -0.02em;
+        }
+        .admin-badge {
+            display: inline-block;
+            background-color: #7C2D12;
+            color: #FCA5A5;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .content-card {
+            background-color: #0A0A0A;
+            border: 1px solid #262626;
+            border-radius: 12px;
+            padding: 40px 32px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .gradient-heading {
+            font-size: 32px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+        .intro-text {
+            font-size: 16px;
+            color: #D1D5DB;
+            margin: 0 0 24px 0;
+            line-height: 1.6;
+        }
+        .details-box {
+            background-color: #171717;
+            border: 1px solid #262626;
+            border-radius: 8px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+        .details-box h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #FAFAFA;
+            margin: 0 0 20px 0;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #262626;
+        }
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #1F1F1F;
+        }
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            color: #9CA3AF;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .detail-value {
+            color: #FAFAFA;
+            font-weight: 600;
+            font-size: 14px;
+            text-align: right;
+            word-break: break-all;
+            max-width: 60%;
+        }
+        .amount-highlight {
+            background-color: #065F46;
+            border: 1px solid #10B981;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 24px 0;
+            text-align: center;
+        }
+        .amount-highlight .label {
+            color: #6EE7B7;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .amount-highlight .amount {
+            color: #FFFFFF;
+            font-size: 36px;
+            font-weight: 700;
+            margin: 0;
+        }
+        .alert-box {
+            background-color: #7C2D12;
+            border-left: 4px solid #F59E0B;
+            padding: 16px;
+            margin: 24px 0;
+            border-radius: 6px;
+        }
+        .alert-box strong {
+            color: #FAFAFA;
+            font-weight: 600;
+        }
+        .alert-box p {
+            margin: 4px 0 0 0;
+            color: #FCD34D;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .footer {
+            text-align: center;
+            padding: 32px 20px;
+            border-top: 1px solid #262626;
+            margin-top: 32px;
+        }
+        .footer p {
+            color: #6B7280;
+            font-size: 13px;
+            line-height: 1.6;
+            margin: 8px 0;
+        }
+        .footer-brand {
+            color: #9CA3AF;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="email-container">
+            <!-- Logo Section -->
+            <div class="logo-section">
+                <img src="https://cf-finder-1.onrender.com/logo.png" alt="CryptoFinders Logo">
+                <h1 class="brand-name">CryptoFinders</h1>
+                <span class="admin-badge">ADMIN NOTIFICATION</span>
+            </div>
+
+            <!-- Main Content Card -->
+            <div class="content-card">
+                <h2 class="gradient-heading">New Withdrawal Request</h2>
+                
+                <p class="intro-text">
+                    A user has submitted a new withdrawal request that requires your attention and processing.
+                </p>
+
+                <!-- Amount Highlight -->
+                <div class="amount-highlight">
+                    <div class="label">Withdrawal Amount</div>
+                    <h3 class="amount">$1,250.00</h3>
+                </div>
+
+                <!-- User Details Box -->
+                <div class="details-box">
+                    <h3>User Information</h3>
+                    <div class="detail-item">
+                        <span class="detail-label">User Name</span>
+                        <span class="detail-value">John Doe</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">User Email</span>
+                        <span class="detail-value">john.doe@example.com</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Remaining Balance</span>
+                        <span class="detail-value">$5,750.00</span>
+                    </div>
+                </div>
+
+                <!-- Wallet Details Box -->
+                <div class="details-box">
+                    <h3>Withdrawal Details</h3>
+                    <div class="detail-item">
+                        <span class="detail-label">Wallet Address</span>
+                        <span class="detail-value">0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Request Date</span>
+                        <span class="detail-value">Sunday, December 21, 2025 at 05:58 PM GMT+1</span>
+                    </div>
+                </div>
+
+                <!-- Alert Box -->
+                <div class="alert-box">
+                    <strong>⚡ Action Required</strong>
+                    <p>Please review and process this withdrawal request as soon as possible. Log in to the admin panel to approve or manage this request.</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p class="footer-brand">CryptoFinders Admin System</p>
+                <p>This is an automated notification for administrators only.</p>
+                <p>&copy; 2025 CryptoFinders INC. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

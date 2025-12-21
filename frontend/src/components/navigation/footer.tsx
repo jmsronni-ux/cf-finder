@@ -77,7 +77,7 @@ const Footer = () => {
             </div>
 
             <div className="h-[20rem] lg:h-[20rem] hidden md:flex items-center justify-center">
-                <TextHoverEffect text="CRYPT" />
+                <TextHoverEffect text="CRYPTO" />
             </div>
         </footer>
     )
