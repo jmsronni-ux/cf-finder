@@ -4,7 +4,7 @@ import ConversionRate from "../models/conversion-rate.model.js";
 import bcrypt from "bcryptjs";
 import { ApiError } from "../middlewares/error.middleware.js";
 import mongoose from "mongoose";
-import { sendLoginCredentials } from "../utils/email.service.js";
+import { sendLoginCredentials } from "../services/email.service.js";
 import crypto from "crypto";
 
 // Generate a secure random password

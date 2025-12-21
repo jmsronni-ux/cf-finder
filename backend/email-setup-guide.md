@@ -51,7 +51,7 @@ Run this test script to verify your email configuration:
 
 ```javascript
 // test-email.js
-import { testEmailConnection } from './utils/email.service.js';
+import { testEmailConnection } from './services/email.service.js';
 
 testEmailConnection().then(result => {
   if (result) {
@@ -95,7 +95,7 @@ EMAIL_FROM=CFinder <noreply@yourdomain.com>
 
 ### Method 1: Test Email Connection
 ```bash
-node -e "import('./utils/email.service.js').then(m => m.testEmailConnection())"
+node -e "import('./services/email.service.js').then(m => m.testEmailConnection())"
 ```
 
 ### Method 2: Create Test User

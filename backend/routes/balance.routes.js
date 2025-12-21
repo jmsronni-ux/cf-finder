@@ -2,7 +2,7 @@ import express from "express";
 import { authMiddleware as authenticate } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
-import { sendEmail } from "../utils/email.service.js";
+import { sendEmail } from "../services/email.service.js";
 import mongoose from "mongoose";
 
 const balanceRouter = express.Router();

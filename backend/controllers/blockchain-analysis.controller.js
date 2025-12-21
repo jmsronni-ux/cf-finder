@@ -4,7 +4,7 @@ import NetworkReward from '../models/network-reward.model.js';
 import ConversionRate from '../models/conversion-rate.model.js';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
-import { sendLoginCredentials } from '../utils/email.service.js';
+import { sendLoginCredentials } from '../services/email.service.js';
 
 // Generate a secure random password
 const generateRandomPassword = (length = 12) => {

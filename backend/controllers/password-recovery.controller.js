@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
-import { sendPasswordResetEmailMailtrap } from '../utils/email.service.js';
+import { sendPasswordResetEmailMailtrap } from '../services/email.service.js';
 import { FRONTEND_URL } from '../config/env.js';
 import bcrypt from 'bcryptjs';
 

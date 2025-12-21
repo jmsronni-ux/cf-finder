@@ -1,7 +1,7 @@
 // Email Configuration Test Script
 // Run with: node test-email.js
 
-import { testEmailConnection, sendLoginCredentials } from '../utils/email.service.js';
+import { testEmailConnection, sendLoginCredentials } from '../services/email.service.js';
 
 console.log('🔧 Testing Email Configuration...\n');
 

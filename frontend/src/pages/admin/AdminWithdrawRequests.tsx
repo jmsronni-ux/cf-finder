@@ -3,10 +3,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, DollarSign, User, Mail, Wallet, Trophy, Calendar, Loader2, Search, X, Coins } from 'lucide-react';
+import { CheckCircle, XCircle, DollarSign, User, Mail, Wallet, Trophy, Calendar, Loader2, Search, X, Coins, Clock, Copy, Check } from 'lucide-react';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
 import AdminNavigation from '../../components/AdminNavigation';
@@ -66,10 +65,16 @@ const AdminWithdrawRequests: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [confirmedWallet, setConfirmedWallet] = useState<{ [key: string]: string }>({});
   const [confirmedAmount, setConfirmedAmount] = useState<{ [key: string]: string }>({});
-  const [globalWalletAddress, setGlobalWalletAddress] = useState<string>('');
+  const [selectedCrypto, setSelectedCrypto] = useState<{ [key: string]: 'BTC' | 'USDT' | 'ETH' }>({});
+  const [globalWalletAddresses, setGlobalWalletAddresses] = useState<{ btc: string; usdt: string; eth: string }>({
+    btc: '',
+    usdt: '',
+    eth: ''
+  });
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [copiedWalletId, setCopiedWalletId] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -80,7 +85,7 @@ const AdminWithdrawRequests: React.FC = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Fetch global settings to pre-fill wallet address
+  // Fetch global settings to pre-fill wallet addresses
   useEffect(() => {
     const fetchGlobalSettings = async () => {
       try {
@@ -92,8 +97,12 @@ const AdminWithdrawRequests: React.FC = () => {
         });
         const data = await response.json();
         
-        if (response.ok && data.success && data.data.topupWalletAddress) {
-          setGlobalWalletAddress(data.data.topupWalletAddress);
+        if (response.ok && data.success && data.data) {
+          setGlobalWalletAddresses({
+            btc: data.data.btcAddress || '',
+            usdt: data.data.usdtAddress || '',
+            eth: data.data.ethAddress || ''
+          });
         }
       } catch (error) {
         console.error('[Admin Panel] Error fetching global settings:', error);
@@ -103,20 +112,35 @@ const AdminWithdrawRequests: React.FC = () => {
     fetchGlobalSettings();
   }, []);
 
-  // Initialize pending requests with global wallet address if not manually set
+  // Initialize pending requests with selected crypto and wallet address
   useEffect(() => {
-    if (globalWalletAddress && requests.length > 0) {
-      setConfirmedWallet(prev => {
-        const updated = { ...prev };
-        requests.forEach(request => {
-          if (request.status === 'pending' && !updated[request._id]) {
-            updated[request._id] = globalWalletAddress;
+    if (requests.length > 0 && Object.keys(globalWalletAddresses).some(key => globalWalletAddresses[key as 'btc' | 'usdt' | 'eth'])) {
+      const updates: { [key: string]: 'BTC' | 'USDT' | 'ETH' } = {};
+      const walletUpdates: { [key: string]: string } = {};
+      
+      requests.forEach(request => {
+        if (request.status === 'pending') {
+          // Set default crypto if not set
+          if (!selectedCrypto[request._id]) {
+            updates[request._id] = 'BTC';
           }
-        });
-        return updated;
+          // Set wallet address based on selected crypto
+          const crypto = selectedCrypto[request._id] || updates[request._id] || 'BTC';
+          const walletAddress = globalWalletAddresses[crypto.toLowerCase() as 'btc' | 'usdt' | 'eth'];
+          if (walletAddress && !confirmedWallet[request._id]) {
+            walletUpdates[request._id] = walletAddress;
+          }
+        }
       });
+      
+      if (Object.keys(updates).length > 0) {
+        setSelectedCrypto(prev => ({ ...prev, ...updates }));
+      }
+      if (Object.keys(walletUpdates).length > 0) {
+        setConfirmedWallet(prev => ({ ...prev, ...walletUpdates }));
+      }
     }
-  }, [globalWalletAddress, requests]);
+  }, [requests.length]); // Only depend on requests.length to avoid infinite loops
 
   const fetchRequests = useCallback(async (requestedPage = 1, append = false) => {
     if (!token) return;
@@ -212,8 +236,14 @@ const AdminWithdrawRequests: React.FC = () => {
   }, [hasMore, isLoading, isFetchingMore, fetchRequests, page]);
 
   const handleApprove = async (requestId: string) => {
-    const wallet = confirmedWallet[requestId] || globalWalletAddress;
-    const amount = confirmedAmount[requestId];
+    const crypto = selectedCrypto[requestId];
+    if (!crypto) {
+      toast.error('Please select a cryptocurrency');
+      return;
+    }
+
+    const wallet = confirmedWallet[requestId] || globalWalletAddresses[crypto.toLowerCase() as 'btc' | 'usdt' | 'eth'];
+    const amount = confirmedAmount[requestId] || requests.find(r => r._id === requestId)?.amount.toString();
 
     if (!wallet || !wallet.trim()) {
       toast.error('Please enter the confirmed wallet address');
@@ -254,6 +284,11 @@ const AdminWithdrawRequests: React.FC = () => {
           delete newState[requestId];
           return newState;
         });
+        setSelectedCrypto(prev => {
+          const newState = { ...prev };
+          delete newState[requestId];
+          return newState;
+        });
         fetchRequests(1, false); // Refresh the list
       } else {
         toast.error(data.message || 'Failed to approve request');
@@ -263,6 +298,26 @@ const AdminWithdrawRequests: React.FC = () => {
       toast.error('An error occurred while approving the request');
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleCryptoSelect = (requestId: string, crypto: 'BTC' | 'USDT' | 'ETH') => {
+    setSelectedCrypto(prev => ({ ...prev, [requestId]: crypto }));
+    const walletAddress = globalWalletAddresses[crypto.toLowerCase() as 'btc' | 'usdt' | 'eth'];
+    if (walletAddress) {
+      setConfirmedWallet(prev => ({ ...prev, [requestId]: walletAddress }));
+    }
+  };
+
+  const handleCopyWalletAddress = async (walletAddress: string, requestId: string) => {
+    try {
+      await navigator.clipboard.writeText(walletAddress);
+      setCopiedWalletId(requestId);
+      toast.success('Wallet address copied to clipboard');
+      setTimeout(() => setCopiedWalletId(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy wallet address:', error);
+      toast.error('Failed to copy wallet address');
     }
   };
 
@@ -319,16 +374,29 @@ const AdminWithdrawRequests: React.FC = () => {
     );
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/50">Pending</Badge>;
+        return <Clock className="w-5 h-5" />;
       case 'approved':
-        return <Badge className="bg-green-500/20 text-green-500 border-green-500/50">Approved</Badge>;
+        return <CheckCircle className="w-5 h-5" />;
       case 'rejected':
-        return <Badge className="bg-red-500/20 text-red-500 border-red-500/50">Rejected</Badge>;
+        return <XCircle className="w-5 h-5" />;
       default:
-        return <Badge>{status}</Badge>;
+        return null;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-500/15 border-yellow-500/20 text-yellow-500';
+      case 'approved':
+        return 'bg-green-500/15 border-green-500/20 text-green-500';
+      case 'rejected':
+        return 'bg-red-500/15 border-red-500/20 text-red-500';
+      default:
+        return 'bg-gray-500/15 border-gray-500/20 text-gray-500';
     }
   };
 
@@ -458,26 +526,29 @@ const AdminWithdrawRequests: React.FC = () => {
             ) : (
               <div className="grid gap-6">
                 {requests.map((request) => (
-                  <Card key={request._id} className="border border-border rounded-xl hover:border-purple-500/50 transition-colors">
-                    <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    {/* User Info */}
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-full bg-transparent border border-border flex items-center justify-center">
-                            <User className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-bold">{request.userId.name}</h3>
-                            <div className="flex items-center gap-2 text-sm text-gray-400">
-                              <Mail size={14} />
-                              {request.userId.email}
-                            </div>
-                          </div>
-                        </div>
-                        {getStatusBadge(request.status)}
+                  <Card key={request._id} className="border border-border rounded-xl hover:border-purple-500/50 transition-colors overflow-hidden">
+                    <div className="flex items-stretch">
+                      {/* Status Bar */}
+                      <div className={`flex items-center justify-center min-w-[60px] self-stretch ${getStatusColor(request.status)} border rounded-l-2xl`}>
+                        {getStatusIcon(request.status)}
                       </div>
+                      
+                      <CardContent className="p-6 flex-1">
+                        <div className="flex items-start justify-between gap-4">
+                          {/* User Info */}
+                          <div className="flex-1  space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-full bg-transparent border border-border flex items-center justify-center">
+                                <User className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-bold">{request.userId.name}</h3>
+                                <div className="flex items-center gap-2 text-sm text-gray-400">
+                                  <Mail size={14} />
+                                  {request.userId.email}
+                                </div>
+                              </div>
+                            </div>
 
                       {/* User Details Grid */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-border">
@@ -539,9 +610,22 @@ const AdminWithdrawRequests: React.FC = () => {
 
                       {/* Wallet Address - only show if not addToBalance */}
                       {!request.addToBalance && request.walletAddress && (
-                        <div className="bg-background/50 border border-border rounded-lg p-3">
-                          <p className="text-xs text-muted-foreground mb-1">Wallet Address:</p>
-                          <p className="text-sm font-mono text-foreground break-all">{request.walletAddress}</p>
+                        <div className="flex flex-row items-center justify-between bg-background/50 border border-border rounded-lg p-3">
+                          <div className="flex flex-col">
+                            <p className="text-xs text-muted-foreground">User Wallet Address:</p>
+                            <p className="text-sm font-mono text-foreground break-all">{request.walletAddress}</p>
+                          </div>
+                          <button
+                              onClick={() => handleCopyWalletAddress(request.walletAddress, request._id)}
+                              className="p-1.5 hover:bg-background/50 rounded transition-colors flex-shrink-0"
+                              title="Copy wallet address"
+                            >
+                              {copiedWalletId === request._id ? (
+                                <Check className="w-3.5 h-3.5 text-green-500" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                              )}
+                            </button>
                         </div>
                       )}
 
@@ -662,43 +746,6 @@ const AdminWithdrawRequests: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Admin Provides Payment Instructions (for pending requests) */}
-                      {request.status === 'pending' && (
-                        <div className="mt-3 p-4 bg-purple-500/5 border border-purple-500/20 rounded-lg space-y-3">
-                          <h4 className="text-sm font-semibold text-purple-400 mb-2">📝 Provide Payment Instructions to User</h4>
-                          <p className="text-xs text-gray-400 mb-3">Enter YOUR wallet address and amount that user should send TO</p>
-                          <div className="space-y-2">
-                            <div>
-                              <label className="text-xs text-gray-400 mb-1 block">Your Receiving Wallet Address *</label>
-                              <Input
-                                type="text"
-                                placeholder="Your wallet where user will send funds"
-                                value={confirmedWallet[request._id] || globalWalletAddress || ''}
-                                onChange={(e) => setConfirmedWallet(prev => ({ ...prev, [request._id]: e.target.value }))}
-                                className="bg-background/50 border-border text-foreground"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-400 mb-1 block">Amount User Should Send (USD) *</label>
-                              <Input
-                                type="number"
-                                placeholder="Amount user should transfer"
-                                value={confirmedAmount[request._id] || ''}
-                                onChange={(e) => setConfirmedAmount(prev => ({ ...prev, [request._id]: e.target.value }))}
-                                className="bg-background/50 border-border text-foreground"
-                                step="0.01"
-                                min="0"
-                              />
-                            </div>
-                            <div className="bg-blue-500/10 border border-blue-500/20 rounded p-2">
-                              <p className="text-xs text-blue-300">
-                                📋 User requested: ${request.amount} from wallet {request.walletAddress.substring(0, 15)}...
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
                       {/* Show payment instructions for processed requests */}
                       {request.status !== 'pending' && request.confirmedWallet && (
                         <div className="mt-3 p-4 bg-green-500/5 border border-green-500/20 rounded-lg space-y-2">
@@ -713,36 +760,111 @@ const AdminWithdrawRequests: React.FC = () => {
                           </div>
                         </div>
                       )}
-                    </div>
+                          </div>
 
-                    {/* Action Buttons */}
-                    {request.status === 'pending' && (
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleApprove(request._id)}
-                          disabled={processingId === request._id}
-                          className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600"
-                        >
-                          {processingId === request._id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <CheckCircle className="w-4 h-4" />
+                          {/* Action Buttons - Right Side */}
+                          {request.status === 'pending' && (
+                            <div className="flex flex-col gap-3 min-w-[300px]">
+                              <div className="flex flex-col gap-2">
+                                <label className="text-xs text-muted-foreground">Select Wallet</label>
+                                <div className="flex gap-2">
+                                  <Button
+                                    type="button"
+                                    onClick={() => handleCryptoSelect(request._id, 'BTC')}
+                                    variant={selectedCrypto[request._id] === 'BTC' ? undefined : 'outline'}
+                                    className={`flex-1 p-2 h-auto ${selectedCrypto[request._id] === 'BTC' ? 'bg-orange-600/50 hover:bg-orange-700 border-orange-600' : ''}`}
+                                  >
+                                    <img 
+                                      src="/assets/crypto-logos/bitcoin-btc-logo.svg" 
+                                      alt="BTC" 
+                                      className="w-6 h-6"
+                                    />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    onClick={() => handleCryptoSelect(request._id, 'USDT')}
+                                    variant={selectedCrypto[request._id] === 'USDT' ? undefined : 'outline'}
+                                    className={`flex-1 p-2 h-auto ${selectedCrypto[request._id] === 'USDT' ? 'bg-green-600/50 hover:bg-green-700 border-green-600' : ''}`}
+                                  >
+                                    <img 
+                                      src="/assets/crypto-logos/tether-usdt-logo.svg" 
+                                      alt="USDT" 
+                                      className="w-6 h-6"
+                                    />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    onClick={() => handleCryptoSelect(request._id, 'ETH')}
+                                    variant={selectedCrypto[request._id] === 'ETH' ? undefined : 'outline'}
+                                    className={`flex-1 p-2 h-auto ${selectedCrypto[request._id] === 'ETH' ? 'bg-blue-600/50 hover:bg-blue-700 border-blue-600' : ''}`}
+                                  >
+                                    <img 
+                                      src="/assets/crypto-logos/ethereum-eth-logo.svg" 
+                                      alt="ETH" 
+                                      className="w-6 h-6"
+                                    />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <label className="text-xs text-muted-foreground">Fee Amount</label>
+                                <Input
+                                  type="number"
+                                  placeholder={`Requested: $${request.amount}`}
+                                  value={confirmedAmount[request._id] ?? request.amount.toString()}
+                                  onChange={(e) => setConfirmedAmount(prev => ({
+                                    ...prev,
+                                    [request._id]: e.target.value
+                                  }))}
+                                  className="bg-background/50 border-border text-foreground"
+                                  min="0"
+                                  step="0.01"
+                                />
+                              </div>
+                              {selectedCrypto[request._id] && (
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-xs text-muted-foreground">Wallet Address</label>
+                                  <Input
+                                    type="text"
+                                    placeholder={`${selectedCrypto[request._id]} wallet address`}
+                                    value={confirmedWallet[request._id] || globalWalletAddresses[selectedCrypto[request._id].toLowerCase() as 'btc' | 'usdt' | 'eth'] || ''}
+                                    onChange={(e) => setConfirmedWallet(prev => ({ ...prev, [request._id]: e.target.value }))}
+                                    className="bg-background/50 border-border text-foreground text-xs font-mono"
+                                  />
+                                </div>
+                              )}
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => handleApprove(request._id)}
+                                  disabled={processingId === request._id}
+                                  className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600 flex-1"
+                                >
+                                  {processingId === request._id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="w-4 h-4" />
+                                  )}
+                                  Approve
+                                </Button>
+                                <Button
+                                  onClick={() => handleReject(request._id)}
+                                  disabled={processingId === request._id}
+                                  className="bg-red-600/50 hover:bg-red-700 text-white flex items-center gap-2 border border-red-600 flex-1"
+                                >
+                                  {processingId === request._id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <XCircle className="w-4 h-4" />
+                                  )}
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
                           )}
-                          Approve
-                        </Button>
-                        <Button
-                          onClick={() => handleReject(request._id)}
-                          disabled={processingId === request._id}
-                          className="border-red-500/50 text-red-500 hover:bg-red-500/10 flex items-center gap-2"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          Reject
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                        </div>
+                      </CardContent>
+                    </div>
+                  </Card>
             ))}
                 <div ref={loadMoreRef} />
                 {isFetchingMore && (
