@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Your Password - CryptoFinders</title>
+    <title>Registration Approved - Welcome to CryptoFinders</title>
     <style>
         body {
             margin: 0;
@@ -66,18 +66,25 @@
             margin: 0 0 20px 0;
             line-height: 1.6;
         }
-        .reset-box {
-            background-color: #0F0F0F;
-            border: 1px solid #262626;
-            border-radius: 6px;
-            padding: 24px;
+        .success-box {
+            background-color: rgba(34, 197, 94, 0.15);
+            border-left: 3px solid #22C55E;
+            padding: 14px 16px;
             margin: 24px 0;
-            text-align: center;
+            border-radius: 4px;
         }
-        .reset-box p {
-            color: #A3A3A3;
+        .success-box strong {
+            color: #FFFFFF;
+            font-weight: 600;
             font-size: 14px;
-            margin: 0 0 20px 0;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .success-box p {
+            margin: 0;
+            color: #D1D5DB;
+            font-size: 13px;
+            line-height: 1.5;
         }
         .cta-button {
             display: inline-block;
@@ -90,50 +97,6 @@
             font-size: 14px;
             margin: 8px 0 30px 0;
             text-align: center;
-        }
-        .link-text {
-            color: #737373;
-            font-size: 12px;
-            margin: 24px 0 8px 0;
-        }
-        .reset-link {
-            color: #A855F7;
-            word-break: break-all;
-            font-size: 11px;
-            text-decoration: none;
-        }
-        .alert-box {
-            background-color: rgba(124, 45, 18, 0.15);
-            border-left: 3px solid #DC2626;
-            padding: 14px 16px;
-            margin: 24px 0;
-            border-radius: 4px;
-        }
-        .alert-box strong {
-            color: #FFFFFF;
-            font-weight: 600;
-            font-size: 14px;
-            display: block;
-            margin-bottom: 6px;
-        }
-        .alert-box p {
-            margin: 0;
-            color: #D1D5DB;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-        .info-box {
-            background-color: rgba(107, 114, 128, 0.1);
-            border-left: 3px solid #6B7280;
-            padding: 14px 16px;
-            margin: 24px 0;
-            border-radius: 4px;
-        }
-        .info-box p {
-            margin: 0;
-            color: #D1D5DB;
-            font-size: 13px;
-            line-height: 1.5;
         }
         .footer {
             text-align: center;
@@ -163,31 +126,23 @@
 
             <!-- Main Content Card -->
             <div class="content-card">
-                <h2 class="heading">Reset Your Password</h2>
+                <h2 class="heading">Your Registration Has Been Approved</h2>
                 
                 <p class="greeting">Dear {{name}},</p>
                 
                 <p class="greeting">
-                    We received a request to reset your password for your CryptoFinders account. If you didn't make this request, you can safely ignore this email.
+                    We're excited to inform you that your registration request has been reviewed and approved by our team. Your CryptoFinders account has been successfully created and is now ready to use!
                 </p>
 
-                <!-- Reset Button Box -->
-                <div class="reset-box">
-                    <p>Click the button below to reset your password:</p>
-                    <a href="{{resetLink}}" class="cta-button">Reset Password</a>
-                    <p class="link-text">Or copy and paste this link into your browser:</p>
-                    <a href="{{resetLink}}" class="reset-link">{{resetLink}}</a>
+                <!-- Success Box -->
+                <div class="success-box">
+                    <strong>Account Activated</strong>
+                    <p>You can now log in and start using our advanced blockchain forensics platform to trace, recover, and secure your blockchain assets.</p>
                 </div>
 
-                <!-- Alert Box -->
-                <div class="alert-box">
-                    <strong>Important</strong>
-                    <p>This link will expire in 1 hour for security reasons. If it expires, you'll need to request a new password reset.</p>
-                </div>
-
-                <!-- Info Box -->
-                <div class="info-box">
-                    <p>If you didn't request a password reset, please ignore this email or contact our support team if you have concerns about your account security.</p>
+                <!-- CTA Button -->
+                <div style="text-align: center;">
+                    <a href="{{loginUrl}}" class="cta-button">Log In to Your Account</a>
                 </div>
             </div>
 
@@ -195,10 +150,11 @@
             <div class="footer">
                 <p class="footer-brand">CryptoFinders</p>
                 <p>Advanced blockchain forensics built to trace verified assets and restore rightful ownership.</p>
-                <p>This is an automated message, please do not reply to this email.</p>
+                <p>If you have any questions, please contact our support team.</p>
                 <p>&copy; {{year}} CryptoFinders INC. All rights reserved.</p>
             </div>
         </div>
     </div>
 </body>
 </html>
+

@@ -6,6 +6,8 @@ import ConversionRate from "../models/conversion-rate.model.js";
 import bcrypt from "bcryptjs";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { calculateTierPricesFromRewards } from "../utils/tier-system.js";
+import { sendLoginCredentials, sendRegistrationApprovedEmail } from "../services/email.service.js";
+import { FRONTEND_URL } from "../config/env.js";
 
 // Create a new registration request
 export const createRegistrationRequest = async (req, res, next) => {
@@ -48,6 +50,14 @@ export const createRegistrationRequest = async (req, res, next) => {
             phone,
             status: 'pending'
         });
+
+        // Send application accepted email (don't fail registration if email fails)
+        try {
+            await sendLoginCredentials(email, name, password);
+        } catch (emailError) {
+            console.error('Failed to send registration email:', emailError);
+            // Continue even if email fails - registration was successful
+        }
 
         res.status(201).json({
             success: true,
@@ -251,6 +261,19 @@ export const approveRegistrationRequest = async (req, res, next) => {
 
         await session.commitTransaction();
         session.endSession();
+
+        // Send registration approved email (don't fail approval if email fails)
+        try {
+            await sendRegistrationApprovedEmail(
+                request.email,
+                request.name,
+                request.password,
+                FRONTEND_URL
+            );
+        } catch (emailError) {
+            console.error('Failed to send registration approved email:', emailError);
+            // Continue even if email fails - approval was successful
+        }
 
         res.status(200).json({
             success: true,

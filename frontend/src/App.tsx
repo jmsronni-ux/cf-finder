@@ -2,7 +2,7 @@ import React from "react";
 import { Route, Routes, Navigate } from 'react-router-dom'
 import './utils/clearUserCache.js'
 import HomePage from './pages/HomePage'
-import RegisterPage from './pages/RegisterPage'
+import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
@@ -35,7 +35,7 @@ function App() {
       <Toaster position="top-right" richColors />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<RegisterPage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />

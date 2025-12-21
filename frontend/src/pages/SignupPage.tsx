@@ -7,9 +7,9 @@ const SignupPage = () => {
         <div className="flex flex-col items-start max-w-sm mx-auto min-h-screen w-full px-4 md:px-0 text-white pb-6">
             <div className="flex items-center w-full py-4 md:py-8 border-b border-border/80">
                 <Link to="/#home" className="flex items-center gap-x-2">
-                    <img src="/logo.png" className="w-6 h-6" alt="CryptFinder Logo" />
+                    <img src="/logo.png" className="w-6 h-6" alt="CryptoFinders Logo" />
                     <h1 className="text-lg font-medium">
-                    CryptFinder
+                    CryptoFinders
                     </h1>
                 </Link>
             </div>

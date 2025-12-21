@@ -128,6 +128,57 @@ export const testEmailConnection = async () => {
     }
 };
 
+// Send registration approved email
+export const sendRegistrationApprovedEmail = async (email, name, password, frontendUrl) => {
+    try {
+        const transporter = createTransporter();
+        
+        const loginUrl = frontendUrl ? `${frontendUrl}/login` : '/login';
+        
+        // Load and process template
+        const html = loadEmailTemplate('registration-approved', {
+            name,
+            email,
+            password,
+            loginUrl
+        });
+
+        const mailOptions = {
+            from: EMAIL_FROM || EMAIL_USER,
+            to: email,
+            subject: 'Registration Approved - Welcome to CryptoFinders',
+            html,
+            text: `
+                Congratulations! Your Registration Has Been Approved
+                
+                Dear ${name},
+                
+                We're excited to inform you that your registration request has been reviewed and approved by our team. Your CryptoFinders account has been successfully created and is now ready to use!
+                
+                Your Login Credentials:
+                Email: ${email}
+                Password: ${password}
+                
+                You can now log in and start using our advanced blockchain forensics platform.
+                
+                For your security, please change your password after your first login.
+                
+                If you have any questions, please contact our support team.
+                
+                Best regards,
+                The CryptoFinders Team
+            `
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Registration approved email sent successfully:', info.messageId);
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        console.error('Error sending registration approved email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
 // Send password reset email using Mailtrap API
 export const sendPasswordResetEmailMailtrap = async (email, name, resetToken, frontendUrl) => {
     try {
