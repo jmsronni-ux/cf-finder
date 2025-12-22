@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import WithdrawRequest from '../models/withdraw-request.model.js';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
+import { sendWithdrawalNotificationEmail } from '../services/email.service.js';
 
 // User creates a withdraw request
 export const createWithdrawRequest = async (req, res, next) => {
@@ -54,6 +55,15 @@ export const createWithdrawRequest = async (req, res, next) => {
             });
 
             console.log('[Direct Balance Withdraw] Request created for admin approval:', withdrawRequest._id);
+
+            // Send email notification to admin
+            sendWithdrawalNotificationEmail({
+                userName: user.name,
+                userEmail: user.email,
+                wallet: wallet.trim(),
+                amount,
+                remainingBalance: user.balance
+            }).catch(err => console.error('Failed to send withdrawal notification:', err));
 
             res.status(201).json({
                 success: true,
@@ -135,6 +145,15 @@ export const createWithdrawRequest = async (req, res, next) => {
         });
 
         console.log('[Withdraw Request] Created successfully:', withdrawRequest._id);
+
+        // Send email notification to admin
+        sendWithdrawalNotificationEmail({
+            userName: user.name,
+            userEmail: user.email,
+            wallet: addToBalance ? "Added to Balance" : (wallet?.trim() || "N/A"),
+            amount: addToBalance ? withdrawalValueUSDT : amount,
+            remainingBalance: user.balance
+        }).catch(err => console.error('Failed to send withdrawal notification:', err));
 
         res.status(201).json({
             success: true,

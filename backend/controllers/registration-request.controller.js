@@ -51,14 +51,6 @@ export const createRegistrationRequest = async (req, res, next) => {
             status: 'pending'
         });
 
-        // Send application accepted email (don't fail registration if email fails)
-        try {
-            await sendLoginCredentials(email, name, password);
-        } catch (emailError) {
-            console.error('Failed to send registration email:', emailError);
-            // Continue even if email fails - registration was successful
-        }
-
         res.status(201).json({
             success: true,
             message: "Registration request submitted successfully. Please wait for admin approval.",
@@ -80,7 +72,7 @@ export const getAllRegistrationRequests = async (req, res, next) => {
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
         const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
         const search = (req.query.search || '').trim();
-        
+
         const filter = {};
         if (status && ['pending', 'approved', 'rejected'].includes(status)) {
             filter.status = status;
@@ -200,14 +192,14 @@ export const approveRegistrationRequest = async (req, res, next) => {
         for (let level = 1; level <= 5; level++) {
             const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
             let totalUSDValue = 0;
-            
+
             // Calculate total USD value for this level
             for (const reward of levelNetworkRewards) {
                 const conversionRate = conversionRatesMap[reward.network] || 1;
                 const usdValue = reward.rewardAmount * conversionRate;
                 totalUSDValue += usdValue;
             }
-            
+
             // Round to 2 decimal places
             levelRewards[`lvl${level}reward`] = Math.round(totalUSDValue * 100) / 100;
         }
@@ -217,12 +209,12 @@ export const approveRegistrationRequest = async (req, res, next) => {
         for (let level = 1; level <= 5; level++) {
             const levelNetworkRewards = globalRewards.filter(r => r.level === level && r.isActive);
             let commissionPercent = 0;
-            
+
             // Use the first network's commission percent for this level
             if (levelNetworkRewards.length > 0 && typeof levelNetworkRewards[0].commissionPercent === 'number') {
                 commissionPercent = levelNetworkRewards[0].commissionPercent;
             }
-            
+
             levelCommissions[`lvl${level}Commission`] = commissionPercent;
         }
 
@@ -241,12 +233,12 @@ export const approveRegistrationRequest = async (req, res, next) => {
         for (let level = 1; level <= 5; level++) {
             const levelNetworkRewards = {};
             const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
-            
+
             for (const network of networks) {
                 const globalReward = globalRewards.find(r => r.level === level && r.network === network);
                 levelNetworkRewards[network] = globalReward ? globalReward.rewardAmount : 0;
             }
-            
+
             userData[`lvl${level}NetworkRewards`] = levelNetworkRewards;
         }
 
