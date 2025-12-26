@@ -46,6 +46,7 @@ interface Submission {
   status: string;
   createdAt: string;
   documents: DocumentMeta[];
+  reviewNote?: string;
 }
 
 const AdditionalVerification: React.FC = () => {
@@ -524,9 +525,12 @@ const AdditionalVerification: React.FC = () => {
                   <XCircle className="w-6 h-6 text-red-400" />
                   Rejected
                 </h3>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Your submission was reviewed but did not pass. You can resubmit the questionnaire below.
-                </p>
+
+                {latestSubmission.reviewNote && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Reason: {latestSubmission.reviewNote}
+                  </p>
+                )}
               </div>
               <Badge className="bg-red-500/20 text-red-300 border border-red-500/50 px-4 py-1">
                 Verified Level 1

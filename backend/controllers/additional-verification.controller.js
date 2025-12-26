@@ -4,6 +4,8 @@ import AdditionalVerificationQuestionnaire from '../models/additional-verificati
 import AdditionalVerificationSubmission from '../models/additional-verification-submission.model.js';
 import { uploadBufferToGridFS, getFileMetadata, getFileStream } from '../services/gridfs.service.js';
 import { validateAnswers, validateDocumentsPayload } from '../utils/additional-verification.utils.js';
+import { sendAdditionalVerificationSubmissionReceivedEmail } from '../services/email.service.js';
+import User from '../models/user.model.js';
 
 const respondValidationErrors = (req, res) => {
     const errors = validationResult(req);
@@ -108,6 +110,17 @@ export const submitAdditionalVerification = async (req, res) => {
         answers: normalizedAnswers,
         documents: normalizedDocuments
     });
+
+    // Send confirmation email to user
+    const user = await User.findById(req.user._id);
+    if (user) {
+        sendAdditionalVerificationSubmissionReceivedEmail(
+            user.email,
+            user.name,
+            questionnaire.title,
+            submission._id
+        ).catch(err => console.error('Failed to send submission received email:', err));
+    }
 
     res.status(201).json({
         success: true,

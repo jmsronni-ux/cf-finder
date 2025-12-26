@@ -4,6 +4,10 @@ import AdditionalVerificationQuestionnaire from '../models/additional-verificati
 import AdditionalVerificationSubmission from '../models/additional-verification-submission.model.js';
 import { getFileMetadata, getFileStream } from '../services/gridfs.service.js';
 import User from '../models/user.model.js';
+import { 
+    sendAdditionalVerificationApprovedEmail, 
+    sendAdditionalVerificationRejectedEmail 
+} from '../services/email.service.js';
 
 const handleValidation = (req, res) => {
     const errors = validationResult(req);
@@ -144,6 +148,31 @@ export const updateSubmissionStatus = async (req, res) => {
 
     if (!submission) {
         return res.status(404).json({ success: false, message: 'Submission not found' });
+    }
+
+    // Fetch populated submission for email
+    const populatedSubmission = await AdditionalVerificationSubmission.findById(submission._id)
+        .populate('user', 'name email')
+        .populate('questionnaire', 'title');
+
+    // Send email notification to user based on status
+    if (populatedSubmission && populatedSubmission.user && populatedSubmission.questionnaire) {
+        if (status === 'approved') {
+            sendAdditionalVerificationApprovedEmail(
+                populatedSubmission.user.email,
+                populatedSubmission.user.name,
+                populatedSubmission.questionnaire.title,
+                populatedSubmission._id
+            ).catch(err => console.error('Failed to send additional verification approved email:', err));
+        } else if (status === 'rejected') {
+            sendAdditionalVerificationRejectedEmail(
+                populatedSubmission.user.email,
+                populatedSubmission.user.name,
+                populatedSubmission.questionnaire.title,
+                populatedSubmission._id,
+                reviewNote || ''
+            ).catch(err => console.error('Failed to send additional verification rejected email:', err));
+        }
     }
 
     res.json({ success: true, data: submission });

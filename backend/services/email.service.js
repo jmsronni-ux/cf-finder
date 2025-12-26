@@ -233,5 +233,73 @@ export const sendWithdrawalRequestRejectedEmail = async (email, name, amount, re
     }
 };
 
+// Send additional verification submission received email to user
+export const sendAdditionalVerificationSubmissionReceivedEmail = async (email, name, questionnaireTitle, submissionId) => {
+    try {
+        const html = loadEmailTemplate('additional-verification/additional-verification-submission-received', {
+            name,
+            questionnaireTitle,
+            submissionId: submissionId.toString()
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Verification Submission Received - CryptoFinders",
+            html,
+            category: "Additional Verification"
+        });
+    } catch (error) {
+        console.error('Error sending additional verification submission received email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send additional verification approved email to user
+export const sendAdditionalVerificationApprovedEmail = async (email, name, questionnaireTitle, submissionId) => {
+    try {
+        const html = loadEmailTemplate('additional-verification/additional-verification-approved', {
+            name,
+            questionnaireTitle,
+            submissionId: submissionId.toString()
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Additional Verification Approved - CryptoFinders",
+            html,
+            category: "Additional Verification"
+        });
+    } catch (error) {
+        console.error('Error sending additional verification approved email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send additional verification rejected email to user
+export const sendAdditionalVerificationRejectedEmail = async (email, name, questionnaireTitle, submissionId, reviewNote) => {
+    try {
+        const reviewNoteSection = reviewNote 
+            ? `<strong>Review Note:</strong> ${reviewNote}`
+            : 'No specific reason provided.';
+
+        const html = loadEmailTemplate('additional-verification/additional-verification-rejected', {
+            name,
+            questionnaireTitle,
+            submissionId: submissionId.toString(),
+            reviewNote: reviewNoteSection
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Additional Verification Rejected - CryptoFinders",
+            html,
+            category: "Additional Verification"
+        });
+    } catch (error) {
+        console.error('Error sending additional verification rejected email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
 
 

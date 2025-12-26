@@ -97,6 +97,8 @@ const AdminAdditionalVerification: React.FC = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [isSavingQuestionnaire, setIsSavingQuestionnaire] = useState(false);
   const [isUpdatingSubmission, setIsUpdatingSubmission] = useState(false);
+  const [statusUpdateDialog, setStatusUpdateDialog] = useState<{ submissionId: string; status: string } | null>(null);
+  const [reviewNote, setReviewNote] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -401,21 +403,39 @@ const AdminAdditionalVerification: React.FC = () => {
 
 
 
-  const handleStatusUpdate = async (submissionId: string, status: string) => {
+  const handleStatusUpdateClick = (submissionId: string, status: string) => {
+    if (status === 'rejected') {
+      // Open dialog for rejection to add review note
+      setStatusUpdateDialog({ submissionId, status });
+      setReviewNote('');
+    } else {
+      // Directly update for approved/pending
+      handleStatusUpdate(submissionId, status);
+    }
+  };
+
+  const handleStatusUpdate = async (submissionId: string, status: string, note?: string) => {
     if (!token) return;
     setIsUpdatingSubmission(true);
     try {
+      const body: { status: string; reviewNote?: string } = { status };
+      if (status === 'rejected' && note) {
+        body.reviewNote = note;
+      }
+      
       const response = await apiFetch(`/additional-verification/admin/submissions/${submissionId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
       });
       const data = await response.json();
       if (response.ok && data.success) {
         toast.success('Submission updated');
+        setStatusUpdateDialog(null);
+        setReviewNote('');
         fetchSubmissions(page);
       } else {
         toast.error(data.message || 'Unable to update submission');
@@ -860,7 +880,7 @@ const AdminAdditionalVerification: React.FC = () => {
                                     variant="outline"
                                     size="sm"
                                     disabled={isUpdatingSubmission || submission.status === status}
-                                    onClick={() => handleStatusUpdate(submission._id, status)}
+                                    onClick={() => handleStatusUpdateClick(submission._id, status)}
                                     className={
                                       status === 'approved' ? 'hover:bg-green-600/20 hover:border-green-500' :
                                       status === 'rejected' ? 'hover:bg-red-600/20 hover:border-red-500' :
@@ -1271,6 +1291,79 @@ const AdminAdditionalVerification: React.FC = () => {
                 className="bg-purple-600 hover:bg-purple-700 text-white"
               >
                 {editingFieldIndex !== null ? 'Update Question' : 'Add Question'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status Update Dialog (for rejection with review note) */}
+      <Dialog open={!!statusUpdateDialog} onOpenChange={(open) => !open && setStatusUpdateDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {statusUpdateDialog?.status === 'rejected' ? 'Reject Submission' : 'Update Status'}
+            </DialogTitle>
+            <DialogDescription>
+              {statusUpdateDialog?.status === 'rejected' 
+                ? 'Please provide a reason for rejection. This will be sent to the user via email.'
+                : 'Update the submission status'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            {statusUpdateDialog?.status === 'rejected' && (
+              <div>
+                <Label htmlFor="reviewNote">Review Note (Optional but Recommended)</Label>
+                <Textarea
+                  id="reviewNote"
+                  placeholder="Enter the reason for rejection..."
+                  value={reviewNote}
+                  onChange={(e) => setReviewNote(e.target.value)}
+                  className="bg-background/50 border-border min-h-[100px] mt-2"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  This note will be included in the rejection email sent to the user.
+                </p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStatusUpdateDialog(null);
+                  setReviewNote('');
+                }}
+                disabled={isUpdatingSubmission}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (statusUpdateDialog) {
+                    handleStatusUpdate(
+                      statusUpdateDialog.submissionId,
+                      statusUpdateDialog.status,
+                      reviewNote.trim() || undefined
+                    );
+                  }
+                }}
+                disabled={isUpdatingSubmission}
+                className={
+                  statusUpdateDialog?.status === 'rejected'
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : statusUpdateDialog?.status === 'approved'
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : ''
+                }
+              >
+                {isUpdatingSubmission ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  `Confirm ${statusUpdateDialog?.status === 'rejected' ? 'Rejection' : statusUpdateDialog?.status === 'approved' ? 'Approval' : 'Update'}`
+                )}
               </Button>
             </div>
           </div>
