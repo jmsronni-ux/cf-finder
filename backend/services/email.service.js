@@ -57,7 +57,8 @@ export const loadEmailTemplate = (templateName, variables) => {
 
         // Add logo URL if not provided
         if (!variables.logoUrl) {
-            variables.logoUrl = FRONTEND_URL ? `${FRONTEND_URL}/logo.png` : '/logo.png';
+            // Always use absolute URL for email clients
+            variables.logoUrl = 'https://crypto-finders.com/logo.png';
         }
 
         // Add current year if not provided
