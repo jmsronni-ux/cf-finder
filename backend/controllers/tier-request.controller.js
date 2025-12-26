@@ -4,6 +4,7 @@ import User from "../models/user.model.js";
 import WithdrawRequest from "../models/withdraw-request.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { getTierInfo } from "../utils/tier-system.js";
+import { sendTierRequestSubmittedEmail, sendTierRequestApprovedEmail, sendTierRequestRejectedEmail } from "../services/email.service.js";
 
 // User creates a tier upgrade request
 export const createTierRequest = async (req, res, next) => {
@@ -91,6 +92,18 @@ export const createTierRequest = async (req, res, next) => {
         });
 
         const tierInfo = getTierInfo(requestedTier);
+        const currentTierInfo = getTierInfo(user.tier);
+
+        // Send confirmation email to user
+        sendTierRequestSubmittedEmail(
+            user.email,
+            user.name,
+            user.tier,
+            currentTierInfo.name,
+            requestedTier,
+            tierInfo.name,
+            tierRequest._id
+        ).catch(err => console.error('Failed to send tier request submitted email:', err));
 
         res.status(201).json({
             success: true,
@@ -236,6 +249,18 @@ export const approveTierRequest = async (req, res, next) => {
         await tierRequest.save();
 
         const tierInfo = getTierInfo(tierRequest.requestedTier);
+        const currentTierInfo = getTierInfo(tierRequest.currentTier);
+
+        // Send email notification to user
+        sendTierRequestApprovedEmail(
+            user.email,
+            user.name,
+            tierRequest.currentTier,
+            currentTierInfo.name,
+            tierRequest.requestedTier,
+            tierInfo.name,
+            tierRequest._id
+        ).catch(err => console.error('Failed to send tier request approved email:', err));
 
         res.status(200).json({
             success: true,
@@ -275,6 +300,15 @@ export const rejectTierRequest = async (req, res, next) => {
             throw new ApiError(400, `This request has already been ${tierRequest.status}`);
         }
 
+        // Get user and tier info for email
+        const user = await User.findById(tierRequest.userId);
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+
+        const tierInfo = getTierInfo(tierRequest.requestedTier);
+        const currentTierInfo = getTierInfo(tierRequest.currentTier);
+
         // Update tier request status
         tierRequest.status = 'rejected';
         tierRequest.reviewedBy = adminId;
@@ -282,6 +316,18 @@ export const rejectTierRequest = async (req, res, next) => {
         tierRequest.adminNote = adminNote || 'Request rejected by admin';
         tierRequest.updatedAt = new Date();
         await tierRequest.save();
+
+        // Send email notification to user
+        sendTierRequestRejectedEmail(
+            user.email,
+            user.name,
+            tierRequest.currentTier,
+            currentTierInfo.name,
+            tierRequest.requestedTier,
+            tierInfo.name,
+            tierRequest._id,
+            adminNote || ''
+        ).catch(err => console.error('Failed to send tier request rejected email:', err));
 
         res.status(200).json({
             success: true,

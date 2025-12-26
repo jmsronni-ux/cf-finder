@@ -301,5 +301,82 @@ export const sendAdditionalVerificationRejectedEmail = async (email, name, quest
     }
 };
 
+// Send tier request submitted email to user
+export const sendTierRequestSubmittedEmail = async (email, name, currentTier, currentTierName, requestedTier, tierName, requestId) => {
+    try {
+        const html = loadEmailTemplate('tier-request/tier-request-submitted', {
+            name,
+            currentTier,
+            currentTierName,
+            requestedTier,
+            tierName,
+            requestId: requestId.toString()
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: `Tier Upgrade Request Submitted - ${tierName} - CryptoFinders`,
+            html,
+            category: "Tier Request"
+        });
+    } catch (error) {
+        console.error('Error sending tier request submitted email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send tier request approved email to user
+export const sendTierRequestApprovedEmail = async (email, name, currentTier, currentTierName, requestedTier, tierName, requestId) => {
+    try {
+        const html = loadEmailTemplate('tier-request/tier-request-approved', {
+            name,
+            currentTier,
+            currentTierName,
+            requestedTier,
+            tierName,
+            requestId: requestId.toString()
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: `Tier Upgrade Approved - ${tierName} - CryptoFinders`,
+            html,
+            category: "Tier Request"
+        });
+    } catch (error) {
+        console.error('Error sending tier request approved email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send tier request rejected email to user
+export const sendTierRequestRejectedEmail = async (email, name, currentTier, currentTierName, requestedTier, tierName, requestId, adminNote) => {
+    try {
+        const adminNoteSection = adminNote && adminNote.trim() 
+            ? adminNote.trim()
+            : 'Request rejected by admin.';
+
+        const html = loadEmailTemplate('tier-request/tier-request-rejected', {
+            name,
+            currentTier,
+            currentTierName,
+            requestedTier,
+            tierName,
+            requestId: requestId.toString(),
+            adminNote: adminNoteSection
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: `Tier Upgrade Request Rejected - CryptoFinders`,
+            html,
+            category: "Tier Request"
+        });
+    } catch (error) {
+        console.error('Error sending tier request rejected email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
 
 
