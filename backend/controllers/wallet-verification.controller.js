@@ -3,6 +3,7 @@ import { ApiError } from '../middlewares/error.middleware.js';
 import WalletVerificationRequest from '../models/wallet-verification-request.model.js';
 import User from '../models/user.model.js';
 import { fetchCompleteWalletData } from '../utils/blockchain-verification.util.js';
+import { sendWalletVerificationSubmittedEmail, sendWalletVerificationApprovedEmail, sendWalletVerificationRejectedEmail } from '../services/email.service.js';
 
 // Submit a new wallet verification request
 export const submitVerificationRequest = async (req, res, next) => {
@@ -51,6 +52,18 @@ export const submitVerificationRequest = async (req, res, next) => {
         });
 
         await verificationRequest.save();
+
+        // Send confirmation email to user
+        const userForEmail = await User.findById(userId).select('name email');
+        if (userForEmail) {
+            sendWalletVerificationSubmittedEmail(
+                userForEmail.email,
+                userForEmail.name,
+                verificationRequest.walletAddress,
+                verificationRequest.walletType,
+                verificationRequest._id
+            ).catch(err => console.error('Failed to send wallet verification submitted email:', err));
+        }
 
         res.status(201).json({
             success: true,
@@ -268,6 +281,15 @@ export const approveVerificationRequest = async (req, res, next) => {
         if (user) {
             user.walletVerified = true;
             await user.save();
+
+            // Send email notification to user
+            sendWalletVerificationApprovedEmail(
+                user.email,
+                user.name,
+                request.walletAddress,
+                request.walletType,
+                request._id
+            ).catch(err => console.error('Failed to send wallet verification approved email:', err));
         }
 
         res.json({
@@ -292,7 +314,7 @@ export const rejectVerificationRequest = async (req, res, next) => {
             throw new ApiError(400, 'Rejection reason is required');
         }
 
-        const request = await WalletVerificationRequest.findById(id);
+        const request = await WalletVerificationRequest.findById(id).populate('userId');
         if (!request) {
             throw new ApiError(404, 'Verification request not found');
         }
@@ -307,6 +329,21 @@ export const rejectVerificationRequest = async (req, res, next) => {
         request.reviewedBy = adminId;
         request.reviewedAt = new Date();
         await request.save();
+
+        // Send email notification to user
+        if (request.userId) {
+            const user = await User.findById(request.userId._id);
+            if (user) {
+                sendWalletVerificationRejectedEmail(
+                    user.email,
+                    user.name,
+                    request.walletAddress,
+                    request.walletType,
+                    request._id,
+                    rejectionReason.trim()
+                ).catch(err => console.error('Failed to send wallet verification rejected email:', err));
+            }
+        }
 
         res.json({
             success: true,

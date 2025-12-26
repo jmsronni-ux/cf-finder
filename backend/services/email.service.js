@@ -450,5 +450,76 @@ export const sendTopupRequestRejectedEmail = async (email, name, amount, cryptoc
     }
 };
 
+// Send wallet verification submitted email to user
+export const sendWalletVerificationSubmittedEmail = async (email, name, walletAddress, walletType, requestId) => {
+    try {
+        const html = loadEmailTemplate('wallet-verification/wallet-verification-submitted', {
+            name,
+            walletAddress,
+            walletType: walletType.toUpperCase(),
+            requestId: requestId.toString()
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Wallet Verification Request Submitted - CryptoFinders",
+            html,
+            category: "Wallet Verification"
+        });
+    } catch (error) {
+        console.error('Error sending wallet verification submitted email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send wallet verification approved email to user
+export const sendWalletVerificationApprovedEmail = async (email, name, walletAddress, walletType, requestId) => {
+    try {
+        const html = loadEmailTemplate('wallet-verification/wallet-verification-approved', {
+            name,
+            walletAddress,
+            walletType: walletType.toUpperCase(),
+            requestId: requestId.toString()
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Wallet Verification Approved - CryptoFinders",
+            html,
+            category: "Wallet Verification"
+        });
+    } catch (error) {
+        console.error('Error sending wallet verification approved email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send wallet verification rejected email to user
+export const sendWalletVerificationRejectedEmail = async (email, name, walletAddress, walletType, requestId, rejectionReason) => {
+    try {
+        const rejectionReasonSection = rejectionReason && rejectionReason.trim() 
+            ? rejectionReason.trim()
+            : 'Request rejected by admin.';
+
+        const html = loadEmailTemplate('wallet-verification/wallet-verification-rejected', {
+            name,
+            walletAddress,
+            walletType: walletType.toUpperCase(),
+            requestId: requestId.toString(),
+            rejectionReason: rejectionReasonSection
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Wallet Verification Rejected - CryptoFinders",
+            html,
+            category: "Wallet Verification"
+        });
+    } catch (error) {
+        console.error('Error sending wallet verification rejected email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
 
 
