@@ -378,5 +378,77 @@ export const sendTierRequestRejectedEmail = async (email, name, currentTier, cur
     }
 };
 
+// Send topup request submitted email to user
+export const sendTopupRequestSubmittedEmail = async (email, name, amount, cryptocurrency, requestId) => {
+    try {
+        const html = loadEmailTemplate('topup-request/topup-request-submitted', {
+            name,
+            amount,
+            cryptocurrency,
+            requestId: requestId.toString()
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Top-up Request Submitted - CryptoFinders",
+            html,
+            category: "Top-up Request"
+        });
+    } catch (error) {
+        console.error('Error sending topup request submitted email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send topup request approved email to user
+export const sendTopupRequestApprovedEmail = async (email, name, approvedAmount, cryptocurrency, newBalance, requestId) => {
+    try {
+        const html = loadEmailTemplate('topup-request/topup-request-approved', {
+            name,
+            approvedAmount,
+            cryptocurrency,
+            newBalance,
+            requestId: requestId.toString()
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Top-up Request Approved - CryptoFinders",
+            html,
+            category: "Top-up Request"
+        });
+    } catch (error) {
+        console.error('Error sending topup request approved email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send topup request rejected email to user
+export const sendTopupRequestRejectedEmail = async (email, name, amount, cryptocurrency, requestId, notes) => {
+    try {
+        const notesSection = notes && notes.trim() 
+            ? notes.trim()
+            : 'Request rejected by admin.';
+
+        const html = loadEmailTemplate('topup-request/topup-request-rejected', {
+            name,
+            amount,
+            cryptocurrency,
+            requestId: requestId.toString(),
+            notes: notesSection
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Top-up Request Rejected - CryptoFinders",
+            html,
+            category: "Top-up Request"
+        });
+    } catch (error) {
+        console.error('Error sending topup request rejected email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
 
 

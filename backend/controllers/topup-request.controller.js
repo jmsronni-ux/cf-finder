@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import TopupRequest from '../models/topup-request.model.js';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
+import { sendTopupRequestSubmittedEmail, sendTopupRequestApprovedEmail, sendTopupRequestRejectedEmail } from '../services/email.service.js';
 
 // User creates a top-up request
 export const createTopupRequest = async (req, res, next) => {
@@ -13,11 +14,25 @@ export const createTopupRequest = async (req, res, next) => {
             throw new ApiError(400, 'Invalid amount');
         }
 
+        const user = await User.findById(userId);
+        if (!user) {
+            throw new ApiError(404, 'User not found');
+        }
+
         const topupRequest = await TopupRequest.create({
             userId,
             amount,
             cryptocurrency: cryptocurrency || 'BTC'
         });
+
+        // Send confirmation email to user
+        sendTopupRequestSubmittedEmail(
+            user.email,
+            user.name,
+            amount,
+            cryptocurrency || 'BTC',
+            topupRequest._id
+        ).catch(err => console.error('Failed to send topup request submitted email:', err));
 
         res.status(201).json({
             success: true,
@@ -141,6 +156,16 @@ export const approveTopupRequest = async (req, res, next) => {
         topupRequest.approvedAmount = amountToAdd;
         await topupRequest.save();
 
+        // Send email notification to user
+        sendTopupRequestApprovedEmail(
+            user.email,
+            user.name,
+            amountToAdd,
+            topupRequest.cryptocurrency,
+            user.balance,
+            topupRequest._id
+        ).catch(err => console.error('Failed to send topup request approved email:', err));
+
         res.status(200).json({
             success: true,
             message: 'Top-up request approved successfully',
@@ -161,7 +186,7 @@ export const rejectTopupRequest = async (req, res, next) => {
         const { notes } = req.body;
         const adminId = req.user._id;
 
-        const topupRequest = await TopupRequest.findById(requestId);
+        const topupRequest = await TopupRequest.findById(requestId).populate('userId');
 
         if (!topupRequest) {
             throw new ApiError(404, 'Top-up request not found');
@@ -178,6 +203,21 @@ export const rejectTopupRequest = async (req, res, next) => {
             topupRequest.notes = notes;
         }
         await topupRequest.save();
+
+        // Send email notification to user
+        if (topupRequest.userId) {
+            const user = await User.findById(topupRequest.userId._id);
+            if (user) {
+                sendTopupRequestRejectedEmail(
+                    user.email,
+                    user.name,
+                    topupRequest.amount,
+                    topupRequest.cryptocurrency,
+                    topupRequest._id,
+                    notes || ''
+                ).catch(err => console.error('Failed to send topup request rejected email:', err));
+            }
+        }
 
         res.status(200).json({
             success: true,
