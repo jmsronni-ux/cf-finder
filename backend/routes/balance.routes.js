@@ -2,7 +2,6 @@ import express from "express";
 import { authMiddleware as authenticate } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
-import { sendEmail, loadEmailTemplate } from "../services/email.service.js";
 import mongoose from "mongoose";
 
 const balanceRouter = express.Router();
@@ -62,33 +61,6 @@ balanceRouter.post("/withdraw", authenticate, async (req, res, next) => {
         await user.save({ session });
         
         await session.commitTransaction();
-        
-        // Send email notification to admin
-        const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
-        
-        if (adminEmail) {
-            try {
-                // Load and process template
-                const html = loadEmailTemplate('withdrawal-notification', {
-                    userName: user.name,
-                    userEmail: user.email,
-                    wallet,
-                    amount,
-                    remainingBalance: user.balance,
-                    date: new Date().toLocaleString()
-                });
-                
-                await sendEmail({
-                    to: adminEmail,
-                    subject: `New Withdrawal Request - ${user.name}`,
-                    html
-                });
-                console.log('Withdrawal notification email sent successfully');
-            } catch (emailError) {
-                console.error('Failed to send withdrawal email:', emailError);
-                // Don't fail the withdrawal if email fails
-            }
-        }
         
         res.status(200).json({
             success: true,

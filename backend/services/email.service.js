@@ -99,11 +99,6 @@ export const sendLoginCredentials = async (email, name, password) => {
     }
 };
 
-// Generic send email function
-export const sendEmail = async ({ to, subject, html, text, category }) => {
-    return await sendViaMailtrap({ to, subject, html, text, category: category || "General Notification" });
-};
-
 // Test email configuration
 export const testEmailConnection = async () => {
     try {
@@ -168,36 +163,75 @@ export const sendPasswordResetEmailMailtrap = async (email, name, resetToken, fr
     }
 };
 
-// Send withdrawal notification email to admin using Mailtrap API
-export const sendWithdrawalNotificationEmail = async ({ userName, userEmail, wallet, amount, remainingBalance }) => {
+// Send withdrawal request created email
+export const sendWithdrawalRequestCreatedEmail = async (email, name, amount, wallet, requestId) => {
     try {
-        const { ADMIN_EMAIL, EMAIL_USER } = await import('../config/env.js');
-        const adminEmail = ADMIN_EMAIL || EMAIL_USER;
-
-        if (!adminEmail) {
-            console.warn('Admin email not configured, skipping withdrawal notification');
-            return;
-        }
-
-        // Load and process template
-        const html = loadEmailTemplate('withdrawal-notification', {
-            userName,
-            userEmail,
-            wallet: wallet || "To Balance",
+        const html = loadEmailTemplate('withdrawal/withdrawal-request-created', {
+            name,
             amount,
-            remainingBalance,
-            date: new Date().toLocaleString()
+            wallet: wallet || 'N/A',
+            requestId: requestId.toString()
         });
 
         return await sendViaMailtrap({
-            to: adminEmail,
-            subject: `New Withdrawal Request - ${userName}`,
+            to: email,
+            subject: "Withdrawal Request Created - CryptoFinders",
             html,
-            category: "Withdrawal Notification"
+            category: "Withdrawal Request"
         });
     } catch (error) {
-        console.error('Error sending withdrawal notification email:', error);
-        // Don't throw error to avoid breaking the withdrawal process
+        console.error('Error sending withdrawal request created email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
     }
 };
+
+// Send withdrawal request approved email
+export const sendWithdrawalRequestApprovedEmail = async (email, name, confirmedAmount, confirmedWallet, requestId) => {
+    try {
+        const html = loadEmailTemplate('withdrawal/withdrawal-request-approved', {
+            name,
+            confirmedAmount,
+            confirmedWallet,
+            requestId: requestId.toString()
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Withdrawal Request Approved - CryptoFinders",
+            html,
+            category: "Withdrawal Request"
+        });
+    } catch (error) {
+        console.error('Error sending withdrawal request approved email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+// Send withdrawal request rejected email
+export const sendWithdrawalRequestRejectedEmail = async (email, name, amount, requestId, notes) => {
+    try {
+        const notesSection = notes 
+            ? `<strong>Reason:</strong> ${notes}`
+            : '';
+
+        const html = loadEmailTemplate('withdrawal/withdrawal-request-rejected', {
+            name,
+            amount,
+            requestId: requestId.toString(),
+            notes: notesSection
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: "Withdrawal Request Rejected - CryptoFinders",
+            html,
+            category: "Withdrawal Request"
+        });
+    } catch (error) {
+        console.error('Error sending withdrawal request rejected email:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
+
 

@@ -2,7 +2,11 @@ import mongoose from 'mongoose';
 import WithdrawRequest from '../models/withdraw-request.model.js';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
-import { sendWithdrawalNotificationEmail } from '../services/email.service.js';
+import { 
+    sendWithdrawalRequestCreatedEmail, 
+    sendWithdrawalRequestApprovedEmail, 
+    sendWithdrawalRequestRejectedEmail 
+} from '../services/email.service.js';
 
 // User creates a withdraw request
 export const createWithdrawRequest = async (req, res, next) => {
@@ -56,14 +60,14 @@ export const createWithdrawRequest = async (req, res, next) => {
 
             console.log('[Direct Balance Withdraw] Request created for admin approval:', withdrawRequest._id);
 
-            // Send email notification to admin
-            sendWithdrawalNotificationEmail({
-                userName: user.name,
-                userEmail: user.email,
-                wallet: wallet.trim(),
+            // Send email notification to user
+            sendWithdrawalRequestCreatedEmail(
+                user.email,
+                user.name,
                 amount,
-                remainingBalance: user.balance
-            }).catch(err => console.error('Failed to send withdrawal notification:', err));
+                wallet.trim(),
+                withdrawRequest._id
+            ).catch(err => console.error('Failed to send withdrawal request created email:', err));
 
             res.status(201).json({
                 success: true,
@@ -146,14 +150,16 @@ export const createWithdrawRequest = async (req, res, next) => {
 
         console.log('[Withdraw Request] Created successfully:', withdrawRequest._id);
 
-        // Send email notification to admin
-        sendWithdrawalNotificationEmail({
-            userName: user.name,
-            userEmail: user.email,
-            wallet: addToBalance ? "Added to Balance" : (wallet?.trim() || "N/A"),
-            amount: addToBalance ? withdrawalValueUSDT : amount,
-            remainingBalance: user.balance
-        }).catch(err => console.error('Failed to send withdrawal notification:', err));
+        // Send email notification to user (only if not adding to balance, as those are auto-approved)
+        if (!addToBalance) {
+            sendWithdrawalRequestCreatedEmail(
+                user.email,
+                user.name,
+                addToBalance ? withdrawalValueUSDT : amount,
+                wallet?.trim() || '',
+                withdrawRequest._id
+            ).catch(err => console.error('Failed to send withdrawal request created email:', err));
+        }
 
         res.status(201).json({
             success: true,
@@ -349,6 +355,15 @@ export const approveWithdrawRequest = async (req, res, next) => {
 
         console.log(`[Approve Withdraw] Request ${requestId} approved and balance deducted.`);
 
+        // Send email notification to user
+        sendWithdrawalRequestApprovedEmail(
+            user.email,
+            user.name,
+            confirmedAmount,
+            confirmedWallet.trim(),
+            withdrawRequest._id
+        ).catch(err => console.error('Failed to send withdrawal request approved email:', err));
+
         res.status(200).json({
             success: true,
             message: 'Withdraw request approved successfully. Balance has been deducted.',
@@ -374,7 +389,7 @@ export const rejectWithdrawRequest = async (req, res, next) => {
         const { notes } = req.body;
         const adminId = req.user._id;
 
-        const withdrawRequest = await WithdrawRequest.findById(requestId);
+        const withdrawRequest = await WithdrawRequest.findById(requestId).populate('userId');
 
         if (!withdrawRequest) {
             throw new ApiError(404, 'Withdraw request not found');
@@ -391,6 +406,18 @@ export const rejectWithdrawRequest = async (req, res, next) => {
             withdrawRequest.notes = notes;
         }
         await withdrawRequest.save();
+
+        // Send email notification to user
+        const user = await User.findById(withdrawRequest.userId._id);
+        if (user) {
+            sendWithdrawalRequestRejectedEmail(
+                user.email,
+                user.name,
+                withdrawRequest.amount,
+                withdrawRequest._id,
+                notes || ''
+            ).catch(err => console.error('Failed to send withdrawal request rejected email:', err));
+        }
 
         res.status(200).json({
             success: true,
