@@ -68,6 +68,7 @@ const UserProfile: React.FC = () => {
   const [showEditSettingsPopup, setShowEditSettingsPopup] = useState(false);
   const [hasApprovedAdditionalVerification, setHasApprovedAdditionalVerification] = useState(false);
   const navigate = useNavigate();
+  const widgetContainerRef = React.useRef<HTMLDivElement>(null);
   // Edit profile state
   const [nameInput, setNameInput] = useState<string>(user?.name || '');
   const [savingName, setSavingName] = useState<boolean>(false);
@@ -457,6 +458,51 @@ const UserProfile: React.FC = () => {
     fetchWallets();
   }, [token]);
 
+  // Load ElevenLabs Agent widget script and create widget element
+  useEffect(() => {
+    // Check if script is already loaded
+    const existingScript = document.querySelector('script[src*="convai-widget-embed"]');
+    if (existingScript && widgetContainerRef.current) {
+      // Script already loaded, just create the widget element
+      if (!widgetContainerRef.current.querySelector('elevenlabs-convai')) {
+        const widgetElement = document.createElement('elevenlabs-convai');
+        widgetElement.setAttribute('agent-id', 'agent_1801ke98fbt2ejeaet7keppefh8k');
+        widgetContainerRef.current.appendChild(widgetElement);
+      }
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
+    script.async = true;
+    script.type = 'text/javascript';
+    
+    script.onload = () => {
+      // Create widget element after script loads
+      if (widgetContainerRef.current) {
+        const widgetElement = document.createElement('elevenlabs-convai');
+        widgetElement.setAttribute('agent-id', 'agent_1801ke98fbt2ejeaet7keppefh8k');
+        widgetContainerRef.current.appendChild(widgetElement);
+      }
+    };
+    
+    document.body.appendChild(script);
+
+    return () => {
+      // Cleanup: remove script and widget on unmount if needed
+      const scriptToRemove = document.querySelector('script[src*="convai-widget-embed"]');
+      if (scriptToRemove) {
+        scriptToRemove.remove();
+      }
+      if (widgetContainerRef.current) {
+        const widgetToRemove = widgetContainerRef.current.querySelector('elevenlabs-convai');
+        if (widgetToRemove) {
+          widgetToRemove.remove();
+        }
+      }
+    };
+  }, []);
+
   const handleTierUpgrade = async (targetTier: number, tierName?: string): Promise<void> => {
     if (!token || !user) return;
 
@@ -830,6 +876,9 @@ const UserProfile: React.FC = () => {
             fetchWallets();
           }}
         />
+
+        {/* ElevenLabs Agent Widget */}
+        <div ref={widgetContainerRef}></div>
 
       </div>
     </>
