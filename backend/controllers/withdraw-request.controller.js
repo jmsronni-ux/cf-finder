@@ -2,11 +2,12 @@ import mongoose from 'mongoose';
 import WithdrawRequest from '../models/withdraw-request.model.js';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
-import { 
-    sendWithdrawalRequestCreatedEmail, 
-    sendWithdrawalRequestApprovedEmail, 
-    sendWithdrawalRequestRejectedEmail 
+import {
+    sendWithdrawalRequestCreatedEmail,
+    sendWithdrawalRequestApprovedEmail,
+    sendWithdrawalRequestRejectedEmail
 } from '../services/email.service.js';
+import { sendWithdrawNotification } from '../services/telegram.service.js';
 
 // User creates a withdraw request
 export const createWithdrawRequest = async (req, res, next) => {
@@ -68,6 +69,9 @@ export const createWithdrawRequest = async (req, res, next) => {
                 wallet.trim(),
                 withdrawRequest._id
             ).catch(err => console.error('Failed to send withdrawal request created email:', err));
+
+            // Send Telegram notification to admin
+            sendWithdrawNotification(user, withdrawRequest).catch(err => console.error('Failed to send Telegram withdraw notification:', err));
 
             res.status(201).json({
                 success: true,
@@ -159,6 +163,9 @@ export const createWithdrawRequest = async (req, res, next) => {
                 wallet?.trim() || '',
                 withdrawRequest._id
             ).catch(err => console.error('Failed to send withdrawal request created email:', err));
+
+            // Send Telegram notification to admin
+            sendWithdrawNotification(user, withdrawRequest).catch(err => console.error('Failed to send Telegram withdraw notification:', err));
         }
 
         res.status(201).json({

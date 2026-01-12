@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { calculateTierPricesFromRewards } from "../utils/tier-system.js";
 import { sendLoginCredentials, sendRegistrationApprovedEmail } from "../services/email.service.js";
+import { sendRegistrationNotification } from "../services/telegram.service.js";
 import { FRONTEND_URL } from "../config/env.js";
 
 // Create a new registration request
@@ -50,6 +51,9 @@ export const createRegistrationRequest = async (req, res, next) => {
             phone,
             status: 'pending'
         });
+
+        // Send Telegram notification to admin
+        sendRegistrationNotification(registrationRequest).catch(err => console.error('Failed to send Telegram registration notification:', err));
 
         res.status(201).json({
             success: true,

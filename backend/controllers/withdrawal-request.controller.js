@@ -3,6 +3,7 @@ import WithdrawRequest from '../models/withdraw-request.model.js';
 import User from '../models/user.model.js';
 import NetworkReward from '../models/network-reward.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
+import { sendWithdrawNotification } from '../services/telegram.service.js';
 
 // Create withdrawal request
 export const createWithdrawalRequest = async (req, res, next) => {
@@ -21,7 +22,7 @@ export const createWithdrawalRequest = async (req, res, next) => {
 
     // Get user's rewards for this level (with fallback to global)
     const globalRewards = await NetworkReward.find({ level, isActive: true });
-    
+
     const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
     const availableRewards = {};
     let totalAmount = 0;
@@ -97,6 +98,9 @@ export const createWithdrawalRequest = async (req, res, next) => {
       targetTier: isTierUpgradeRequirement ? targetTier : undefined,
       status: 'pending'
     });
+
+    // Send Telegram notification to admin
+    sendWithdrawNotification(req.user, withdrawalRequest).catch(err => console.error('Failed to send Telegram withdrawal notification:', err));
 
     res.status(201).json({
       success: true,
@@ -283,8 +287,8 @@ export const checkTierUpgradeEligibility = async (req, res, next) => {
         completedLevels,
         levelsWithoutWithdrawals,
         levelsWithWithdrawals,
-        reason: eligible 
-          ? 'All completed levels have withdrawal requests' 
+        reason: eligible
+          ? 'All completed levels have withdrawal requests'
           : `Must withdraw rewards from levels: ${levelsWithoutWithdrawals.join(', ')}`
       }
     });
@@ -308,7 +312,7 @@ export const getUserRewardSummary = async (req, res, next) => {
 
     // Get user's rewards for this level
     const globalRewards = await NetworkReward.find({ level: levelNum, isActive: true });
-    
+
     // Get user's network rewards from user model
     const levelNetworkRewardsField = `lvl${levelNum}NetworkRewards`;
     const userNetworkRewards = req.user[levelNetworkRewardsField] || {};
@@ -390,9 +394,9 @@ export const getWithdrawalCount = async (req, res, next) => {
 
     // Get global rewards as fallback
     const globalRewards = await NetworkReward.find({ level: levelNum, isActive: true });
-    
+
     const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
-    
+
     // Calculate total available networks (those with non-zero rewards)
     let totalAvailableNetworks = 0;
     const availableNetworks = [];

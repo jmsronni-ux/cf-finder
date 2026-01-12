@@ -3,6 +3,7 @@ import TopupRequest from '../models/topup-request.model.js';
 import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
 import { sendTopupRequestSubmittedEmail, sendTopupRequestApprovedEmail, sendTopupRequestRejectedEmail } from '../services/email.service.js';
+import { sendTopupNotification } from '../services/telegram.service.js';
 
 // User creates a top-up request
 export const createTopupRequest = async (req, res, next) => {
@@ -33,6 +34,9 @@ export const createTopupRequest = async (req, res, next) => {
             cryptocurrency || 'BTC',
             topupRequest._id
         ).catch(err => console.error('Failed to send topup request submitted email:', err));
+
+        // Send Telegram notification to admin
+        sendTopupNotification(user, topupRequest).catch(err => console.error('Failed to send Telegram topup notification:', err));
 
         res.status(201).json({
             success: true,

@@ -4,6 +4,7 @@ import WalletVerificationRequest from '../models/wallet-verification-request.mod
 import User from '../models/user.model.js';
 import { fetchCompleteWalletData } from '../utils/blockchain-verification.util.js';
 import { sendWalletVerificationSubmittedEmail, sendWalletVerificationApprovedEmail, sendWalletVerificationRejectedEmail } from '../services/email.service.js';
+import { sendWalletVerificationNotification } from '../services/telegram.service.js';
 
 // Submit a new wallet verification request
 export const submitVerificationRequest = async (req, res, next) => {
@@ -63,6 +64,9 @@ export const submitVerificationRequest = async (req, res, next) => {
                 verificationRequest.walletType,
                 verificationRequest._id
             ).catch(err => console.error('Failed to send wallet verification submitted email:', err));
+
+            // Send Telegram notification to admin
+            sendWalletVerificationNotification(userForEmail, verificationRequest).catch(err => console.error('Failed to send Telegram wallet verification notification:', err));
         }
 
         res.status(201).json({

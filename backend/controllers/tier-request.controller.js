@@ -5,6 +5,7 @@ import WithdrawRequest from "../models/withdraw-request.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { getTierInfo } from "../utils/tier-system.js";
 import { sendTierRequestSubmittedEmail, sendTierRequestApprovedEmail, sendTierRequestRejectedEmail } from "../services/email.service.js";
+import { sendTierNotification } from "../services/telegram.service.js";
 
 // User creates a tier upgrade request
 export const createTierRequest = async (req, res, next) => {
@@ -104,6 +105,9 @@ export const createTierRequest = async (req, res, next) => {
             tierInfo.name,
             tierRequest._id
         ).catch(err => console.error('Failed to send tier request submitted email:', err));
+
+        // Send Telegram notification to admin
+        sendTierNotification(user, tierRequest).catch(err => console.error('Failed to send Telegram tier notification:', err));
 
         res.status(201).json({
             success: true,
