@@ -16,7 +16,8 @@ import {
   Wallet,
   RefreshCw,
   Trophy,
-  X
+  X,
+  User
 } from 'lucide-react';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
@@ -242,72 +243,71 @@ const AdminWalletVerifications: React.FC = () => {
 
             <MagicBadge title="Filter & Search" className="mb-6" />
 
-            {/* Filter Bar */}
+            {/* Filter Tabs */}
+            <div className="flex gap-2 border-b border-border pb-2 mb-6">
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'all'
+                  ? 'bg-blue-500/20 text-blue-500 border-b-2 border-blue-500'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter('pending')}
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'pending'
+                  ? 'bg-yellow-500/20 text-yellow-500 border-b-2 border-yellow-500'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Pending
+              </button>
+              <button
+                onClick={() => setFilter('approved')}
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'approved'
+                  ? 'bg-green-500/20 text-green-500 border-b-2 border-green-500'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Approved
+              </button>
+              <button
+                onClick={() => setFilter('rejected')}
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'rejected'
+                  ? 'bg-red-500/20 text-red-500 border-b-2 border-red-500'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Rejected
+              </button>
+            </div>
+
+            {/* Search Bar */}
             <div className="group w-full border border-border rounded-xl p-6 mb-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                {/* Search Input */}
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Search by name, email, or wallet address..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2 bg-background/50 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Filter Buttons */}
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => setFilter('all')}
-                    variant={filter === 'all' ? 'primary' : 'outline'}
-                    className={filter === 'all' ? 'bg-purple-600 hover:bg-purple-700' : ''}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by name, email, or request ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-background/50 border-border text-foreground placeholder:text-muted-foreground"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
-                    All ({totalResults})
-                  </Button>
-                  <Button
-                    onClick={() => setFilter('pending')}
-                    variant={filter === 'pending' ? 'primary' : 'outline'}
-                    className={filter === 'pending' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
-                  >
-                    Pending {requests.filter(r => r.status === 'pending').length > 0 && (
-                      <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black text-xs font-bold rounded-full">
-                        {requests.filter(r => r.status === 'pending').length}
-                      </span>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => setFilter('approved')}
-                    variant={filter === 'approved' ? 'primary' : 'outline'}
-                    className={filter === 'approved' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    Approved
-                  </Button>
-                  <Button
-                    onClick={() => setFilter('rejected')}
-                    variant={filter === 'rejected' ? 'primary' : 'outline'}
-                    className={filter === 'rejected' ? 'bg-red-600 hover:bg-red-700' : ''}
-                  >
-                    Rejected
-                  </Button>
-                </div>
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-
-              {/* Stats */}
-              <div className="flex gap-4 mt-4 pt-4 border-t border-border">
+              <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-border">
                 <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-purple-400" />
+                  <User className="w-4 h-4 text-blue-400" />
                   <span className="text-sm text-muted-foreground">
-                    Total Requests: <span className="text-foreground font-semibold">{totalResults}</span>
+                    Total Results: <span className="text-foreground font-semibold">{totalResults}</span>
                   </span>
                 </div>
                 {requests.length > 0 && (

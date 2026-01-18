@@ -433,7 +433,7 @@ const AdminWithdrawRequests: React.FC = () => {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                All ({totalResults})
+                All
               </button>
               <button
                 onClick={() => setFilter('pending')}

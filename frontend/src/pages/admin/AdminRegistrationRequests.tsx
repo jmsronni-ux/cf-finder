@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Textarea } from '../../components/ui/textarea';
+import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, User, Mail, Phone, Calendar, Loader2, Search, X, UserPlus, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, User, Mail, Phone, Calendar, Loader2, Search, X, UserPlus, Trash2, Clock } from 'lucide-react';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
 import AdminNavigation from '../../components/AdminNavigation';
@@ -275,9 +276,6 @@ const AdminRegistrationRequests: React.FC = () => {
     }
   };
 
-  const pendingCount = requests.filter(r => r.status === 'pending').length;
-  const approvedCount = requests.filter(r => r.status === 'approved').length;
-  const rejectedCount = requests.filter(r => r.status === 'rejected').length;
 
   return (
     <>
@@ -300,120 +298,85 @@ const AdminRegistrationRequests: React.FC = () => {
             {/* Admin Navigation */}
             <AdminNavigation />
 
-            <MagicBadge title="Registration Requests" className="mb-6" />
+            <MagicBadge title="Filter & Search" className="mb-6" />
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/10 border-blue-500/20">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Requests</p>
-                      <p className="text-3xl font-bold text-blue-400">{totalResults}</p>
-                    </div>
-                    <UserPlus className="w-10 h-10 text-blue-400 opacity-50" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/10 border-yellow-500/20">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Pending</p>
-                      <p className="text-3xl font-bold text-yellow-400">{pendingCount}</p>
-                    </div>
-                    <Calendar className="w-10 h-10 text-yellow-400 opacity-50" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-green-500/10 to-green-600/10 border-green-500/20">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Approved</p>
-                      <p className="text-3xl font-bold text-green-400">{approvedCount}</p>
-                    </div>
-                    <CheckCircle className="w-10 h-10 text-green-400 opacity-50" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-red-500/10 to-red-600/10 border-red-500/20">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Rejected</p>
-                      <p className="text-3xl font-bold text-red-400">{rejectedCount}</p>
-                    </div>
-                    <XCircle className="w-10 h-10 text-red-400 opacity-50" />
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Filter Tabs */}
+            <div className="flex gap-2 border-b border-border pb-2 mb-6">
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'all'
+                  ? 'bg-blue-500/20 text-blue-500 border-b-2 border-blue-500'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter('pending')}
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'pending'
+                  ? 'bg-yellow-500/20 text-yellow-500 border-b-2 border-yellow-500'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Pending
+              </button>
+              <button
+                onClick={() => setFilter('approved')}
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'approved'
+                  ? 'bg-green-500/20 text-green-500 border-b-2 border-green-500'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Approved
+              </button>
+              <button
+                onClick={() => setFilter('rejected')}
+                className={`px-4 py-2 rounded-t-lg transition-colors ${filter === 'rejected'
+                  ? 'bg-red-500/20 text-red-500 border-b-2 border-red-500'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Rejected
+              </button>
             </div>
 
-            {/* Filters and Search */}
-            <Card className="mb-6">
-              <CardContent className="pt-6">
-                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                  {/* Filter Buttons */}
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={() => setFilter('all')}
-                      variant={filter === 'all' ? 'primary' : 'outline'}
-                      size="sm"
-                    >
-                      All ({totalResults})
-                    </Button>
-                    <Button
-                      onClick={() => setFilter('pending')}
-                      variant={filter === 'pending' ? 'primary' : 'outline'}
-                      size="sm"
-                      className={filter === 'pending' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
-                    >
-                      Pending ({pendingCount})
-                    </Button>
-                    <Button
-                      onClick={() => setFilter('approved')}
-                      variant={filter === 'approved' ? 'primary' : 'outline'}
-                      size="sm"
-                      className={filter === 'approved' ? 'bg-green-500 hover:bg-green-600' : ''}
-                    >
-                      Approved ({approvedCount})
-                    </Button>
-                    <Button
-                      onClick={() => setFilter('rejected')}
-                      variant={filter === 'rejected' ? 'primary' : 'outline'}
-                      size="sm"
-                      className={filter === 'rejected' ? 'bg-red-500 hover:bg-red-600' : ''}
-                    >
-                      Rejected ({rejectedCount})
-                    </Button>
-                  </div>
-
-                  {/* Search Box */}
-                  <div className="relative w-full md:w-auto">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Search by name, email, phone..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 pr-10 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary w-full md:w-80 text-foreground"
-                    />
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+            {/* Search Bar */}
+            <div className="group w-full border border-border rounded-xl p-6 mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by name, email, or request ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-background/50 border-border text-foreground placeholder:text-muted-foreground"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm text-muted-foreground">
+                    Total Results: <span className="text-foreground font-semibold">{totalResults}</span>
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
+                {requests.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-green-400" />
+                    <span className="text-sm text-muted-foreground">
+                      Loaded: <span className="text-foreground font-semibold">{requests.length}</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Requests List */}
             {isInitialLoading ? (
