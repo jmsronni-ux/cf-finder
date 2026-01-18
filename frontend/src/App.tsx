@@ -13,8 +13,6 @@ import AdminWithdrawRequests from "./pages/admin/AdminWithdrawRequests";
 import AdminTierRequests from "./pages/admin/AdminTierRequests";
 import AdminRegistrationRequests from "./pages/admin/AdminRegistrationRequests";
 import AdminLevelManagement from "./pages/admin/AdminLevelManagement";
-import AdminNetworkRewards from "./pages/admin/AdminNetworkRewards";
-import AdminConversionRates from "./pages/admin/AdminConversionRates";
 import AdminGlobalSettings from "./pages/admin/AdminGlobalSettings";
 import AdminWalletVerifications from "./pages/admin/AdminWalletVerifications";
 import AdditionalVerification from "./pages/AdditionalVerification";
@@ -87,16 +85,6 @@ function App() {
         <Route path="/admin/level-management" element={
           <ProtectedRoute>
             <AdminLevelManagement />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/network-rewards" element={
-          <ProtectedRoute>
-            <AdminNetworkRewards />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/conversion-rates" element={
-          <ProtectedRoute>
-            <AdminConversionRates />
           </ProtectedRoute>
         } />
         <Route path="/admin/global-settings" element={

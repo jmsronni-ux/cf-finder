@@ -10,8 +10,6 @@ import {
   UserCog,
   UserPlus,
   Layers,
-  DollarSign,
-  Network,
   ChevronRight,
   Home,
   Settings,
@@ -76,20 +74,6 @@ const AdminNavigation: React.FC = () => {
       icon: <Layers className="w-5 h-5" />,
       description: 'Configure levels',
       color: 'from-cyan-500 to-cyan-600'
-    },
-    {
-      name: 'Conversion Rates',
-      path: '/admin/conversion-rates',
-      icon: <DollarSign className="w-5 h-5" />,
-      description: 'Crypto conversion rates',
-      color: 'from-emerald-500 to-emerald-600'
-    },
-    {
-      name: 'Network Rewards',
-      path: '/admin/network-rewards',
-      icon: <Network className="w-5 h-5" />,
-      description: 'Network reward settings',
-      color: 'from-orange-500 to-orange-600'
     },
     {
       name: 'Global Settings',

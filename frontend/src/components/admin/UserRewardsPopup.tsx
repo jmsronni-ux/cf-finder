@@ -48,6 +48,8 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
   const [editingCommissions, setEditingCommissions] = useState<{ [level: number]: number }>({});
   const [inputMode, setInputMode] = useState<'crypto' | 'usdt'>('crypto');
   const [saving, setSaving] = useState<{ [level: number]: boolean }>({});
+  const [previousInputMode, setPreviousInputMode] = useState<'crypto' | 'usdt'>('crypto');
+  const [inputValues, setInputValues] = useState<{ [key: string]: string }>({});
 
   // Fetch user rewards when popup opens
   useEffect(() => {
@@ -62,16 +64,21 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
     if (userRewards[selectedLevel] !== undefined) {
       const currentRewards = userRewards[selectedLevel] || {};
       const initializedRewards: NetworkRewards = {};
+      const initializedInputValues: { [key: string]: string } = {};
       
       NETWORKS.forEach(network => {
+        const inputKey = `${selectedLevel}-${network.key}`;
         if (currentRewards[network.key]) {
           initializedRewards[network.key] = currentRewards[network.key];
+          const amount = currentRewards[network.key].amount || 0;
+          initializedInputValues[inputKey] = amount > 0 ? amount.toString() : '';
         } else {
           initializedRewards[network.key] = {
             amount: 0,
             isCustom: false,
             source: 'none'
           };
+          initializedInputValues[inputKey] = '';
         }
       });
       
@@ -83,8 +90,59 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
         ...prev,
         [selectedLevel]: userCommissions[selectedLevel] || 0
       }));
+      setInputValues(prev => ({ ...prev, ...initializedInputValues }));
     }
   }, [selectedLevel, userRewards, userCommissions]);
+
+  // Convert values when input mode changes
+  useEffect(() => {
+    if (previousInputMode === inputMode || Object.keys(editingRewards).length === 0 || Object.keys(ratesMap).length === 0 || ratesLoading) {
+      if (previousInputMode !== inputMode) {
+        setPreviousInputMode(inputMode);
+      }
+      return;
+    }
+
+    // Convert all reward values based on mode switch
+    const convertedRewards: { [level: number]: NetworkRewards } = {};
+    const convertedInputValues: { [key: string]: string } = {};
+    
+    Object.entries(editingRewards).forEach(([levelStr, levelRewards]) => {
+      const level = parseInt(levelStr);
+      convertedRewards[level] = {};
+      
+      Object.entries(levelRewards).forEach(([network, rewardData]) => {
+        const value = rewardData?.amount || 0;
+        const inputKey = `${level}-${network}`;
+        
+        if (value > 0) {
+          let convertedAmount = value;
+          
+          if (previousInputMode === 'crypto' && inputMode === 'usdt') {
+            // Converting from crypto to USDT
+            convertedAmount = convertCryptoToUSDT(value, network, ratesMap);
+          } else if (previousInputMode === 'usdt' && inputMode === 'crypto') {
+            // Converting from USDT to crypto
+            convertedAmount = convertUSDTToCrypto(value, network, ratesMap);
+          }
+          
+          convertedRewards[level][network] = {
+            amount: convertedAmount,
+            isCustom: rewardData.isCustom,
+            source: rewardData.source
+          };
+          convertedInputValues[inputKey] = convertedAmount > 0 ? convertedAmount.toString() : '';
+        } else {
+          convertedRewards[level][network] = rewardData;
+          convertedInputValues[inputKey] = '';
+        }
+      });
+    });
+
+    setEditingRewards(convertedRewards);
+    setInputValues(prev => ({ ...prev, ...convertedInputValues }));
+    setPreviousInputMode(inputMode);
+  }, [inputMode, ratesMap, ratesLoading]);
 
   const fetchUserRewards = async () => {
     if (!token || !userId) return;
@@ -151,7 +209,16 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
   };
 
   const updateReward = (level: number, network: string, value: string) => {
-    const numValue = parseFloat(value) || 0;
+    const inputKey = `${level}-${network}`;
+    
+    // Store the raw string value for display
+    setInputValues(prev => ({
+      ...prev,
+      [inputKey]: value
+    }));
+    
+    // Convert to number for state (empty string becomes 0)
+    const numValue = value === '' ? 0 : (parseFloat(value) || 0);
     setEditingRewards(prev => ({
       ...prev,
       [level]: {
@@ -163,6 +230,19 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
         }
       }
     }));
+  };
+
+  const handleInputBlur = (level: number, network: string) => {
+    const inputKey = `${level}-${network}`;
+    const currentInputValue = inputValues[inputKey];
+    
+    // If input is empty or invalid, set to empty string in inputValues but keep 0 in rewards
+    if (!currentInputValue || currentInputValue === '' || isNaN(parseFloat(currentInputValue))) {
+      setInputValues(prev => ({
+        ...prev,
+        [inputKey]: ''
+      }));
+    }
   };
 
   const updateCommission = (level: number, value: number) => {
@@ -334,8 +414,13 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
                         {/* Network Rewards Input */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {NETWORKS.map(network => {
+                            const inputKey = `${level}-${network.key}`;
+                            const storedInputValue = inputValues[inputKey];
                             const currentValue = levelRewards[network.key]?.amount || 0;
                             const rate = ratesMap[network.key] || 0;
+                            
+                            // Use stored input value if it exists and is being edited, otherwise use the numeric value
+                            const displayValue = storedInputValue !== undefined ? storedInputValue : (currentValue > 0 ? currentValue.toString() : '');
                             
                             // Calculate conversion preview
                             let conversionPreview = '';
@@ -365,8 +450,9 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
                                   id={`${network.key}-${level}`}
                                   type="number"
                                   step={inputMode === 'usdt' ? '1' : '0.00000001'}
-                                  value={currentValue}
+                                  value={displayValue}
                                   onChange={(e) => updateReward(level, network.key, e.target.value)}
+                                  onBlur={() => handleInputBlur(level, network.key)}
                                   className="bg-background/50 border-border focus:border-purple-500/50"
                                   placeholder="0.00"
                                 />
@@ -383,24 +469,56 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
                           })}
                         </div>
                         
-                        {/* Commission Field */}
-                        <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
-                          <Label className="flex items-center gap-2 text-sm font-medium mb-2">
-                            <DollarSign className="text-orange-400" size={16} />
-                            <span className="text-orange-400">Commission Percentage (%)</span>
-                          </Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={levelCommission}
-                            onChange={(e) => updateCommission(level, parseFloat(e.target.value) || 0)}
-                            className="bg-background/50 border-border text-foreground"
-                            placeholder="0.00"
-                          />
-                          <p className="text-xs text-orange-300/80 mt-2">
-                            Commission percentage of withdrawal amount for Level {level} rewards (e.g., 10 = 10%)
-                          </p>
+                        <div className="flex flex-row gap-4 w-full">
+                          {/* Commission Field */}
+                          <div className="w-3/4 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                            <Label className="flex items-center gap-2 text-sm font-medium mb-2">
+                              <DollarSign className="text-orange-400" size={16} />
+                              <span className="text-orange-400">Commission Percentage (%)</span>
+                            </Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={levelCommission}
+                              onChange={(e) => updateCommission(level, parseFloat(e.target.value) || 0)}
+                              className="bg-background/50 border-border text-foreground"
+                              placeholder="0.00"
+                            />
+                            <p className="text-xs text-orange-300/80 mt-2">
+                              Commission percentage of withdrawal amount for Level {level} rewards (e.g., 10 = 10%)
+                            </p>
+                          </div>
+
+                          {/* Level Summary */}
+                          <div className="w-1/4 p-5 bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/40 rounded-lg shadow-lg">
+                            <div className="flex flex-col items-center justify-center gap-2 h-full">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Zap className="w-4 h-4 text-purple-300" />
+                                <span className="text-xs text-purple-300/80 font-medium uppercase tracking-wide">Total (USDT)</span>
+                              </div>
+                              <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-purple-100">
+                                ${(() => {
+                                  let total = 0;
+                                  Object.entries(levelRewards || {}).forEach(([network, rewardData]) => {
+                                    const amount = rewardData?.amount || 0;
+                                    if (amount > 0) {
+                                      // Convert based on input mode
+                                      if (inputMode === 'usdt') {
+                                        // Amount is already in USDT
+                                        total += amount;
+                                      } else {
+                                        // Amount is in crypto, convert to USDT
+                                        total += convertCryptoToUSDT(amount, network, ratesMap);
+                                      }
+                                    }
+                                  });
+                                  return total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                })()}
+                              </div>
+                              <span className="text-xs text-purple-300/60">Level {level}</span>
+                            </div>
+                          </div>
                         </div>
                         
                         {/* Save Button */}
