@@ -36,13 +36,6 @@ const AdminNavigation: React.FC = () => {
 
   const navItems: NavItem[] = [
     {
-      name: 'User Rewards',
-      path: '/admin',
-      icon: <Users className="w-5 h-5" />,
-      description: 'Manage user rewards',
-      color: 'from-blue-500 to-blue-600'
-    },
-    {
       name: 'Tier Management',
       path: '/admin/tier-management',
       icon: <Crown className="w-5 h-5" />,
@@ -133,10 +126,6 @@ const AdminNavigation: React.FC = () => {
   });
 
   const isActive = (path: string) => {
-    // Special handling for /admin (User Rewards) - match both /admin and /admin/user-rewards
-    if (path === '/admin') {
-      return location.pathname === '/admin' || location.pathname === '/admin/user-rewards';
-    }
     return location.pathname.startsWith(path);
   };
 

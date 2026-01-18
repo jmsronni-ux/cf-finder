@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Loader2, Search, X, User, Mail, Key, LogIn, Download, Calendar, Copy, Check, Trash2, AlertTriangle, Info } from 'lucide-react';
+import { Loader2, Search, X, User, LogIn, Download, Trash2, AlertTriangle, Info, Trophy } from 'lucide-react';
 import AdminNavigation from '../../components/AdminNavigation';
 import { apiFetch } from '../../utils/api';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
 import UserDetailsPopup, { FullUserData } from "../../components/admin/UserDetailsPopup";
+import UserRewardsPopup from "../../components/admin/UserRewardsPopup";
 
 interface UserData {
   _id: string;
@@ -45,12 +46,12 @@ const AdminUserPasswords: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [copiedPasswordId, setCopiedPasswordId] = useState<string | null>(null);
-  const [copiedEmailId, setCopiedEmailId] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<FullUserData | null>(null);
   const [loadingUserDetails, setLoadingUserDetails] = useState(false);
+  const [selectedUserForRewards, setSelectedUserForRewards] = useState<string | null>(null);
+  const [showRewardsPopup, setShowRewardsPopup] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const totalResults = totalCount || users.length;
@@ -143,30 +144,6 @@ const AdminUserPasswords: React.FC = () => {
     const success = await impersonateUserAccount(targetUser._id);
     if (!success) {
       setImpersonatingId(null);
-    }
-  };
-
-  const handleCopyPassword = async (password: string, userId: string) => {
-    try {
-      await navigator.clipboard.writeText(password);
-      setCopiedPasswordId(userId);
-      toast.success('Password copied to clipboard');
-      setTimeout(() => setCopiedPasswordId(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy password:', error);
-      toast.error('Failed to copy password');
-    }
-  };
-
-  const handleCopyEmail = async (email: string, userId: string) => {
-    try {
-      await navigator.clipboard.writeText(email);
-      setCopiedEmailId(userId);
-      toast.success('Email copied to clipboard');
-      setTimeout(() => setCopiedEmailId(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy email:', error);
-      toast.error('Failed to copy email');
     }
   };
 
@@ -286,6 +263,9 @@ const AdminUserPasswords: React.FC = () => {
   const handleViewUserDetails = async (userId: string) => {
     if (!token) return;
     
+    // Find user from the current list to get password
+    const userFromList = users.find(u => u._id === userId);
+    
     setLoadingUserDetails(true);
     try {
       const response = await apiFetch(`/user/${userId}`, {
@@ -297,7 +277,12 @@ const AdminUserPasswords: React.FC = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setSelectedUser(data.data);
+        // Merge password from the list if available
+        const userData = {
+          ...data.data,
+          password: userFromList?.password
+        };
+        setSelectedUser(userData);
       } else {
         toast.error(data.message || 'Failed to fetch user details');
       }
@@ -447,28 +432,16 @@ const AdminUserPasswords: React.FC = () => {
                           Name
                         </div>
                       </th>
-                      <th className="w-[16rem] px-3 py-3 text-left text-sm font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4" />
-                          Email
-                        </div>
-                      </th>
-                      <th className="w-[7rem] px-3 py-3 text-left text-sm font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <Key className="w-4 h-4" />
-                          Password
-                        </div>
-                      </th>
-                      <th className="w-20 px-3 py-3 text-left text-sm font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          Date
-                        </div>
-                      </th>
                       <th className="w-16 px-3 py-3 text-left text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2">
                           <LogIn className="w-4 h-4" />
                           Login
+                        </div>
+                      </th>
+                      <th className="w-16 px-3 py-3 text-center text-sm font-semibold text-foreground">
+                        <div className="flex items-center gap-2 justify-center">
+                          <Trophy className="w-4 h-4" />
+                          Rewards
                         </div>
                       </th>
                       <th className="w-20 px-6 py-3 text-right text-sm font-semibold text-foreground">
@@ -494,45 +467,6 @@ const AdminUserPasswords: React.FC = () => {
                           {user.name}
                         </td>
                         <td className="px-3 py-3">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-muted-foreground truncate min-w-0">
-                              {user.email}
-                            </span>
-                            <button
-                              onClick={() => handleCopyEmail(user.email, user._id)}
-                              className="p-1.5 hover:bg-background/50 rounded transition-colors flex-shrink-0"
-                              title="Copy email"
-                            >
-                              {copiedEmailId === user._id ? (
-                                <Check className="w-3.5 h-3.5 text-green-500" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-                              )}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-mono text-xs text-foreground truncate min-w-0">
-                              {user.password.length > 15 ? `${user.password.substring(0, 15)}...` : user.password}
-                            </span>
-                            <button
-                              onClick={() => handleCopyPassword(user.password, user._id)}
-                              className="p-1.5 hover:bg-background/50 rounded transition-colors flex-shrink-0"
-                              title="Copy password"
-                            >
-                              {copiedPasswordId === user._id ? (
-                                <Check className="w-3.5 h-3.5 text-green-500" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-                              )}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 text-muted-foreground text-sm whitespace-nowrap">
-                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                        </td>
-                        <td className="px-3 py-3">
                           <Button
                             onClick={() => handleImpersonate(user)}
                             disabled={impersonatingId === user._id}
@@ -550,6 +484,20 @@ const AdminUserPasswords: React.FC = () => {
                                 <span className="hidden sm:inline">Login</span>
                               </>
                             )}
+                          </Button>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <Button
+                            onClick={() => {
+                              setSelectedUserForRewards(user._id);
+                              setShowRewardsPopup(true);
+                            }}
+                            size="icon"
+                            variant="ghost"
+                            className="hover:bg-purple-600/20 text-purple-500 hover:text-purple-400"
+                            title="Manage user rewards"
+                          >
+                            <Trophy className="w-4 h-4" />
                           </Button>
                         </td>
                         <td className="flex justify-center items-center px-3 py-3">
@@ -583,6 +531,16 @@ const AdminUserPasswords: React.FC = () => {
         onClose={() => setSelectedUser(null)}
         user={selectedUser}
         loading={loadingUserDetails}
+      />
+
+      <UserRewardsPopup
+        isOpen={showRewardsPopup}
+        onClose={() => {
+          setShowRewardsPopup(false);
+          setSelectedUserForRewards(null);
+        }}
+        userId={selectedUserForRewards || ''}
+        userName={users.find(u => u._id === selectedUserForRewards)?.name || ''}
       />
 
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>

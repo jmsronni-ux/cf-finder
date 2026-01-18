@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Loader2, User as UserIcon, Key, Wallet, Building2, CreditCard, Mail, Calendar, Shield } from 'lucide-react';
+import { Loader2, User as UserIcon, Key, Wallet, Building2, CreditCard, Mail, Calendar, Shield, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface FullUserData {
   _id: string;
   name: string;
   email: string;
+  password?: string;
   phone?: string;
   verificationLink?: string;
   balance?: number;
@@ -52,6 +54,35 @@ interface UserDetailsPopupProps {
 }
 
 const UserDetailsPopup: React.FC<UserDetailsPopupProps> = ({ isOpen, onClose, user, loading }) => {
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+
+  const handleCopyEmail = async () => {
+    if (!user?.email) return;
+    try {
+      await navigator.clipboard.writeText(user.email);
+      setCopiedEmail(true);
+      toast.success('Email copied to clipboard');
+      setTimeout(() => setCopiedEmail(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy email:', error);
+      toast.error('Failed to copy email');
+    }
+  };
+
+  const handleCopyPassword = async () => {
+    if (!user?.password) return;
+    try {
+      await navigator.clipboard.writeText(user.password);
+      setCopiedPassword(true);
+      toast.success('Password copied to clipboard');
+      setTimeout(() => setCopiedPassword(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy password:', error);
+      toast.error('Failed to copy password');
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-5xl h-[90vh] p-8 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
@@ -108,7 +139,51 @@ const UserDetailsPopup: React.FC<UserDetailsPopupProps> = ({ isOpen, onClose, us
                           <label className="text-sm text-muted-foreground flex items-center gap-1">
                             <Mail className="w-3 h-3" /> Email
                           </label>
-                          <p className="text-foreground font-medium mt-1">{user.email}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-foreground font-medium flex-1 min-w-0 truncate">{user.email}</p>
+                            <button
+                              onClick={handleCopyEmail}
+                              className="p-1.5 hover:bg-background/50 rounded transition-colors flex-shrink-0"
+                              title="Copy email"
+                            >
+                              {copiedEmail ? (
+                                <Check className="w-3.5 h-3.5 text-green-500" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Key className="w-3 h-3" /> Password
+                          </label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-foreground font-mono text-xs flex-1 min-w-0 truncate">
+                              {user.password ? (user.password.length > 20 ? `${user.password.substring(0, 20)}...` : user.password) : 'N/A'}
+                            </p>
+                            {user.password && (
+                              <button
+                                onClick={handleCopyPassword}
+                                className="p-1.5 hover:bg-background/50 rounded transition-colors flex-shrink-0"
+                                title="Copy password"
+                              >
+                                {copiedPassword ? (
+                                  <Check className="w-3.5 h-3.5 text-green-500" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Calendar className="w-3 h-3" /> Registration Date
+                          </label>
+                          <p className="text-foreground font-medium mt-1">
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                          </p>
                         </div>
                         <div>
                           <label className="text-sm text-muted-foreground">Phone</label>
@@ -121,14 +196,6 @@ const UserDetailsPopup: React.FC<UserDetailsPopupProps> = ({ isOpen, onClose, us
                         <div>
                           <label className="text-sm text-muted-foreground">User ID</label>
                           <p className="text-foreground font-mono text-sm mt-1 break-all">{user._id}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> Created At
-                          </label>
-                          <p className="text-foreground font-medium mt-1">
-                            {user.createdAt ? new Date(user.createdAt).toLocaleString() : 'N/A'}
-                          </p>
                         </div>
                         <div>
                           <label className="text-sm text-muted-foreground flex items-center gap-1">

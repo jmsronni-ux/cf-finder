@@ -9,7 +9,6 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import Dashboard from "./pages/Dashboard";
 import UserProfile from "./pages/UserProfile";
 import AdminTopupRequests from "./pages/admin/AdminTopupRequests";
-import AdminUserRewards from "./pages/admin/AdminUserRewards";
 import AdminWithdrawRequests from "./pages/admin/AdminWithdrawRequests";
 import AdminTierRequests from "./pages/admin/AdminTierRequests";
 import AdminRegistrationRequests from "./pages/admin/AdminRegistrationRequests";
@@ -61,19 +60,9 @@ function App() {
             </ProtectedRoute>
           } />
         )}
-        <Route path="/admin" element={
-          <ProtectedRoute>
-            <AdminUserRewards />
-          </ProtectedRoute>
-        } />
         <Route path="/admin/topup-requests" element={
           <ProtectedRoute>
             <AdminTopupRequests />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/user-rewards" element={
-          <ProtectedRoute>
-            <AdminUserRewards />
           </ProtectedRoute>
         } />
         <Route path="/admin/withdraw-requests" element={
