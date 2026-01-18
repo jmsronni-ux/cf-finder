@@ -14,7 +14,6 @@ import AdminTierRequests from "./pages/admin/AdminTierRequests";
 import AdminRegistrationRequests from "./pages/admin/AdminRegistrationRequests";
 import AdminLevelManagement from "./pages/admin/AdminLevelManagement";
 import AdminNetworkRewards from "./pages/admin/AdminNetworkRewards";
-import AdminTierManagement from "./pages/admin/AdminTierManagement";
 import AdminConversionRates from "./pages/admin/AdminConversionRates";
 import AdminGlobalSettings from "./pages/admin/AdminGlobalSettings";
 import AdminWalletVerifications from "./pages/admin/AdminWalletVerifications";
@@ -93,11 +92,6 @@ function App() {
         <Route path="/admin/network-rewards" element={
           <ProtectedRoute>
             <AdminNetworkRewards />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/tier-management" element={
-          <ProtectedRoute>
-            <AdminTierManagement />
           </ProtectedRoute>
         } />
         <Route path="/admin/conversion-rates" element={

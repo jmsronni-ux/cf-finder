@@ -3,7 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Loader2, Search, X, User, LogIn, Download, Trash2, AlertTriangle, Info, Trophy } from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { Loader2, Search, X, User, LogIn, Download, Trash2, AlertTriangle, Info, Trophy, Crown } from 'lucide-react';
 import AdminNavigation from '../../components/AdminNavigation';
 import { apiFetch } from '../../utils/api';
 import { toast } from 'sonner';
@@ -21,12 +22,14 @@ import {
 } from "../../components/ui/alert-dialog";
 import UserDetailsPopup, { FullUserData } from "../../components/admin/UserDetailsPopup";
 import UserRewardsPopup from "../../components/admin/UserRewardsPopup";
+import UserTierPopup from "../../components/admin/UserTierPopup";
 
 interface UserData {
   _id: string;
   name: string;
   email: string;
   password: string;
+  tier?: number;
   createdAt?: string;
 }
 
@@ -52,10 +55,30 @@ const AdminUserPasswords: React.FC = () => {
   const [loadingUserDetails, setLoadingUserDetails] = useState(false);
   const [selectedUserForRewards, setSelectedUserForRewards] = useState<string | null>(null);
   const [showRewardsPopup, setShowRewardsPopup] = useState(false);
+  const [selectedUserForTier, setSelectedUserForTier] = useState<string | null>(null);
+  const [showTierPopup, setShowTierPopup] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const totalResults = totalCount || users.length;
   const isInitialLoading = loading && users.length === 0;
+
+  const getTierBadgeColor = (tier: number) => {
+    switch (tier) {
+      case 0: return 'bg-gray-500/20 text-gray-500 border-gray-500/50';
+      case 1: return 'bg-blue-500/20 text-blue-500 border-blue-500/50';
+      case 2: return 'bg-green-500/20 text-green-500 border-green-500/50';
+      case 3: return 'bg-purple-500/20 text-purple-500 border-purple-500/50';
+      case 4: return 'bg-orange-500/20 text-orange-500 border-orange-500/50';
+      case 5: return 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50';
+      default: return 'bg-gray-500/20 text-gray-500 border-gray-500/50';
+    }
+  };
+
+  const getTierIcon = (tier: number) => {
+    if (tier >= 4) return '👑';
+    if (tier >= 2) return '⭐';
+    return '🔹';
+  };
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -440,6 +463,12 @@ const AdminUserPasswords: React.FC = () => {
                       </th>
                       <th className="w-16 px-3 py-3 text-center text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2 justify-center">
+                          <Crown className="w-4 h-4" />
+                          Level
+                        </div>
+                      </th>
+                      <th className="w-16 px-3 py-3 text-center text-sm font-semibold text-foreground">
+                        <div className="flex items-center gap-2 justify-center">
                           <Trophy className="w-4 h-4" />
                           Rewards
                         </div>
@@ -485,6 +514,33 @@ const AdminUserPasswords: React.FC = () => {
                               </>
                             )}
                           </Button>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {user.tier !== undefined ? (
+                            <Badge 
+                              className={`${getTierBadgeColor(user.tier)} cursor-pointer hover:opacity-80 transition-opacity`}
+                              onClick={() => {
+                                setSelectedUserForTier(user._id);
+                                setShowTierPopup(true);
+                              }}
+                              title="Click to manage user level"
+                            >
+                              Level {user.tier}
+                            </Badge>
+                          ) : (
+                            <Button
+                              onClick={() => {
+                                setSelectedUserForTier(user._id);
+                                setShowTierPopup(true);
+                              }}
+                              size="icon"
+                              variant="ghost"
+                              className="hover:bg-yellow-600/20 text-yellow-500 hover:text-yellow-400"
+                              title="Manage user level"
+                            >
+                              <Crown className="w-4 h-4" />
+                            </Button>
+                          )}
                         </td>
                         <td className="px-3 py-3 text-center">
                           <Button
@@ -541,6 +597,16 @@ const AdminUserPasswords: React.FC = () => {
         }}
         userId={selectedUserForRewards || ''}
         userName={users.find(u => u._id === selectedUserForRewards)?.name || ''}
+      />
+
+      <UserTierPopup
+        isOpen={showTierPopup}
+        onClose={() => {
+          setShowTierPopup(false);
+          setSelectedUserForTier(null);
+        }}
+        userId={selectedUserForTier || ''}
+        userName={users.find(u => u._id === selectedUserForTier)?.name || ''}
       />
 
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>

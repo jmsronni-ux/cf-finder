@@ -36,13 +36,6 @@ const AdminNavigation: React.FC = () => {
 
   const navItems: NavItem[] = [
     {
-      name: 'Tier Management',
-      path: '/admin/tier-management',
-      icon: <Crown className="w-5 h-5" />,
-      description: 'Configure tiers',
-      color: 'from-yellow-500 to-yellow-600'
-    },
-    {
       name: 'Topup Requests',
       path: '/admin/topup-requests',
       icon: <ArrowDownToLine className="w-5 h-5" />,
