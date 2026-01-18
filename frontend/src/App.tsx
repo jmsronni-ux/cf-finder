@@ -14,9 +14,8 @@ import AdminTierRequests from "./pages/admin/AdminTierRequests";
 import AdminRegistrationRequests from "./pages/admin/AdminRegistrationRequests";
 import AdminLevelManagement from "./pages/admin/AdminLevelManagement";
 import AdminGlobalSettings from "./pages/admin/AdminGlobalSettings";
-import AdminWalletVerifications from "./pages/admin/AdminWalletVerifications";
+import AdminVerifications from "./pages/admin/AdminVerifications";
 import AdditionalVerification from "./pages/AdditionalVerification";
-import AdminAdditionalVerification from "./pages/admin/AdminAdditionalVerification";
 import { SHOW_ADDITIONAL_VERIFICATION_UI } from "./config/featureFlags";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
@@ -79,7 +78,7 @@ function App() {
         } />
         <Route path="/admin/wallet-verifications" element={
           <ProtectedRoute>
-            <AdminWalletVerifications />
+            <AdminVerifications />
           </ProtectedRoute>
         } />
         <Route path="/admin/level-management" element={
@@ -95,7 +94,7 @@ function App() {
         {SHOW_ADDITIONAL_VERIFICATION_UI && (
           <Route path="/admin/additional-verification" element={
             <ProtectedRoute>
-              <AdminAdditionalVerification />
+              <Navigate to="/admin/wallet-verifications" replace />
             </ProtectedRoute>
           } />
         )}

@@ -31,9 +31,14 @@ export const getBitcoinTransactions = async (address) => {
                     explorerUrl: `https://blockchain.com/btc/tx/${tx.tx_hash}`
                 }));
                 
+                // BlockCypher returns balance in satoshis, convert to BTC
+                const balanceInSatoshis = data.balance || data.total_received || 0;
+                const balance = balanceInSatoshis / 1e8;
+                console.log(`BlockCypher BTC balance: ${balance} BTC (${balanceInSatoshis} satoshis)`);
+                
                 return { 
                     transactions, 
-                    balance: (data.balance || 0) / 1e8,
+                    balance: balance,
                     transactionCount: txrefs.length,
                     error: null 
                 };
@@ -129,7 +134,7 @@ export const getBitcoinTransactions = async (address) => {
         
     } catch (error) {
         console.error('Error fetching Bitcoin transactions:', error.message);
-        return { transactions: [], error: error.message };
+        return { transactions: [], balance: 0, transactionCount: 0, error: error.message };
     }
 };
 
@@ -327,21 +332,29 @@ export const fetchCompleteWalletData = async (address, walletType) => {
                 }
                 // Fetch ETH balance separately
                 try {
+                    // Ensure address has 0x prefix for Ethereum
+                    const ethAddress = address.startsWith('0x') ? address : `0x${address}`;
                     const response = await fetch('https://cloudflare-eth.com', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             jsonrpc: '2.0',
                             method: 'eth_getBalance',
-                            params: [address, 'latest'],
+                            params: [ethAddress.toLowerCase(), 'latest'],
                             id: 1
                         })
                     });
                     if (response.ok) {
                         const data = await response.json();
-                        if (data.result) {
+                        if (data.result && data.result !== '0x') {
                             balance = parseInt(data.result, 16) / 1e18;
+                            console.log(`ETH balance fetched: ${balance} ETH for address ${ethAddress}`);
+                        } else {
+                            console.log(`ETH balance result is empty or 0x for address ${ethAddress}`);
                         }
+                    } else {
+                        const errorText = await response.text();
+                        console.error(`ETH balance fetch failed: ${response.status} ${response.statusText} - ${errorText}`);
                     }
                 } catch (err) {
                     console.error('Error fetching ETH balance:', err.message);
@@ -361,7 +374,12 @@ export const fetchCompleteWalletData = async (address, walletType) => {
                         const data = await response.json();
                         if (data.data && data.data[0]) {
                             balance = (data.data[0].balance || 0) / 1000000;
+                            console.log(`TRON balance fetched: ${balance} TRX`);
+                        } else {
+                            console.log('TRON balance data is empty');
                         }
+                    } else {
+                        console.error(`TRON balance fetch failed: ${response.status} ${response.statusText}`);
                     }
                 } catch (err) {
                     console.error('Error fetching TRON balance:', err.message);
@@ -377,8 +395,10 @@ export const fetchCompleteWalletData = async (address, walletType) => {
                 // Fetch USDT balance separately
                 try {
                     const usdtContract = '0xdac17f958d2ee523a2206206994597c13d831ec7';
+                    // Ensure address has 0x prefix and is lowercase
+                    const ethAddress = address.startsWith('0x') ? address.toLowerCase() : `0x${address.toLowerCase()}`;
                     // Properly encode the address for balanceOf(address) call
-                    const addressParam = address.substring(2).toLowerCase().padStart(64, '0');
+                    const addressParam = ethAddress.substring(2).padStart(64, '0');
                     const balanceOfABI = '0x70a08231' + addressParam;
                     
                     const response = await fetch('https://cloudflare-eth.com', {
@@ -399,7 +419,13 @@ export const fetchCompleteWalletData = async (address, walletType) => {
                         const data = await response.json();
                         if (data.result && data.result !== '0x') {
                             balance = parseInt(data.result, 16) / 1e6;
+                            console.log(`USDT balance fetched: ${balance} USDT for address ${ethAddress}`);
+                        } else {
+                            console.log(`USDT balance result is empty or 0x for address ${ethAddress}`);
                         }
+                    } else {
+                        const errorText = await response.text();
+                        console.error(`USDT balance fetch failed: ${response.status} ${response.statusText} - ${errorText}`);
                     }
                 } catch (err) {
                     console.error('Error fetching USDT balance:', err.message);
@@ -413,6 +439,10 @@ export const fetchCompleteWalletData = async (address, walletType) => {
                     error: `Unsupported wallet type: ${walletType}`
                 };
         }
+        
+        console.log(`Final balance for ${walletType} address ${address}: ${balance}`);
+        console.log(`Transaction count: ${transactionData.transactionCount || 0}`);
+        console.log(`Transactions fetched: ${(transactionData.transactions || []).length}`);
         
         return {
             balance,

@@ -62,10 +62,10 @@ const AdminNavigation: React.FC = () => {
       color: 'from-blue-500 to-cyan-500'
     },
     {
-      name: 'Wallet Verifications',
+      name: 'Verifications',
       path: '/admin/wallet-verifications',
       icon: <ShieldCheck className="w-5 h-5" />,
-      description: 'Verify user wallets',
+      description: 'Wallet & additional verifications',
       color: 'from-teal-500 to-teal-600'
     },
     {
@@ -83,16 +83,6 @@ const AdminNavigation: React.FC = () => {
       color: 'from-purple-500 to-purple-600'
     }
   ];
-
-  if (SHOW_ADDITIONAL_VERIFICATION_UI) {
-    navItems.splice(8, 0, {
-      name: 'Additional Verification',
-      path: '/admin/additional-verification',
-      icon: <FileText className="w-5 h-5" />,
-      description: 'Review documents & questionnaires',
-      color: 'from-pink-500 to-pink-600'
-    });
-  }
 
   navItems.splice(2, 0, {
     name: 'Manage Users',

@@ -209,10 +209,6 @@ export const fetchBlockchainData = async (req, res, next) => {
             throw new ApiError(404, 'Verification request not found');
         }
 
-        if (request.status !== 'pending') {
-            throw new ApiError(400, 'Can only fetch blockchain data for pending requests');
-        }
-
         // Fetch fresh blockchain data
         console.log(`Fetching blockchain data for ${request.walletType} address: ${request.walletAddress}`);
         const blockchainData = await fetchCompleteWalletData(request.walletAddress, request.walletType);
