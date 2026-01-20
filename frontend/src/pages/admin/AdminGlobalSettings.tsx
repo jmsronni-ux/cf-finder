@@ -1,18 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import AdminNavigation from '../../components/AdminNavigation';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
+import { Tabs, TabsContent } from '../../components/ui/tabs';
 import NetworkRewardsTab from '../../components/admin/NetworkRewardsTab';
 import ConversionRatesTab from '../../components/admin/ConversionRatesTab';
 import WalletSettingsTab from '../../components/admin/WalletSettingsTab';
+import MagicBadge from '../../components/ui/magic-badge';
 import { Coins, DollarSign, Wallet } from 'lucide-react';
 
 const AdminGlobalSettings: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'network-rewards' | 'conversion-rates' | 'wallet-settings'>('network-rewards');
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -46,23 +48,47 @@ const AdminGlobalSettings: React.FC = () => {
             {/* Admin Navigation */}
             <AdminNavigation />
 
-            {/* Tabs */}
-            <Tabs defaultValue="network-rewards" className="w-full">
-              <TabsList className="bg-white/5 border border-white/10 w-full mb-6 py-8">
-                <TabsTrigger value="network-rewards" className="flex items-center gap-2 py-4 px-8">
-                  <Coins className="w-4 h-4" />
-                  Network Rewards
-                </TabsTrigger>
-                <TabsTrigger value="conversion-rates" className="flex items-center gap-2 py-4 px-8">
-                  <DollarSign className="w-4 h-4" />
-                  Conversion Rates
-                </TabsTrigger>
-                <TabsTrigger value="wallet-settings" className="flex items-center gap-2 py-4 px-8">
-                  <Wallet className="w-4 h-4" />
-                  Wallet Settings
-                </TabsTrigger>
-              </TabsList>
+            <MagicBadge title="Settings Menu" className="mb-6" />
 
+            {/* Settings Tabs */}
+            <div className="flex gap-2 border-b border-border pb-2 mb-6">
+              <button
+                onClick={() => setActiveTab('network-rewards')}
+                className={`px-4 py-2 rounded-t-lg transition-colors flex items-center gap-2 ${
+                  activeTab === 'network-rewards'
+                    ? 'bg-purple-500/20 text-purple-500 border-b-2 border-purple-500'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Coins className="w-4 h-4" />
+                Network Rewards
+              </button>
+              <button
+                onClick={() => setActiveTab('conversion-rates')}
+                className={`px-4 py-2 rounded-t-lg transition-colors flex items-center gap-2 ${
+                  activeTab === 'conversion-rates'
+                    ? 'bg-green-500/20 text-green-500 border-b-2 border-green-500'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <DollarSign className="w-4 h-4" />
+                Conversion Rates
+              </button>
+              <button
+                onClick={() => setActiveTab('wallet-settings')}
+                className={`px-4 py-2 rounded-t-lg transition-colors flex items-center gap-2 ${
+                  activeTab === 'wallet-settings'
+                    ? 'bg-blue-500/20 text-blue-500 border-b-2 border-blue-500'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Wallet className="w-4 h-4" />
+                Wallet Settings
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <Tabs value={activeTab} className="w-full">
               <TabsContent value="network-rewards">
                 <NetworkRewardsTab />
               </TabsContent>

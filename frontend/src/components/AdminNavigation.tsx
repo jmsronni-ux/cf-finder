@@ -1,24 +1,21 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
   Users,
   Crown,
   Coins,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  UserCog,
-  UserPlus,
   Layers,
   ChevronRight,
   Home,
   Settings,
   ShieldCheck,
   FileText,
-  Key
+  Key,
+  UserCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SHOW_ADDITIONAL_VERIFICATION_UI } from '../config/featureFlags';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavItem {
   name: string;
@@ -31,35 +28,15 @@ interface NavItem {
 const AdminNavigation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   const navItems: NavItem[] = [
     {
-      name: 'Topup Requests',
-      path: '/admin/topup-requests',
-      icon: <ArrowDownToLine className="w-5 h-5" />,
-      description: 'Pending top-ups',
-      color: 'from-green-500 to-green-600'
-    },
-    {
-      name: 'Withdraw Requests',
-      path: '/admin/withdraw-requests',
-      icon: <ArrowUpFromLine className="w-5 h-5" />,
-      description: 'Pending withdrawals',
-      color: 'from-red-500 to-red-600'
-    },
-    {
-      name: 'Tier Requests',
-      path: '/admin/tier-requests',
-      icon: <UserCog className="w-5 h-5" />,
-      description: 'Tier upgrade requests',
-      color: 'from-indigo-500 to-indigo-600'
-    },
-    {
-      name: 'Registration Requests',
-      path: '/admin/registration-requests',
-      icon: <UserPlus className="w-5 h-5" />,
-      description: 'New user registrations',
-      color: 'from-blue-500 to-cyan-500'
+      name: 'All Requests',
+      path: '/admin/all-requests',
+      icon: <FileText className="w-5 h-5" />,
+      description: 'All user requests in one place',
+      color: 'from-blue-500 to-purple-500'
     },
     {
       name: 'Verifications',
@@ -74,13 +51,6 @@ const AdminNavigation: React.FC = () => {
       icon: <Layers className="w-5 h-5" />,
       description: 'Configure levels',
       color: 'from-cyan-500 to-cyan-600'
-    },
-    {
-      name: 'Global Settings',
-      path: '/admin/global-settings',
-      icon: <Settings className="w-5 h-5" />,
-      description: 'System-wide settings',
-      color: 'from-purple-500 to-purple-600'
     }
   ];
 
@@ -107,20 +77,29 @@ const AdminNavigation: React.FC = () => {
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
-            <LayoutDashboard className="w-5 h-5 text-white" />
+            <UserCircle className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Admin Panel</h2>
-            <p className="text-sm text-gray-400">System Management</p>
+            <h2 className="text-xl font-bold text-white">{user?.name || 'Admin'}</h2>
+            <p className="text-sm text-gray-400">{user?.email || ''}</p>
           </div>
         </div>
-        <button
-          onClick={() => navigate('/profile')}
-          className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-white text-sm"
-        >
-          <Home className="w-4 h-4" />
-          <span>Back to Profile</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/admin/global-settings')}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-white text-sm"
+          >
+            <Settings className="w-4 h-4" />
+            <span>Global Settings</span>
+          </button>
+          <button
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-white text-sm"
+          >
+            <Home className="w-4 h-4" />
+            <span>Back to Profile</span>
+          </button>
+        </div>
       </div>
 
       {/* Navigation Grid */}
@@ -188,16 +167,6 @@ const AdminNavigation: React.FC = () => {
             </button>
           );
         })}
-      </div>
-
-      {/* Quick Stats Bar (Optional) */}
-      <div className="mt-6 pt-4 border-t border-white/10">
-        <div className="flex items-center justify-between text-xs text-gray-400">
-          <span>Navigate between admin sections quickly</span>
-          <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-md border border-purple-500/30">
-            Admin Access
-          </span>
-        </div>
       </div>
     </div>
   );

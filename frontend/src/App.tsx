@@ -8,10 +8,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import Dashboard from "./pages/Dashboard";
 import UserProfile from "./pages/UserProfile";
-import AdminTopupRequests from "./pages/admin/AdminTopupRequests";
-import AdminWithdrawRequests from "./pages/admin/AdminWithdrawRequests";
-import AdminTierRequests from "./pages/admin/AdminTierRequests";
-import AdminRegistrationRequests from "./pages/admin/AdminRegistrationRequests";
+import AdminAllRequests from "./pages/admin/AdminAllRequests";
 import AdminLevelManagement from "./pages/admin/AdminLevelManagement";
 import AdminGlobalSettings from "./pages/admin/AdminGlobalSettings";
 import AdminVerifications from "./pages/admin/AdminVerifications";
@@ -56,24 +53,9 @@ function App() {
             </ProtectedRoute>
           } />
         )}
-        <Route path="/admin/topup-requests" element={
+        <Route path="/admin/all-requests" element={
           <ProtectedRoute>
-            <AdminTopupRequests />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/withdraw-requests" element={
-          <ProtectedRoute>
-            <AdminWithdrawRequests />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/tier-requests" element={
-          <ProtectedRoute>
-            <AdminTierRequests />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/registration-requests" element={
-          <ProtectedRoute>
-            <AdminRegistrationRequests />
+            <AdminAllRequests />
           </ProtectedRoute>
         } />
         <Route path="/admin/wallet-verifications" element={

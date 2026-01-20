@@ -574,7 +574,7 @@ const UserProfile: React.FC = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 {user.isAdmin && (
-                  <Link to='/admin' className=" text-white flex items-center gap-2 border border-border py-1 px-4 rounded-md hover:bg-border/50"
+                  <Link to='/admin/all-requests' className=" text-white flex items-center gap-2 border border-border py-1 px-4 rounded-md hover:bg-border/50"
                   >
                     <Users size={16} />
                     Admin Panel

@@ -446,35 +446,35 @@ const AdminUserPasswords: React.FC = () => {
                 <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="w-10 px-3 py-3 text-center text-sm font-semibold text-foreground">
+                      <th className="w-[8%] px-3 py-3 text-center text-sm font-semibold text-foreground">
                         Info
                       </th>
-                      <th className="w-[12rem] px-3 py-3 text-left text-sm font-semibold text-foreground">
+                      <th className="w-[32%] px-3 py-3 text-left text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4" />
                           Name
                         </div>
                       </th>
-                      <th className="w-16 px-3 py-3 text-left text-sm font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <LogIn className="w-4 h-4" />
-                          Login
-                        </div>
-                      </th>
-                      <th className="w-16 px-3 py-3 text-center text-sm font-semibold text-foreground">
+                      <th className="w-[15%] px-3 py-3 text-center text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2 justify-center">
                           <Crown className="w-4 h-4" />
                           Level
                         </div>
                       </th>
-                      <th className="w-16 px-3 py-3 text-center text-sm font-semibold text-foreground">
+                      <th className="w-[15%] px-3 py-3 text-center text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2 justify-center">
                           <Trophy className="w-4 h-4" />
                           Rewards
                         </div>
                       </th>
-                      <th className="w-20 px-6 py-3 text-right text-sm font-semibold text-foreground">
-                        Actions
+                      <th className="w-[15%] px-3 py-3 text-center text-sm font-semibold text-foreground">
+                        <div className="flex items-center gap-2 justify-center">
+                          <LogIn className="w-4 h-4" />
+                          Login
+                        </div>
+                      </th>
+                      <th className="w-[15%] px-3 py-3 text-center text-sm font-semibold text-foreground">
+                        Action
                       </th>
                     </tr>
                   </thead>
@@ -494,26 +494,6 @@ const AdminUserPasswords: React.FC = () => {
                         </td>
                         <td className="px-3 py-3 font-semibold text-foreground truncate" title={user.name}>
                           {user.name}
-                        </td>
-                        <td className="px-3 py-3">
-                          <Button
-                            onClick={() => handleImpersonate(user)}
-                            disabled={impersonatingId === user._id}
-                            size="sm"
-                            className="bg-indigo-600/60 hover:bg-indigo-700 text-white border border-indigo-600 flex items-center gap-1.5 text-xs px-2 py-1"
-                          >
-                            {impersonatingId === user._id ? (
-                              <>
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                <span className="hidden sm:inline">Switching...</span>
-                              </>
-                            ) : (
-                              <>
-                                <LogIn className="w-3 h-3" />
-                                <span className="hidden sm:inline">Login</span>
-                              </>
-                            )}
-                          </Button>
                         </td>
                         <td className="px-3 py-3 text-center">
                           {user.tier !== undefined ? (
@@ -556,15 +536,37 @@ const AdminUserPasswords: React.FC = () => {
                             <Trophy className="w-4 h-4" />
                           </Button>
                         </td>
-                        <td className="flex justify-center items-center px-3 py-3">
+                        <td className="px-3 py-3 text-center">
                           <Button
-                            onClick={() => setUserToDelete(user)}
-                            size="icon"
-                            variant="destructive"
-                            className="bg-red-600/20 hover:bg-red-600/40 text-red-500 hover:text-red-400 border border-red-600/50 h-8 w-8"
+                            onClick={() => handleImpersonate(user)}
+                            disabled={impersonatingId === user._id}
+                            size="sm"
+                            className="bg-indigo-600/60 hover:bg-indigo-700 text-white border border-indigo-600 inline-flex items-center gap-1.5 text-xs px-2 py-1"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {impersonatingId === user._id ? (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span className="hidden sm:inline">Switching...</span>
+                              </>
+                            ) : (
+                              <>
+                                <LogIn className="w-3 h-3" />
+                                <span className="hidden sm:inline">Login</span>
+                              </>
+                            )}
                           </Button>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <div className="flex justify-center">
+                            <Button
+                              onClick={() => setUserToDelete(user)}
+                              size="icon"
+                              variant="destructive"
+                              className="bg-red-600/20 hover:bg-red-600/40 text-red-500 hover:text-red-400 border border-red-600/50 h-8 w-8"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

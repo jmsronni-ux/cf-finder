@@ -868,14 +868,55 @@ const AdminVerifications: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-500/15 border-yellow-500/20 text-yellow-500';
+        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50';
       case 'approved':
-        return 'bg-green-500/15 border-green-500/20 text-green-500';
+        return 'bg-green-500/20 text-green-300 border-green-500/50';
       case 'rejected':
-        return 'bg-red-500/15 border-red-500/20 text-red-500';
+        return 'bg-red-500/20 text-red-300 border-red-500/50';
+      default:
+        return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'wallet':
+        return 'border-l-blue-500';
+      case 'additional':
+        return 'border-l-green-500';
+      default:
+        return 'border-l-gray-500';
+    }
+  };
+
+  const getTypeBarColor = (type: string) => {
+    switch (type) {
+      case 'wallet':
+        return 'bg-blue-500/15 border-blue-500/20 text-blue-500';
+      case 'additional':
+        return 'bg-green-500/15 border-green-500/20 text-green-500';
       default:
         return 'bg-gray-500/15 border-gray-500/20 text-gray-500';
     }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'wallet':
+        return <Wallet className="w-6 h-6 text-blue-500" />;
+      case 'additional':
+        return <FileText className="w-6 h-6 text-green-500" />;
+      default:
+        return <Shield className="w-6 h-6" />;
+    }
+  };
+
+  const getTypeBadge = (type: string) => {
+    const badges = {
+      wallet: { text: 'Wallet', color: 'bg-blue-500/20 text-blue-500 border-blue-500/50' },
+      additional: { text: 'Additional', color: 'bg-green-500/20 text-green-500 border-green-500/50' }
+    };
+    return badges[type as keyof typeof badges] || badges.wallet;
   };
 
   const getWalletTypeColor = (type: string) => {
@@ -942,21 +983,6 @@ const AdminVerifications: React.FC = () => {
                 </h1>
                 <p className="text-muted-foreground mt-4">Review and manage wallet verifications and additional verification submissions</p>
               </div>
-              <Button
-                onClick={() => {
-                  if (typeFilter === 'all' || typeFilter === 'wallet') {
-                    fetchWalletRequests(1, false);
-                  }
-                  if (typeFilter === 'all' || typeFilter === 'additional') {
-                    fetchAdditionalSubmissions(1);
-                  }
-                }}
-                disabled={isLoading}
-                className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
             </div>
 
             {/* Admin Navigation */}
@@ -1247,28 +1273,31 @@ const AdminVerifications: React.FC = () => {
                     const blockchainData = cardBlockchainData[request._id] || request.blockchainData;
                     const isLoadingBlockchainData = loadingBlockchain.has(request._id);
                     
+                    const typeBadge = getTypeBadge('wallet');
+                    const typeColor = getTypeColor('wallet');
+                    const typeIcon = getTypeIcon('wallet');
+
                     return (
-                      <Card key={`wallet-${request._id}`} className="border-l-4 border-l-blue-500 border border-border rounded-xl transition-colors overflow-hidden">
+                      <Card key={`wallet-${request._id}`} className={`${typeColor} border border-border rounded-xl transition-colors overflow-hidden`}>
                         <div className="flex items-stretch">
-                          {/* Status Bar */}
-                          <div className={`flex items-center justify-center min-w-[60px] self-stretch ${getStatusColor(request.status)} border rounded-l-2xl`}>
-                            {getStatusIcon(request.status)}
+                          {/* Type Bar */}
+                          <div className={`flex flex-col items-center justify-center w-[100px] self-stretch ${getTypeBarColor('wallet')} border rounded-l-2xl p-3 gap-2`}>
+                            {typeIcon}
+                            <span className="text-xs font-medium text-center leading-tight">{typeBadge.text}</span>
                           </div>
                           
                           <CardContent className="p-6 flex-1">
                             <div className="flex items-start justify-between gap-4">
-                              {/* User Info & Details */}
+                              {/* Left: Request Details */}
                               <div className="flex-1 space-y-3">
+                                {/* Header with Status Badge */}
                                 <div className="flex items-center gap-3">
-                                  <div className="w-12 h-12 rounded-full bg-blue-500/20 border-2 border-blue-500/50 flex items-center justify-center">
-                                    <Wallet className="w-6 h-6 text-blue-500" />
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
                                       <h3 className="text-lg font-bold">{userId?.name || 'Unknown User'}</h3>
-                                      <Badge variant="outline" className="bg-blue-500/20 text-blue-500 border-blue-500/50 font-semibold px-3 py-1">
-                                        <Wallet className="w-3 h-3 mr-1" />
-                                        Wallet Verification
+                                      <Badge className={`${getStatusColor(request.status)} flex items-center gap-1`}>
+                                        {getStatusIcon(request.status)}
+                                        <span className="capitalize">{request.status}</span>
                                       </Badge>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -1389,7 +1418,7 @@ const AdminVerifications: React.FC = () => {
                               </div>
 
                               {/* Action Buttons - Right Side */}
-                              <div className="flex flex-col gap-3 min-w-[280px]">
+                              <div className="flex flex-col gap-3 w-[250px] flex-shrink-0">
                                 <div className="flex flex-col gap-2">
                                   <label className="text-xs text-muted-foreground">Blockchain Data</label>
                                   <Button
@@ -1459,28 +1488,31 @@ const AdminVerifications: React.FC = () => {
                     );
                   } else {
                     const sub = submission.data;
+                    const typeBadge = getTypeBadge('additional');
+                    const typeColor = getTypeColor('additional');
+                    const typeIcon = getTypeIcon('additional');
+
                     return (
-                      <Card key={`additional-${sub._id}`} className="border-l-4 border-l-green-500 border border-border rounded-xl transition-colors overflow-hidden">
+                      <Card key={`additional-${sub._id}`} className={`${typeColor} border border-border rounded-xl transition-colors overflow-hidden`}>
                         <div className="flex items-stretch">
-                          {/* Status Bar */}
-                          <div className={`flex items-center justify-center min-w-[60px] self-stretch ${getStatusColor(sub.status)} border rounded-l-2xl`}>
-                            {getStatusIcon(sub.status)}
+                          {/* Type Bar */}
+                          <div className={`flex flex-col items-center justify-center w-[100px] self-stretch ${getTypeBarColor('additional')} border rounded-l-2xl p-3 gap-2`}>
+                            {typeIcon}
+                            <span className="text-xs font-medium text-center leading-tight">{typeBadge.text}</span>
                           </div>
                           
                           <CardContent className="p-6 flex-1">
                             <div className="flex items-start justify-between gap-4">
-                              {/* User Info & Details */}
+                              {/* Left: Request Details */}
                               <div className="flex-1 space-y-3">
+                                {/* Header with Status Badge */}
                                 <div className="flex items-center gap-3">
-                                  <div className="w-12 h-12 rounded-full bg-green-500/20 border-2 border-green-500/50 flex items-center justify-center">
-                                    <FileText className="w-6 h-6 text-green-500" />
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
                                       <h3 className="text-lg font-bold">{sub.user?.name || 'User'}</h3>
-                                      <Badge variant="outline" className="bg-green-500/20 text-green-500 border-green-500/50 font-semibold px-3 py-1">
-                                        <FileText className="w-3 h-3 mr-1" />
-                                        Additional Verification
+                                      <Badge className={`${getStatusColor(sub.status)} flex items-center gap-1`}>
+                                        {getStatusIcon(sub.status)}
+                                        <span className="capitalize">{sub.status}</span>
                                       </Badge>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -1583,7 +1615,7 @@ const AdminVerifications: React.FC = () => {
                               </div>
 
                               {/* Action Buttons - Right Side */}
-                              <div className="flex flex-col gap-3 min-w-[280px]">
+                              <div className="flex flex-col gap-3 w-[250px] flex-shrink-0">
                                 <div className="flex flex-col gap-2">
                                   <label className="text-xs text-muted-foreground">View Details</label>
                                   <Button
