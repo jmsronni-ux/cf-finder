@@ -61,6 +61,18 @@ export const getAllTopupRequests = async (req, res, next) => {
             filter.status = status;
         }
 
+        if (req.user.isSubAdmin) {
+            const managedUsers = await User.find({ managedBy: req.user._id }).select('_id');
+            const managedUserIds = managedUsers.map(u => u._id);
+
+            if (filter.userId && filter.userId.$in) {
+                const existingIds = filter.userId.$in;
+                filter.userId.$in = existingIds.filter(id => managedUserIds.some(mId => mId.equals(id)));
+            } else {
+                filter.userId = { $in: managedUserIds };
+            }
+        }
+
         if (search) {
             const searchRegex = new RegExp(search, 'i');
             const matchedUsers = await User.find({

@@ -66,10 +66,8 @@ const AdminNavigation: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
-  // Filter out Level Management from navigation (hidden but not deleted)
-  const visibleNavItems = navItems.filter(item =>
-    !item.name.toLowerCase().includes('level management')
-  );
+  // Filter out items if needed, but show all by default
+  const visibleNavItems = navItems;
 
   return (
     <div className="w-full bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] border border-white/10 rounded-2xl p-6 mb-6 shadow-2xl">

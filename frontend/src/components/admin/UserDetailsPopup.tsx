@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Loader2, User as UserIcon, Key, Wallet, Building2, CreditCard, Mail, Calendar, Shield, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiFetch } from '../../utils/api';
 
 interface FullUserData {
   _id: string;
@@ -14,6 +15,9 @@ interface FullUserData {
   balance?: number;
   tier?: number;
   isAdmin?: boolean;
+  isSubAdmin?: boolean;
+  managedBy?: string | null;
+  levelTemplate?: string;
   createdAt?: string;
   updatedAt?: string;
   wallets?: {
@@ -56,6 +60,35 @@ interface UserDetailsPopupProps {
 const UserDetailsPopup: React.FC<UserDetailsPopupProps> = ({ isOpen, onClose, user, loading }) => {
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [subadmins, setSubadmins] = useState<any[]>([]);
+  const [loadingSubadmins, setLoadingSubadmins] = useState(false);
+  const [selectedManagedBy, setSelectedManagedBy] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (isOpen && !user?.isSubAdmin) {
+      const fetchSubadmins = async () => {
+        setLoadingSubadmins(true);
+        try {
+          const res = await apiFetch('/user?role=subadmin', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          });
+          const data = await res.json();
+          if (data.success) {
+            setSubadmins(data.data || []);
+          }
+        } catch (err) {
+          console.error('Error fetching subadmins:', err);
+        } finally {
+          setLoadingSubadmins(false);
+        }
+      };
+      fetchSubadmins();
+    }
+    if (user) {
+      setSelectedManagedBy(user.managedBy || null);
+    }
+  }, [isOpen, user]);
 
   const handleCopyEmail = async () => {
     if (!user?.email) return;
@@ -80,6 +113,63 @@ const UserDetailsPopup: React.FC<UserDetailsPopupProps> = ({ isOpen, onClose, us
     } catch (error) {
       console.error('Failed to copy password:', error);
       toast.error('Failed to copy password');
+    }
+  };
+
+  const updateAssignment = async (newManagedBy: string | null) => {
+    if (!user || isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      const response = await apiFetch(`/user/${user._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ managedBy: newManagedBy })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setSelectedManagedBy(newManagedBy);
+        toast.success(`User assignment updated successfully`);
+      } else {
+        toast.error(data.message || 'Failed to update user assignment');
+      }
+    } catch (error) {
+      console.error('Error updating user assignment:', error);
+      toast.error('An error occurred');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const toggleSubAdmin = async () => {
+    if (!user || isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      const response = await apiFetch(`/user/${user._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ isSubAdmin: !user.isSubAdmin })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`User subadmin status updated to ${!user.isSubAdmin}`);
+      } else {
+        toast.error(data.message || 'Failed to update subadmin status');
+      }
+    } catch (error) {
+      console.error('Error updating subadmin status:', error);
+      toast.error('An error occurred');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -234,6 +324,54 @@ const UserDetailsPopup: React.FC<UserDetailsPopupProps> = ({ isOpen, onClose, us
                             ) : (
                               <span className="text-muted-foreground">No</span>
                             )}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm text-muted-foreground">Sub-Admin Role</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-foreground font-medium">
+                              {user.isSubAdmin ? (
+                                <span className="text-blue-400 font-bold flex items-center gap-1">
+                                  <Shield className="w-3 h-3" /> YES
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">No</span>
+                              )}
+                            </p>
+                            <button
+                              onClick={toggleSubAdmin}
+                              disabled={isUpdating}
+                              className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition-colors"
+                            >
+                              {isUpdating ? '...' : 'Toggle'}
+                            </button>
+                          </div>
+                        </div>
+                        {!user.isSubAdmin && (
+                          <div>
+                            <label className="text-sm text-muted-foreground">Managed By (Sub-Admin)</label>
+                            <div className="flex items-center gap-2 mt-1">
+                              <select
+                                value={selectedManagedBy || "none"}
+                                onChange={(e) => updateAssignment(e.target.value === "none" ? null : e.target.value)}
+                                disabled={isUpdating || loadingSubadmins}
+                                className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
+                              >
+                                <option value="none" className="bg-[#0f0f0f]">Main Admin</option>
+                                {subadmins.map((sa) => (
+                                  <option key={sa._id} value={sa._id} className="bg-[#0f0f0f]">
+                                    {sa.name}
+                                  </option>
+                                ))}
+                              </select>
+                              {loadingSubadmins && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <label className="text-sm text-muted-foreground">Assigned Template</label>
+                          <p className="text-foreground font-medium mt-1">
+                            {user.levelTemplate || 'A'}
                           </p>
                         </div>
                         <div>

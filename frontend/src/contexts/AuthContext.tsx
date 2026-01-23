@@ -11,6 +11,8 @@ interface User {
   tier: number;
   phone?: string;
   isAdmin?: boolean;
+  isSubAdmin?: boolean;
+  managedBy?: string | null;
   lvl1anim?: number;
   lvl2anim?: number;
   lvl3anim?: number;
@@ -125,13 +127,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.ok && responseData.success) {
         const { token: newToken, user: userData } = responseData.data;
-        
+
         setToken(newToken);
         setUser(userData);
-        
+
         localStorage.setItem('token', newToken);
         localStorage.setItem('user', JSON.stringify(userData));
-        
+
         toast.success('Login successful!');
         return true;
       } else {
@@ -195,8 +197,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem('user', JSON.stringify(updatedUser));
         }
         console.log(`[Frontend] Animation marked as watched successfully for level ${level}`);
-        return { 
-          success: true, 
+        return {
+          success: true,
           totalRewardUSDT: responseData.data.totalRewardUSDT,
           networkRewards: responseData.data.networkRewards
         };

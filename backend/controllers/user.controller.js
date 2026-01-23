@@ -13,11 +13,22 @@ import TierRequest from "../models/tier-request.model.js";
 
 export const getAllUsers = async (req, res, next) => {
     try {
+        const { status, role } = req.query;
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
         const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
         const search = (req.query.search || '').trim();
 
         const filter = {};
+
+        if (role === 'subadmin') {
+            filter.isSubAdmin = true;
+        } else if (role === 'mainadmin') {
+            filter.isAdmin = true;
+        }
+
+        if (req.user.isSubAdmin) {
+            filter.managedBy = req.user._id;
+        }
 
         if (search) {
             const searchRegex = new RegExp(search, 'i');
@@ -610,13 +621,25 @@ export const getUserTierManagementInfo = async (req, res, next) => {
 // GET /admin/users-with-passwords - ADMIN ONLY
 export const getAllUsersWithPasswords = async (req, res, next) => {
     try {
-        if (!req.user || !req.user.isAdmin) {
+        if (!req.user || (!req.user.isAdmin && !req.user.isSubAdmin)) {
             return res.status(403).json({ success: false, message: 'Access denied. Admin privileges required.' });
         }
+        const { role } = req.query;
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
         const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
         const search = (req.query.search || '').trim();
         const filter = {};
+
+        if (role === 'subadmin') {
+            filter.isSubAdmin = true;
+        } else if (role === 'mainadmin') {
+            filter.isAdmin = true;
+        }
+
+        // Sub-admins only see users assigned to them
+        if (req.user.isSubAdmin && !req.user.isAdmin) {
+            filter.managedBy = req.user._id;
+        }
         if (search) {
             const searchRegex = new RegExp(search, 'i');
             filter.$or = [

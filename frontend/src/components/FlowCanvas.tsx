@@ -35,6 +35,7 @@ import { CheckCircle } from 'lucide-react';
 interface FlowCanvasProps {
   onNodeAppear?: (nodeId: string) => void;
   externalSelectedNodeId?: string | null;
+  editingTemplate?: string;
 }
 
 // Helper function to get level data based on level number
@@ -49,9 +50,9 @@ const nodeTypes = {
   fingerprintNode: FingerprintNode,
 };
 
-const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId }) => {
-  const { levels, loading: levelsLoading, refetch: refetchLevels } = useLevelData();
-  
+const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId, editingTemplate = 'A' }) => {
+  const { levels, loading: levelsLoading, refetch: refetchLevels } = useLevelData(editingTemplate);
+
   // Debug levels data changes
   useEffect(() => {
     console.log('[FlowCanvas] Levels data changed:', { levels: levels.length, loading: levelsLoading });
@@ -79,15 +80,15 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [hasPendingVerification, setHasPendingVerification] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  
-  
+
+
   // Pending status hook
-  const { 
-    initializePendingStatus, 
-    getEffectiveStatus, 
+  const {
+    initializePendingStatus,
+    getEffectiveStatus,
     getTimeRemaining,
     isNodePending,
-    resetPendingStatus 
+    resetPendingStatus
   } = usePendingStatus(nodes);
 
   // Sync current level from DB (user tier)
@@ -95,14 +96,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   // Keep rewards if needed elsewhere, but withdrawn marking uses history only
   const [userLevelRewards, setUserLevelRewards] = useState<{ [network: string]: number }>({});
   const [withdrawnNetworksFromHistory, setWithdrawnNetworksFromHistory] = useState<Map<number, Set<string>>>(new Map());
-  
+
   useEffect(() => {
     (async () => {
       if (!user?._id) return;
       try {
         const rewards = await getUserLevelRewards(user._id, currentLevel);
         setUserLevelRewards(rewards || {});
-        
+
         // Fetch withdrawal history (single source of truth for withdrawn networks)
         const response = await apiFetch('/withdraw-request/my-requests', {
           headers: {
@@ -113,7 +114,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           const data = await response.json();
           const approvedWithdrawals = data.data?.filter((req: any) => req.status === 'approved') || [];
           const withdrawnByLevel = new Map<number, Set<string>>();
-          
+
           // Collect networks with approved withdrawals for ALL levels
           approvedWithdrawals.forEach((req: any) => {
             if (req.networks && req.networks.length > 0 && req.level) {
@@ -126,7 +127,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
               });
             }
           });
-          
+
           setWithdrawnNetworksFromHistory(withdrawnByLevel);
         }
       } catch (e) {
@@ -134,7 +135,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       }
     })();
   }, [user?._id, currentLevel, token]);
-  
+
   // Sync completed levels from DB animation flags
   useEffect(() => {
     if (user) {
@@ -153,13 +154,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       setCurrentLevel(user.tier === 0 ? 1 : user.tier);
     }
   }, [user]);
-  
+
   // Check if current level animation has been watched
   const hasWatchedCurrentLevel = user?.[`lvl${currentLevel}anim` as keyof typeof user] === 1;
-  
+
   // Check if user has paid for current level (tier 0 hasn't paid for tier 1 yet)
   const hasPaidForCurrentLevel = user?.tier !== undefined && user.tier >= currentLevel;
-  
+
   // Custom onNodeAppear that initializes pending status
   const handleNodeAppear = useCallback((nodeId: string) => {
     initializePendingStatus(nodeId);
@@ -167,16 +168,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       onNodeAppear(nodeId);
     }
   }, [initializePendingStatus, onNodeAppear]);
-  
+
   // Animation hook - use current level's nodes
   const currentLevelNodes = useMemo(() => getLevelData(currentLevel, levels).nodes as any[], [currentLevel, levels]);
   const { startAnimation, isNodeVisible, hasStarted, isCompleted, resetAnimation } = useNodeAnimation(
-    currentLevelNodes, 
-    handleNodeAppear, 
+    currentLevelNodes,
+    handleNodeAppear,
     currentLevel,
     isNodePending
   );
-  
+
   // Debug logging - AFTER all hooks are initialized
   useEffect(() => {
     console.log('=== BUTTON DEBUG ===');
@@ -188,7 +189,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     console.log('hasStarted:', hasStarted);
     console.log('===================');
   }, [user?.walletVerified, user?.isAdmin, hasWatchedCurrentLevel, hasPendingVerification, pendingTierRequest, hasStarted]);
-  
+
   // Load level data when currentLevel changes
   useEffect(() => {
     const newLevelData = getLevelData(currentLevel, levels);
@@ -203,16 +204,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Show completion popup when animation finishes and save to DB
   useEffect(() => {
-    
+
     // Always show popup and add rewards when animation is completed
     // Allow completion even if animationStartedForLevel is null (for already completed levels)
     const shouldTriggerCompletion = isCompleted && (animationStartedForLevel === currentLevel || animationStartedForLevel === null);
-    
+
     if (shouldTriggerCompletion && !isProcessingCompletion && !completionPopupShown) {
       setIsProcessingCompletion(true); // Prevent multiple calls
       setCompletionPopupShown(true); // Mark popup as shown
       setShowCompletionPopup(true);
-      
+
       // Mark animation as watched in DB and add reward to balance
       (async () => {
         const result = await markAnimationWatched(currentLevel);
@@ -224,7 +225,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           if (result.totalRewardUSDT) {
             setCompletionTotalRewardUSDT(result.totalRewardUSDT);
           }
-          
+
           if (result.totalRewardUSDT && result.totalRewardUSDT > 0) {
             toast.success(`🎉 Level ${currentLevel} completed! Network rewards totaling $${result.totalRewardUSDT.toLocaleString()} USDT added to your balance!`, {
               duration: 5000
@@ -237,15 +238,15 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         }
         // Refresh user data to show updated balance
         await refreshUser();
-        
+
         // Reset processing flag after completion
         setIsProcessingCompletion(false);
       })();
-      
+
       const newCompleted = new Set(completedLevels);
       newCompleted.add(currentLevel);
       setCompletedLevels(newCompleted);
-      setAnimationStartedForLevel(null); 
+      setAnimationStartedForLevel(null);
     }
   }, [isCompleted, currentLevel, completedLevels, markAnimationWatched, animationStartedForLevel, user, refreshUser, isProcessingCompletion, completionPopupShown]);
 
@@ -299,7 +300,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         const json = await res.json();
         if (res.ok && json?.success) {
           // Check if there's a pending verification request for BTC wallet
-          const pending = json.data.requests?.find((req: any) => 
+          const pending = json.data.requests?.find((req: any) =>
             req.status === 'pending' && req.walletType === 'btc'
           );
           setHasPendingVerification(!!pending);
@@ -315,7 +316,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   useEffect(() => {
     const fetchNextTierInfo = async () => {
       if (!token || !user) return;
-      
+
       try {
         const res = await apiFetch('/tier/my-tier', {
           headers: {
@@ -335,7 +336,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         console.error('Failed to fetch tier info', e);
       }
     };
-    
+
     fetchNextTierInfo();
   }, [token, user?.tier]);
 
@@ -392,7 +393,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Compute allowed visibility and map nodes/edges with state
   const { allowedVisible, nodeById } = computeAllowedNodeIds(nodes, edges, currentLevel, user);
-  
+
   const nodesWithSelectionBase = mapNodesWithState({
     nodes,
     selectedNode,
@@ -441,14 +442,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     return nodesWithSelectionBase.map((n: any) => {
       const network = nodeIdToNetwork[n.id];
       const nodeLevel = n.data?.level ?? 1;
-      
+
       // Check if this specific network was withdrawn from this specific level
       let withdrawn = false;
       if (network) {
         const levelWithdrawn = withdrawnNetworksFromHistory.get(nodeLevel);
         withdrawn = levelWithdrawn ? levelWithdrawn.has(network) : false;
       }
-      
+
       return {
         ...n,
         data: { ...n.data, withdrawn },
@@ -548,10 +549,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
           return cleanNode;
         });
-      
+
       const filteredNodeIds = new Set(filteredNodes.map((n: any) => n.id));
       const filteredEdges = edges
-        .filter((edge: any) => 
+        .filter((edge: any) =>
           filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
         )
         .map((edge: any) => {
@@ -575,7 +576,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       };
 
       const dataStr = JSON.stringify(updatedLevelData, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
       const exportFileDefaultName = `level-${levelNum}-updated.json`;
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
@@ -641,10 +642,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
             return cleanNode;
           });
-        
+
         const filteredNodeIds = new Set(filteredNodes.map((n: any) => n.id));
         const filteredEdges = edges
-          .filter((edge: any) => 
+          .filter((edge: any) =>
             filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
           )
           .map((edge: any) => {
@@ -672,7 +673,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             name: `Level ${levelNum}`,
             description: `Animation level ${levelNum}`,
             nodes: filteredNodes,
-            edges: filteredEdges
+            edges: filteredEdges,
+            templateName: editingTemplate
           })
         });
 
@@ -721,21 +723,21 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     // Update nodes and edges
     setNodes((nds: any[]) => [...nds, newNode]);
     setEdges((eds: any[]) => [...eds, newEdge]);
-    
+
     // Update level data
     setLevelData((prevData: any) => ({
       ...prevData,
       nodes: [...prevData.nodes, newNode],
       edges: [...(prevData.edges || []), newEdge]
     }));
-    
+
     toast.success(`Added child transaction node to ${parentNode.data.label}`);
   }, [nodes, setNodes, setEdges, setLevelData, user]);
 
   const handleDeleteNode = useCallback((nodeId: string) => {
     const nodeToDelete = nodes.find((n: any) => n.id === nodeId);
     const validation = validateNodeDeletion(nodeToDelete, edges);
-    
+
     if (!validation.canDelete) {
       if (validation.message) alert(validation.message);
       return;
@@ -744,14 +746,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     // Remove node and its edges
     setNodes((nds: any[]) => nds.filter((n: any) => n.id !== nodeId));
     setEdges((eds: any[]) => eds.filter((e: any) => e.target !== nodeId && e.source !== nodeId));
-    
+
     // Update level data
     setLevelData((prevData: any) => ({
       ...prevData,
       nodes: prevData.nodes.filter((n: any) => n.id !== nodeId),
       edges: (prevData.edges || []).filter((e: any) => e.target !== nodeId && e.source !== nodeId)
     }));
-    
+
     // Close panel if deleted node was selected
     if (selectedNode?.id === nodeId) {
       setSelectedNode(null);
@@ -786,57 +788,57 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       >
         <Levels currentLevel={currentLevel} maxLevel={5} />
         <AccountSettings />
-        <PulsatingButton 
-            pulseColor="#764FCB" 
-            duration="1.5s"
-            variant={
-              pendingTierRequest ? "upgradePending" :
+        <PulsatingButton
+          pulseColor="#764FCB"
+          duration="1.5s"
+          variant={
+            pendingTierRequest ? "upgradePending" :
               hasWatchedCurrentLevel ? "withdraw" :
-              (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
-              (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
-              hasStarted ? "loading" : 
-              "start"
-            }
-            isLoading={isUpgrading}
-            className="absolute top-6 right-24 w-fit min-w-[10rem]"
-            onClick={
-              pendingTierRequest 
-                ? undefined 
-                : hasWatchedCurrentLevel
-                  ? () => {
-                      setShowCompletionPopup(!showCompletionPopup);
+                (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
+                  (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
+                    hasStarted ? "loading" :
+                      "start"
+          }
+          isLoading={isUpgrading}
+          className="absolute top-6 right-24 w-fit min-w-[10rem]"
+          onClick={
+            pendingTierRequest
+              ? undefined
+              : hasWatchedCurrentLevel
+                ? () => {
+                  setShowCompletionPopup(!showCompletionPopup);
+                }
+                : (!user?.isAdmin && hasPendingVerification)
+                  ? undefined
+                  : (!user?.isAdmin && !user?.walletVerified)
+                    ? () => {
+                      navigate('/profile');
                     }
-                  : (!user?.isAdmin && hasPendingVerification)
-                    ? undefined
-                    : (!user?.isAdmin && !user?.walletVerified)
-                      ? () => {
-                          navigate('/profile');
-                        }
-                      : hasStarted 
-                        ? undefined 
-                        : () => {
-                            resetPendingStatus(); // Reset pending timers before starting animation
-                            setAnimationStartedForLevel(currentLevel); // Track which level animation is starting for
-                            startAnimation();
-                          }
-            }
-            disabled={pendingTierRequest || (!user?.isAdmin && hasPendingVerification) || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading}
+                    : hasStarted
+                      ? undefined
+                      : () => {
+                        resetPendingStatus(); // Reset pending timers before starting animation
+                        setAnimationStartedForLevel(currentLevel); // Track which level animation is starting for
+                        startAnimation();
+                      }
+          }
+          disabled={pendingTierRequest || (!user?.isAdmin && hasPendingVerification) || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading}
         >
-            {pendingTierRequest 
-              ? 'Upgrade Pending' 
-              : isUpgrading 
-                ? 'Upgrading...' 
-                : hasWatchedCurrentLevel
-                  ? 'Withdraw'
-                  : (!user?.isAdmin && hasPendingVerification)
-                    ? 'Verification Pending'
-                    : (!user?.isAdmin && !user?.walletVerified)
-                      ? 'Verify Wallet'
-                      : hasStarted 
-                        ? 'Running...' 
-                        : 'Start Allocation'}
+          {pendingTierRequest
+            ? 'Upgrade Pending'
+            : isUpgrading
+              ? 'Upgrading...'
+              : hasWatchedCurrentLevel
+                ? 'Withdraw'
+                : (!user?.isAdmin && hasPendingVerification)
+                  ? 'Verification Pending'
+                  : (!user?.isAdmin && !user?.walletVerified)
+                    ? 'Verify Wallet'
+                    : hasStarted
+                      ? 'Running...'
+                      : 'Start Allocation'}
         </PulsatingButton>
-        
+
 
         {/* Data Visual Component - Admin users see edit panel, regular users see details panel */}
         {user?.isAdmin ? (
@@ -889,19 +891,19 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                 <RefreshCw className="w-4 h-4" />
                 Refresh
               </button>
-          </div>
-          <DataVisual 
-            selectedNode={selectedNode}
-            onUpdateNodeData={updateNodeData}
-            onClose={() => setSelectedNode(null)}
-            onAddChildNode={handleAddChildNode}
-            onDeleteNode={handleDeleteNode}
-            canDelete={canDeleteSelectedNode}
-            isAdmin={true}
-          />
+            </div>
+            <DataVisual
+              selectedNode={selectedNode}
+              onUpdateNodeData={updateNodeData}
+              onClose={() => setSelectedNode(null)}
+              onAddChildNode={handleAddChildNode}
+              onDeleteNode={handleDeleteNode}
+              canDelete={canDeleteSelectedNode}
+              isAdmin={true}
+            />
           </>
         ) : (
-          <NodeDetailsPanel 
+          <NodeDetailsPanel
             selectedNode={selectedNode}
             onClose={() => setSelectedNode(null)}
             hasStarted={hasStarted}
@@ -920,34 +922,34 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             }}
           />
         )}
-        
+
         {/* <Controls /> */}
-        <Background 
-          gap={20} 
+        <Background
+          gap={20}
           size={1}
           style={{ opacity: 0.3 }}
         />
       </ReactFlow>
-      
-        {/* Animation Completion Popup - Now showing Withdraw Popup */}
-        <EnhancedWithdrawPopup 
-          isOpen={showCompletionPopup}
-          onClose={() => setShowCompletionPopup(false)}
-          currentBalance={user?.balance || 0}
-          userData={user}
-          onSuccess={async () => {
-            // Refresh user data after successful withdrawal
-            await refreshUser();
-            // Refetch per-level rewards to re-evaluate withdrawn networks visual state
-            try {
-              if (user?._id) {
-                const rewards = await getUserLevelRewards(user._id, currentLevel);
-                setUserLevelRewards(rewards || {});
-              }
-            } catch {}
-            toast.success('Withdrawal request submitted successfully!');
-          }}
-        />
+
+      {/* Animation Completion Popup - Now showing Withdraw Popup */}
+      <EnhancedWithdrawPopup
+        isOpen={showCompletionPopup}
+        onClose={() => setShowCompletionPopup(false)}
+        currentBalance={user?.balance || 0}
+        userData={user}
+        onSuccess={async () => {
+          // Refresh user data after successful withdrawal
+          await refreshUser();
+          // Refetch per-level rewards to re-evaluate withdrawn networks visual state
+          try {
+            if (user?._id) {
+              const rewards = await getUserLevelRewards(user._id, currentLevel);
+              setUserLevelRewards(rewards || {});
+            }
+          } catch { }
+          toast.success('Withdrawal request submitted successfully!');
+        }}
+      />
 
 
     </div>

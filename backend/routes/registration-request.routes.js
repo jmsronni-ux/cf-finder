@@ -6,7 +6,8 @@ import {
     approveRegistrationRequest,
     rejectRegistrationRequest,
     deleteRegistrationRequest,
-    checkRegistrationStatus
+    checkRegistrationStatus,
+    updateRegistrationRequestAssignment
 } from "../controllers/registration-request.controller.js";
 import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 
@@ -21,6 +22,7 @@ registrationRequestRouter.get("/", authMiddleware, adminMiddleware, getAllRegist
 registrationRequestRouter.get("/:id", authMiddleware, adminMiddleware, getRegistrationRequest);
 registrationRequestRouter.post("/:id/approve", authMiddleware, adminMiddleware, approveRegistrationRequest);
 registrationRequestRouter.post("/:id/reject", authMiddleware, adminMiddleware, rejectRegistrationRequest);
+registrationRequestRouter.put("/:id", authMiddleware, adminMiddleware, updateRegistrationRequestAssignment);
 registrationRequestRouter.delete("/:id", authMiddleware, adminMiddleware, deleteRegistrationRequest);
 
 export default registrationRequestRouter;

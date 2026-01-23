@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+﻿import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -71,11 +71,6 @@ const userSchema = new mongoose.Schema({
     levelTemplate: {
         type: String,
         default: 'A'
-    },
-    managedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        default: null
     },
     lvl1anim: {
         type: Number,

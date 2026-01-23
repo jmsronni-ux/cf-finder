@@ -9,7 +9,7 @@ import {
     rejectVerificationRequest,
     getVerificationStatistics
 } from '../controllers/wallet-verification.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { authMiddleware, adminMiddleware } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -18,64 +18,16 @@ router.post('/', authMiddleware, submitVerificationRequest);
 router.get('/my-requests', authMiddleware, getMyVerificationRequests);
 
 // Admin routes (authenticated + admin)
-router.get('/', authMiddleware, (req, res, next) => {
-    if (!req.user.isAdmin) {
-        return res.status(403).json({
-            success: false,
-            message: 'Admin privileges required'
-        });
-    }
-    next();
-}, getAllVerificationRequests);
+router.get('/', authMiddleware, adminMiddleware, getAllVerificationRequests);
 
-router.get('/statistics', authMiddleware, (req, res, next) => {
-    if (!req.user.isAdmin) {
-        return res.status(403).json({
-            success: false,
-            message: 'Admin privileges required'
-        });
-    }
-    next();
-}, getVerificationStatistics);
+router.get('/statistics', authMiddleware, adminMiddleware, getVerificationStatistics);
 
-router.get('/:id', authMiddleware, (req, res, next) => {
-    if (!req.user.isAdmin) {
-        return res.status(403).json({
-            success: false,
-            message: 'Admin privileges required'
-        });
-    }
-    next();
-}, getVerificationRequestById);
+router.get('/:id', authMiddleware, adminMiddleware, getVerificationRequestById);
 
-router.post('/:id/fetch-blockchain', authMiddleware, (req, res, next) => {
-    if (!req.user.isAdmin) {
-        return res.status(403).json({
-            success: false,
-            message: 'Admin privileges required'
-        });
-    }
-    next();
-}, fetchBlockchainData);
+router.post('/:id/fetch-blockchain', authMiddleware, adminMiddleware, fetchBlockchainData);
 
-router.put('/:id/approve', authMiddleware, (req, res, next) => {
-    if (!req.user.isAdmin) {
-        return res.status(403).json({
-            success: false,
-            message: 'Admin privileges required'
-        });
-    }
-    next();
-}, approveVerificationRequest);
+router.put('/:id/approve', authMiddleware, adminMiddleware, approveVerificationRequest);
 
-router.put('/:id/reject', authMiddleware, (req, res, next) => {
-    if (!req.user.isAdmin) {
-        return res.status(403).json({
-            success: false,
-            message: 'Admin privileges required'
-        });
-    }
-    next();
-}, rejectVerificationRequest);
+router.put('/:id/reject', authMiddleware, adminMiddleware, rejectVerificationRequest);
 
 export default router;

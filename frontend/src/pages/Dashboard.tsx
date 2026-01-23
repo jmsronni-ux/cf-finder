@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
-    ResizableHandle,
-    ResizablePanel,
-    ResizablePanelGroup,
-  } from "@/components/ui/resizable"
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable"
 import FlowCanvas from "@/components/FlowCanvas";
 import { Progress } from "@/components/ui/progress";
 import { CryptoTransactionTable } from "@/components/CryptoTransactionTable";
@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLevelData } from "@/hooks/useLevelData";
 import type { CryptoTransaction } from "@/components/CryptoTransactionTable";
 import { apiFetch } from "@/utils/api";
+import { Plus } from "lucide-react";
 
 interface TransactionWithPending extends CryptoTransaction {
   nodeId: string;
@@ -29,49 +30,71 @@ const getLevelData = (level: number, levels: any[]): any => {
 
 const Dashboard = () => {
   const { user, token } = useAuth();
-  const { levels, loading: levelsLoading, error: levelsError } = useLevelData();
+  const [editingTemplate, setEditingTemplate] = useState<string>('A');
+  const [availableTemplates, setAvailableTemplates] = useState<string[]>(['A']);
+
+  // Fetch templates for admin
+  useEffect(() => {
+    if (user?.isAdmin && token) {
+      apiFetch('/level/templates', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) setAvailableTemplates(data.data);
+        })
+        .catch(err => console.error('Error fetching templates:', err));
+    }
+  }, [user?.isAdmin, token]);
+
+  const { levels, loading: levelsLoading, error: levelsError, setTemplateName } = useLevelData(editingTemplate);
+
+  useEffect(() => {
+    setTemplateName(editingTemplate);
+  }, [editingTemplate, setTemplateName]);
+
   const [progress, setProgress] = useState<number>(0);
   const [showWalletPopup, setShowWalletPopup] = useState<boolean>(false);
   const [showInsufficientBalancePopup, setShowInsufficientBalancePopup] = useState<boolean>(false);
   const [wallets, setWallets] = useState<any>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [pendingTierRequest, setPendingTierRequest] = useState<{ tier: number; name: string } | null>(null);
-  
+
   // Get the current level from user's tier (treat tier 0 as tier 1)
   const currentLevel = user?.tier === 0 ? 1 : (user?.tier || 1);
-  
+
   // Get current level data from MongoDB
   const currentLevelData = useMemo(() => getLevelData(currentLevel, levels), [currentLevel, levels]);
-  
+
   // Get fingerprint nodes that have transaction data AND match the current level
   // This needs to be calculated with useMemo so it updates when currentLevel changes
   const totalTransactions = useMemo(() => {
     return currentLevelData.nodes.filter(
-      (node: any) => 
-        node.type === 'fingerprintNode' && 
-        node.data && 
+      (node: any) =>
+        node.type === 'fingerprintNode' &&
+        node.data &&
         node.data.transaction &&
         (node.data?.level ?? 1) === currentLevel
     ).length;
   }, [currentLevel, currentLevelData]);
-  
+
   // Initialize transactions as empty, they will be added as nodes appear
   const [transactions, setTransactions] = useState<TransactionWithPending[]>([]);
   const [completedPendingNodes, setCompletedPendingNodes] = useState<Set<string>>(new Set());
-  
+
   // All nodes from current level (for levelTotal calculation)
   // All transaction amounts are already in USD from backend
   const allLevelNodes = useMemo(() => {
     if (!levels.length) return [];
     const currentData = getLevelData(currentLevel, levels);
-    return currentData.nodes.filter((node: any) => 
-      node.type === 'fingerprintNode' && 
-      node.data && 
+    return currentData.nodes.filter((node: any) =>
+      node.type === 'fingerprintNode' &&
+      node.data &&
       node.data.transaction &&
       (node.data?.level ?? 1) === currentLevel
     );
   }, [levels, currentLevel]);
-  
+
   // Convert all level nodes to transaction format for levelTotal calculation
   const allLevelTransactions = useMemo(() => {
     return allLevelNodes.map((node: any) => ({
@@ -87,7 +110,7 @@ const Dashboard = () => {
       pendingSeconds: 0,
     }));
   }, [allLevelNodes]);
-  
+
   // Only Success transactions for levelReward calculation
   const successLevelTransactions = useMemo(() => {
     return allLevelTransactions.filter((tx: any) => tx.status === 'Success');
@@ -134,24 +157,24 @@ const Dashboard = () => {
   // Pre-populate transactions for watched levels on page load
   useEffect(() => {
     if (!user || levelsLoading || !levels.length) return;
-    
+
     // Check if user has watched the current level
     const hasWatchedCurrentLevel = user?.[`lvl${currentLevel}anim` as keyof typeof user] === 1;
-    
+
     if (hasWatchedCurrentLevel) {
       // Load all transactions for the current level from current level data
       const levelTransactions: TransactionWithPending[] = [];
       const currentData = getLevelData(currentLevel, levels);
-      
+
       currentData.nodes.forEach((node: any) => {
         if (
-          node.type === 'fingerprintNode' && 
-          node.data && 
+          node.type === 'fingerprintNode' &&
+          node.data &&
           node.data.transaction &&
           (node.data?.level ?? 1) === currentLevel
         ) {
           const transactionData = node.data.transaction;
-          
+
           levelTransactions.push({
             ...transactionData as CryptoTransaction,
             level: node.data.level ?? 1,
@@ -162,7 +185,7 @@ const Dashboard = () => {
           });
         }
       });
-      
+
       // Set all transactions at once and update progress to 100%
       if (levelTransactions.length > 0) {
         setTransactions(levelTransactions);
@@ -182,7 +205,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchWallets = async () => {
       if (!token) return;
-      
+
       try {
         const res = await apiFetch('/user/me/wallets', {
           headers: {
@@ -191,18 +214,18 @@ const Dashboard = () => {
           }
         });
         const json = await res.json();
-        
+
         if (res.ok && json?.success !== false) {
           const fetchedWallets = json?.data || {};
           setWallets(fetchedWallets);
-          
+
           // Check if user has any wallet set
-          const hasWallet = fetchedWallets.btc || 
-                           fetchedWallets.eth || 
-                           fetchedWallets.tron || 
-                           fetchedWallets.usdtErc20 ||
-                           (fetchedWallets.custom && fetchedWallets.custom.length > 0);
-          
+          const hasWallet = fetchedWallets.btc ||
+            fetchedWallets.eth ||
+            fetchedWallets.tron ||
+            fetchedWallets.usdtErc20 ||
+            (fetchedWallets.custom && fetchedWallets.custom.length > 0);
+
           // Show popup if no wallet (mandatory)
           if (!hasWallet) {
             setShowWalletPopup(true);
@@ -212,27 +235,27 @@ const Dashboard = () => {
         console.error('Failed to fetch wallets', e);
       }
     };
-    
+
     fetchWallets();
   }, [token]);
-  
+
   // Handle when a node appears - add its corresponding transaction to the table
   const handleNodeAppear = useCallback((nodeId: string) => {
     // Find the node in current level data
     const currentData = getLevelData(currentLevel, levels);
     const node = currentData.nodes.find((n: any) => n.id === nodeId);
-    
+
     if (node && node.data && node.data.transaction) {
       const transactionData = node.data.transaction;
       const pendingSeconds = node.data.pending || 0;
-      
+
       // Add the transaction to the list
       setTransactions(prev => {
         // Check if transaction already exists
         if (prev.find(tx => tx.id === transactionData.id)) {
           return prev;
         }
-        
+
         const newTransaction: TransactionWithPending = {
           ...transactionData as CryptoTransaction,
           level: node.data.level ?? 1,
@@ -243,7 +266,7 @@ const Dashboard = () => {
           // For Fail/Pending: keep original currency from transaction data
           status: (pendingSeconds > 0 ? 'Pending' : transactionData.status) as "Success" | "Fail" | "Pending"
         };
-        
+
         return [...prev, newTransaction];
       });
 
@@ -260,14 +283,14 @@ const Dashboard = () => {
       } else {
         // If there's a pending time, set a timeout to update the status and mark as completed
         setTimeout(() => {
-          setTransactions(prev => 
-            prev.map(tx => 
-              tx.id === transactionData.id 
+          setTransactions(prev =>
+            prev.map(tx =>
+              tx.id === transactionData.id
                 ? { ...tx, status: tx.actualStatus as "Success" | "Fail" | "Pending" }
                 : tx
             )
           );
-          
+
           // Mark node as completed and update progress
           setCompletedPendingNodes(prev => {
             const newCompleted = new Set(prev);
@@ -291,13 +314,13 @@ const Dashboard = () => {
           'Authorization': `Bearer ${token}`
         }
       })
-      .then(res => res.json())
-      .then(json => {
-        if (json?.success !== false) {
-          setWallets(json?.data || {});
-        }
-      })
-      .catch(e => console.error('Failed to refetch wallets', e));
+        .then(res => res.json())
+        .then(json => {
+          if (json?.success !== false) {
+            setWallets(json?.data || {});
+          }
+        })
+        .catch(e => console.error('Failed to refetch wallets', e));
     }
   };
 
@@ -312,94 +335,131 @@ const Dashboard = () => {
 
   return (
     <div className="fixed inset-0 z-[1] flex text-white">
-         <ResizablePanelGroup direction="vertical" className="flex-1">
-             <ResizablePanel>
-                 <FlowCanvas 
-                   onNodeAppear={handleNodeAppear} 
-                   externalSelectedNodeId={selectedNodeId}
-                 />
-             </ResizablePanel>
+      <ResizablePanelGroup direction="vertical" className="flex-1">
+        <ResizablePanel>
+          {user?.isAdmin && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[20] flex items-center gap-3 bg-black/60 backdrop-blur-md border border-white/10 p-2 rounded-xl shadow-2xl">
+              <div className="flex items-center gap-2 px-3 py-1 border-r border-white/10">
+                <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Editor Mode</span>
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              </div>
+              <select
+                value={editingTemplate}
+                onChange={(e) => setEditingTemplate(e.target.value)}
+                className="bg-transparent text-sm font-semibold focus:outline-none cursor-pointer hover:text-purple-400 transition-colors mr-1"
+              >
+                {availableTemplates.map(t => (
+                  <option key={t} value={t} className="bg-neutral-900">Template {t}</option>
+                ))}
+                {!availableTemplates.includes('A') && (
+                  <option value="A" className="bg-neutral-900">Template A</option>
+                )}
+              </select>
+              <button
+                onClick={() => {
+                  const name = prompt('Enter new template name (e.g. B, Seasonal):');
+                  if (name && name.trim()) {
+                    const newName = name.trim();
+                    if (!availableTemplates.includes(newName)) {
+                      setAvailableTemplates(prev => [...prev, newName].sort());
+                    }
+                    setEditingTemplate(newName);
+                  }
+                }}
+                className="p-1 hover:bg-white/10 rounded transition-colors text-purple-400"
+                title="Start new template"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          <FlowCanvas
+            onNodeAppear={handleNodeAppear}
+            externalSelectedNodeId={selectedNodeId}
+            editingTemplate={editingTemplate}
+          />
+        </ResizablePanel>
 
-            <ResizableHandle withHandle className="bg-gradient-to-r from-gray-500/20 via-primary/10 h-[0.5px] to-gray-500/20" />
+        <ResizableHandle withHandle className="bg-gradient-to-r from-gray-500/20 via-primary/10 h-[0.5px] to-gray-500/20" />
 
-            <ResizablePanel minSize={6} defaultSize={40} maxSize={50} className="relative">
-                <div className="flex flex-col h-full">
-                    {/* top bar */}
-                    <div className="p-4 border-b border-gray-500/20 w-full flex flex-row justify-between items-center">
-                        <div className="flex items-center w-full gap-4">
-                          <Progress value={Number(progress.toFixed(0))} />
-                          
-                          {/* Pending Tier Request Indicator */}
-                          {pendingTierRequest && (
-                            <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-1.5 whitespace-nowrap">
-                              <div className="w-1 h-1 bg-yellow-500 rounded-full animate-ping"></div>
-                              <span className="text-xs font-semibold text-yellow-400">
-                                Upgrade Pending
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                    </div>
+        <ResizablePanel minSize={6} defaultSize={40} maxSize={50} className="relative">
+          <div className="flex flex-col h-full">
+            {/* top bar */}
+            <div className="p-4 border-b border-gray-500/20 w-full flex flex-row justify-between items-center">
+              <div className="flex items-center w-full gap-4">
+                <Progress value={Number(progress.toFixed(0))} />
 
-                    <div className="h-full w-full flex flex-row">
-                         {/* left side */}
-                         <div className="flex flex-col overflow-y-auto h-full w-2/3 border-r border-gray-500/20">
-                             <CryptoTransactionTable 
-                               data={transactions}
-                               onRowClick={handleTransactionClick}
-                             />
-                         </div>
+                {/* Pending Tier Request Indicator */}
+                {pendingTierRequest && (
+                  <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-1.5 whitespace-nowrap">
+                    <div className="w-1 h-1 bg-yellow-500 rounded-full animate-ping"></div>
+                    <span className="text-xs font-semibold text-yellow-400">
+                      Upgrade Pending
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
 
-                        {/* right side */}
-                        <div className="w-1/3 h-[380px] flex flex-col items-center justify-center p-6 gap-4">
-                           <div className="w-full flex flex-row gap-4 h-1/2">
-                              <AnimatedCounter 
-                                type="levelReward"
-                                progress={progress}
-                                level={currentLevel}
-                                user={user}
-                                transactions={successLevelTransactions}
-                                currency="USDT"
-                                shouldAnimate={progress > 0 && progress < 100}
-                              />
+            <div className="h-full w-full flex flex-row">
+              {/* left side */}
+              <div className="flex flex-col overflow-y-auto h-full w-2/3 border-r border-gray-500/20">
+                <CryptoTransactionTable
+                  data={transactions}
+                  onRowClick={handleTransactionClick}
+                />
+              </div>
 
-                              <AnimatedCounter
-                                type="levelTotal"
-                                progress={progress}
-                                level={currentLevel}
-                                user={user}
-                                transactions={allLevelTransactions}
-                                currency="USDT"
-                                shouldAnimate={progress > 0 && progress < 100}
-                              />
-                           </div>
+              {/* right side */}
+              <div className="w-1/3 h-[380px] flex flex-col items-center justify-center p-6 gap-4">
+                <div className="w-full flex flex-row gap-4 h-1/2">
+                  <AnimatedCounter
+                    type="levelReward"
+                    progress={progress}
+                    level={currentLevel}
+                    user={user}
+                    transactions={successLevelTransactions}
+                    currency="USDT"
+                    shouldAnimate={progress > 0 && progress < 100}
+                  />
 
-                           {currentLevel < 5 && (
-                              <>
-                                <AnimatedCounter 
-                                  className="h-1/2"
-                                  type="nextLevelReward"
-                                  progress={progress}
-                                  level={currentLevel}
-                                  user={user}
-                                  currency="USDT"
-                                  shouldAnimate={progress > 0 && progress < 100}
-                                />
-                              </>
-                            )}
-                        </div>
-                    </div>
-
+                  <AnimatedCounter
+                    type="levelTotal"
+                    progress={progress}
+                    level={currentLevel}
+                    user={user}
+                    transactions={allLevelTransactions}
+                    currency="USDT"
+                    shouldAnimate={progress > 0 && progress < 100}
+                  />
                 </div>
-            </ResizablePanel>
-        </ResizablePanelGroup>
 
-        {/* Add Wallet Popup */}
-        <AddWalletPopup 
-          isOpen={showWalletPopup}
-          onClose={() => setShowWalletPopup(false)}
-          onSuccess={handleWalletSuccess}
-        />
+                {currentLevel < 5 && (
+                  <>
+                    <AnimatedCounter
+                      className="h-1/2"
+                      type="nextLevelReward"
+                      progress={progress}
+                      level={currentLevel}
+                      user={user}
+                      currency="USDT"
+                      shouldAnimate={progress > 0 && progress < 100}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+
+      {/* Add Wallet Popup */}
+      <AddWalletPopup
+        isOpen={showWalletPopup}
+        onClose={() => setShowWalletPopup(false)}
+        onSuccess={handleWalletSuccess}
+      />
     </div>
   )
 }

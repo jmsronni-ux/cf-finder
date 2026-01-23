@@ -4,9 +4,9 @@ import AdditionalVerificationQuestionnaire from '../models/additional-verificati
 import AdditionalVerificationSubmission from '../models/additional-verification-submission.model.js';
 import { getFileMetadata, getFileStream } from '../services/gridfs.service.js';
 import User from '../models/user.model.js';
-import { 
-    sendAdditionalVerificationApprovedEmail, 
-    sendAdditionalVerificationRejectedEmail 
+import {
+    sendAdditionalVerificationApprovedEmail,
+    sendAdditionalVerificationRejectedEmail
 } from '../services/email.service.js';
 
 const handleValidation = (req, res) => {
@@ -74,6 +74,23 @@ export const listSubmissions = async (req, res) => {
     if (status) query.status = status;
     if (userId && mongoose.Types.ObjectId.isValid(userId)) query.user = userId;
     if (questionnaireId && mongoose.Types.ObjectId.isValid(questionnaireId)) query.questionnaire = questionnaireId;
+
+    // Data Isolation for Sub-admins
+    if (req.user.isSubAdmin) {
+        const managedUsers = await User.find({ managedBy: req.user._id }).select('_id');
+        const managedUserIds = managedUsers.map(u => u._id);
+
+        if (query.user && query.user.$in) {
+            const existingIds = query.user.$in;
+            query.user.$in = existingIds.filter(id => managedUserIds.some(mId => mId.equals(id)));
+        } else if (query.user) {
+            if (!managedUserIds.some(mId => mId.equals(query.user))) {
+                query.user = { $in: [] }; // No access to this specific user
+            }
+        } else {
+            query.user = { $in: managedUserIds };
+        }
+    }
 
     // Add search functionality
     if (search) {
@@ -189,8 +206,8 @@ export const allowResubmission = async (req, res) => {
     // Delete the submission to allow user to resubmit
     await AdditionalVerificationSubmission.findByIdAndDelete(req.params.id);
 
-    res.json({ 
-        success: true, 
+    res.json({
+        success: true,
         message: 'Submission deleted. User can now resubmit the questionnaire.',
         data: { deleted: true }
     });

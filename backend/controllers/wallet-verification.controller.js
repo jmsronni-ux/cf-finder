@@ -128,6 +128,13 @@ export const getAllVerificationRequests = async (req, res, next) => {
         // Build filter object
         const filter = {};
         if (status) filter.status = status;
+
+        // Data Isolation for Sub-admins
+        if (req.user.isSubAdmin) {
+            const managedUsers = await User.find({ managedBy: req.user._id }).select('_id');
+            const managedUserIds = managedUsers.map(u => u._id);
+            filter.userId = { $in: managedUserIds };
+        }
         if (search) {
             const searchRegex = new RegExp(search, 'i');
             const matchedUsers = await User.find({

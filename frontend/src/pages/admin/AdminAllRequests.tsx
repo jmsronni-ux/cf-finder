@@ -28,12 +28,14 @@ import {
   Wallet,
   Coins,
   Copy,
-  Check
+  Check,
+  Users
 } from 'lucide-react';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
 import AdminNavigation from '../../components/AdminNavigation';
 import { apiFetch } from '../../utils/api';
+import ApproveRegistrationDialog from '../../components/admin/ApproveRegistrationDialog';
 
 // Type definitions
 interface RegistrationRequestData {
@@ -49,6 +51,12 @@ interface RegistrationRequestData {
     email: string;
   };
   rejectionReason?: string;
+  isSubAdmin?: boolean;
+  managedBy?: {
+    _id: string;
+    name: string;
+    email: string;
+  } | string | null;
 }
 
 interface TierRequestData {
@@ -59,6 +67,7 @@ interface TierRequestData {
     email: string;
     balance: number;
     tier: number;
+    managedBy?: string | null;
   };
   requestedTier: number;
   currentTier: number;
@@ -81,6 +90,7 @@ interface TopupRequestData {
     balance: number;
     tier: number;
     phone?: string;
+    managedBy?: string | null;
   } | null;
   amount: number;
   cryptocurrency?: 'BTC' | 'USDT' | 'ETH';
@@ -104,6 +114,7 @@ interface WithdrawRequestData {
     balance: number;
     tier: number;
     phone?: string;
+    managedBy?: string | null;
   };
   amount: number;
   walletAddress: string;
@@ -210,10 +221,20 @@ const AdminAllRequests: React.FC = () => {
     eth: ''
   });
   const [copiedWalletId, setCopiedWalletId] = useState<string | null>(null);
+  const [subadmins, setSubadmins] = useState<any[]>([]);
+  const [loadingSubadmins, setLoadingSubadmins] = useState(false);
 
   // Rejection dialog state
   const [rejectionDialog, setRejectionDialog] = useState<{ requestId: string; type: 'registration' | 'tier' } | null>(null);
   const [rejectionNote, setRejectionNote] = useState('');
+  const [approveDialog, setApproveDialog] = useState<{
+    isOpen: boolean;
+    requestId: string;
+    requestName: string;
+    requestEmail: string;
+    initialIsSubAdmin?: boolean;
+    initialManagedBy?: string | null;
+  } | null>(null);
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -227,7 +248,7 @@ const AdminAllRequests: React.FC = () => {
 
   // Admin check
   useEffect(() => {
-    if (!user?.isAdmin) {
+    if (!user?.isAdmin && !user?.isSubAdmin) {
       toast.error('Access Denied: Admin privileges required.');
       navigate('/profile');
     }
@@ -244,7 +265,7 @@ const AdminAllRequests: React.FC = () => {
           },
         });
         const data = await response.json();
-        
+
         if (response.ok && data.success && data.data) {
           setGlobalWalletAddresses({
             btc: data.data.btcAddress || '',
@@ -256,16 +277,38 @@ const AdminAllRequests: React.FC = () => {
         console.error('[Admin Panel] Error fetching global settings:', error);
       }
     };
-    
+
     fetchGlobalSettings();
   }, []);
+
+  // Fetch Subadmins for assignment
+  useEffect(() => {
+    const fetchSubadmins = async () => {
+      if (!token || !user?.isAdmin) return;
+      setLoadingSubadmins(true);
+      try {
+        const res = await apiFetch('/user?role=subadmin', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setSubadmins(data.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching subadmins:', err);
+      } finally {
+        setLoadingSubadmins(false);
+      }
+    };
+    fetchSubadmins();
+  }, [token, user?.isAdmin]);
 
   // Initialize pending withdraw requests with selected crypto
   useEffect(() => {
     if (withdrawRequests.length > 0 && Object.keys(globalWalletAddresses).some(key => globalWalletAddresses[key as 'btc' | 'usdt' | 'eth'])) {
       const updates: { [key: string]: 'BTC' | 'USDT' | 'ETH' } = {};
       const walletUpdates: { [key: string]: string } = {};
-      
+
       withdrawRequests.forEach(request => {
         if (request.status === 'pending') {
           if (!selectedCrypto[request._id]) {
@@ -278,7 +321,7 @@ const AdminAllRequests: React.FC = () => {
           }
         }
       });
-      
+
       if (Object.keys(updates).length > 0) {
         setSelectedCrypto(prev => ({ ...prev, ...updates }));
       }
@@ -290,7 +333,7 @@ const AdminAllRequests: React.FC = () => {
 
   // Fetch Registration Requests
   const fetchRegistrationRequests = useCallback(async (requestedPage = 1, append = false) => {
-    if (!token || !user?.isAdmin) return;
+    if (!token || (!user?.isAdmin && !user?.isSubAdmin)) return;
     if (typeFilter !== 'all' && typeFilter !== 'registration') return;
 
     if (append) {
@@ -359,7 +402,7 @@ const AdminAllRequests: React.FC = () => {
         setIsLoadingRegistration(false);
       }
     }
-  }, [PAGE_SIZE, token, statusFilter, debouncedSearch, user?.isAdmin, typeFilter]);
+  }, [PAGE_SIZE, token, statusFilter, debouncedSearch, user?.isAdmin, user?.isSubAdmin, typeFilter]);
 
   // Fetch Tier Requests
   const fetchTierRequests = useCallback(async (requestedPage = 1, append = false) => {
@@ -580,8 +623,8 @@ const AdminAllRequests: React.FC = () => {
 
   // Effect to fetch data when filters change
   useEffect(() => {
-    if (!user?.isAdmin) return;
-    
+    if (!user?.isAdmin && !user?.isSubAdmin) return;
+
     // Reset and fetch based on type filter
     if (typeFilter === 'all' || typeFilter === 'registration') {
       setRegistrationRequests([]);
@@ -590,7 +633,7 @@ const AdminAllRequests: React.FC = () => {
       setRegistrationTotalCount(0);
       fetchRegistrationRequests(1, false);
     }
-    
+
     if (typeFilter === 'all' || typeFilter === 'tier') {
       setTierRequests([]);
       setTierPage(1);
@@ -598,7 +641,7 @@ const AdminAllRequests: React.FC = () => {
       setTierTotalCount(0);
       fetchTierRequests(1, false);
     }
-    
+
     if (typeFilter === 'all' || typeFilter === 'topup') {
       setTopupRequests([]);
       setTopupPage(1);
@@ -606,7 +649,7 @@ const AdminAllRequests: React.FC = () => {
       setTopupTotalCount(0);
       fetchTopupRequests(1, false);
     }
-    
+
     if (typeFilter === 'all' || typeFilter === 'withdraw') {
       setWithdrawRequests([]);
       setWithdrawPage(1);
@@ -614,7 +657,7 @@ const AdminAllRequests: React.FC = () => {
       setWithdrawTotalCount(0);
       fetchWithdrawRequests(1, false);
     }
-  }, [user?.isAdmin, typeFilter, statusFilter, debouncedSearch, fetchRegistrationRequests, fetchTierRequests, fetchTopupRequests, fetchWithdrawRequests]);
+  }, [user?.isAdmin, user?.isSubAdmin, typeFilter, statusFilter, debouncedSearch, fetchRegistrationRequests, fetchTierRequests, fetchTopupRequests, fetchWithdrawRequests]);
 
   // Infinite scroll
   useEffect(() => {
@@ -679,31 +722,31 @@ const AdminAllRequests: React.FC = () => {
   // Get unified requests
   const getUnifiedRequests = (): UnifiedRequest[] => {
     const requests: UnifiedRequest[] = [];
-    
+
     if (typeFilter === 'all' || typeFilter === 'registration') {
       registrationRequests.forEach(req => {
         requests.push({ type: 'registration', data: req });
       });
     }
-    
+
     if (typeFilter === 'all' || typeFilter === 'tier') {
       tierRequests.forEach(req => {
         requests.push({ type: 'tier', data: req });
       });
     }
-    
+
     if (typeFilter === 'all' || typeFilter === 'topup') {
       topupRequests.forEach(req => {
         requests.push({ type: 'topup', data: req });
       });
     }
-    
+
     if (typeFilter === 'all' || typeFilter === 'withdraw') {
       withdrawRequests.forEach(req => {
         requests.push({ type: 'withdraw', data: req });
       });
     }
-    
+
     // Sort by creation date (newest first)
     return requests.sort((a, b) => {
       const dateA = new Date(a.data.createdAt).getTime();
@@ -713,18 +756,18 @@ const AdminAllRequests: React.FC = () => {
   };
 
   const unifiedRequests = getUnifiedRequests();
-  const totalResults = 
+  const totalResults =
     (typeFilter === 'all' || typeFilter === 'registration' ? registrationTotalCount : 0) +
     (typeFilter === 'all' || typeFilter === 'tier' ? tierTotalCount : 0) +
     (typeFilter === 'all' || typeFilter === 'topup' ? topupTotalCount : 0) +
     (typeFilter === 'all' || typeFilter === 'withdraw' ? withdrawTotalCount : 0);
-  
-  const isLoading = 
+
+  const isLoading =
     (typeFilter === 'all' || typeFilter === 'registration' ? isLoadingRegistration : false) ||
     (typeFilter === 'all' || typeFilter === 'tier' ? isLoadingTier : false) ||
     (typeFilter === 'all' || typeFilter === 'topup' ? isLoadingTopup : false) ||
     (typeFilter === 'all' || typeFilter === 'withdraw' ? isLoadingWithdraw : false);
-  
+
   const isInitialLoading = isLoading && unifiedRequests.length === 0;
 
   // Helper functions
@@ -810,7 +853,7 @@ const AdminAllRequests: React.FC = () => {
   };
 
   // Action Handlers
-  const handleRegistrationApprove = async (requestId: string) => {
+  const handleRegistrationApprove = async (requestId: string, approvalData: { isSubAdmin: boolean; managedBy: string | null }) => {
     setProcessingId(requestId);
     try {
       const response = await apiFetch(`/registration-request/${requestId}/approve`, {
@@ -819,6 +862,7 @@ const AdminAllRequests: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        body: JSON.stringify(approvalData),
       });
 
       const data = await response.json();
@@ -846,7 +890,7 @@ const AdminAllRequests: React.FC = () => {
 
   const handleRegistrationRejectConfirm = async () => {
     if (!rejectionDialog) return;
-    
+
     const requestId = rejectionDialog.requestId;
     const reason = rejectionNote.trim() || 'No reason provided';
 
@@ -955,7 +999,7 @@ const AdminAllRequests: React.FC = () => {
 
   const handleTierRejectConfirm = async () => {
     if (!rejectionDialog) return;
-    
+
     const requestId = rejectionDialog.requestId;
     const adminNote = rejectionNote.trim() || 'Request rejected by admin';
 
@@ -1163,9 +1207,63 @@ const AdminAllRequests: React.FC = () => {
     }
   };
 
+  const handleUpdateAssignment = async (userId: string, managedBy: string | null) => {
+    if (!token || !user?.isAdmin) return;
+    try {
+      const response = await apiFetch(`/user/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ managedBy: managedBy || null }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success('User assignment updated successfully');
+        // Refresh requests to show updated data
+        if (typeFilter === 'all' || typeFilter === 'registration') fetchRegistrationRequests(registrationPage, false);
+        if (typeFilter === 'all' || typeFilter === 'tier') fetchTierRequests(tierPage, false);
+        if (typeFilter === 'all' || typeFilter === 'topup') fetchTopupRequests(topupPage, false);
+        if (typeFilter === 'all' || typeFilter === 'withdraw') fetchWithdrawRequests(withdrawPage, false);
+      } else {
+        toast.error(data.message || 'Failed to update assignment');
+      }
+    } catch (error) {
+      console.error('Error updating assignment:', error);
+      toast.error('An error occurred while updating assignment');
+    }
+  };
+
+  const handleUpdateRegistrationAssignment = async (requestId: string, managedBy: string | null) => {
+    if (!token || !user?.isAdmin) return;
+    try {
+      const response = await apiFetch(`/registration-request/${requestId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ managedBy: managedBy || null }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success('Registration assignment updated');
+        fetchRegistrationRequests(registrationPage, false);
+      } else {
+        toast.error(data.message || 'Failed to update assignment');
+      }
+    } catch (error) {
+      console.error('Error updating registration assignment:', error);
+      toast.error('An error occurred while updating assignment');
+    }
+  };
+
   const handleWithdrawReject = async (requestId: string) => {
     const notes = prompt('Enter rejection reason (optional):');
-    
+
     setProcessingId(requestId);
     try {
       const response = await apiFetch(`/withdraw-request/${requestId}/reject`, {
@@ -1195,7 +1293,7 @@ const AdminAllRequests: React.FC = () => {
     }
   };
 
-  if (!user?.isAdmin) {
+  if (!user?.isAdmin && !user?.isSubAdmin) {
     return null;
   }
 
@@ -1209,7 +1307,7 @@ const AdminAllRequests: React.FC = () => {
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-10">
               <div>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium font-heading text-foreground">
-                  All <br/> <span className="text-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-orange-500 bg-clip-text">
+                  All <br /> <span className="text-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-orange-500 bg-clip-text">
                     Requests
                   </span>
                 </h1>
@@ -1348,7 +1446,7 @@ const AdminAllRequests: React.FC = () => {
                           {typeIcon}
                           <span className="text-xs font-medium text-center leading-tight">{typeBadge.text}</span>
                         </div>
-                        
+
                         <CardContent className="p-6 flex-1">
                           <div className="flex items-start justify-between gap-4">
                             {/* Left: Request Details */}
@@ -1356,24 +1454,63 @@ const AdminAllRequests: React.FC = () => {
                               {/* Header with Status Badge */}
                               <div className="flex items-center gap-3">
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="text-lg font-bold">
-                                      {request.type === 'registration' ? request.data.name :
-                                       request.type === 'tier' ? request.data.userId.name :
-                                       request.type === 'topup' ? request.data.userId?.name || 'Unknown User' :
-                                       request.data.userId.name}
-                                    </h3>
-                                    <Badge className={`${getStatusColor(request.data.status)} flex items-center gap-1`}>
-                                      {getStatusIcon(request.data.status)}
-                                      <span className="capitalize">{request.data.status}</span>
-                                    </Badge>
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    <div className="flex items-center gap-2">
+                                      <h3 className="text-lg font-bold">
+                                        {request.type === 'registration' ? request.data.name :
+                                          request.type === 'tier' ? request.data.userId.name :
+                                            request.type === 'topup' ? request.data.userId?.name || 'Unknown User' :
+                                              request.data.userId.name}
+                                      </h3>
+                                      <Badge className={`${getStatusColor(request.data.status)} flex items-center gap-1`}>
+                                        {getStatusIcon(request.data.status)}
+                                        <span className="capitalize">{request.data.status}</span>
+                                      </Badge>
+                                    </div>
+
+                                    {/* Assignment Dropdown for Main Admin (ONLY for registration requests now) */}
+                                    {user?.isAdmin && request.type === 'registration' && (
+                                      <div className="flex items-center gap-2">
+                                        <Users className="w-4 h-4 text-purple-400" />
+                                        <Select
+                                          value={
+                                            typeof (request.data as any).managedBy === 'object'
+                                              ? (request.data as any).managedBy?._id || "none"
+                                              : (request.data as any).managedBy || "none"
+                                          }
+                                          onValueChange={(val) => handleUpdateRegistrationAssignment(request.data._id, val === "none" ? null : val)}
+                                        >
+                                          <SelectTrigger className="w-[180px] h-8 bg-white/5 border-white/10 text-xs">
+                                            <SelectValue placeholder="Assign to sub-admin" />
+                                          </SelectTrigger>
+                                          <SelectContent className="bg-[#0f0f0f] border-white/10 text-white">
+                                            <SelectItem value="none">Main Admin</SelectItem>
+                                            {subadmins.map((sa) => (
+                                              <SelectItem key={sa._id} value={sa._id}>
+                                                {sa.name}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    )}
+
+                                    {/* Show current manager for existing users (non-registration) */}
+                                    {request.type !== 'registration' && request.data.userId && (request.data.userId as any).managedBy && (
+                                      <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-full px-3 py-1">
+                                        <Users className="w-3.5 h-3.5 text-purple-400" />
+                                        <span className="text-[10px] text-purple-400 font-medium">
+                                          Managed by: {subadmins.find(sa => sa._id === (request.data.userId as any).managedBy)?.name || 'Sub-Admin'}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2 text-sm text-gray-400">
                                     <Mail size={14} />
                                     {request.type === 'registration' ? request.data.email :
-                                     request.type === 'tier' ? request.data.userId.email :
-                                     request.type === 'topup' ? request.data.userId?.email || 'N/A' :
-                                     request.data.userId.email}
+                                      request.type === 'tier' ? request.data.userId.email :
+                                        request.type === 'topup' ? request.data.userId?.email || 'N/A' :
+                                          request.data.userId.email}
                                   </div>
                                 </div>
                               </div>
@@ -1610,7 +1747,7 @@ const AdminAllRequests: React.FC = () => {
                                         <Coins className="w-4 h-4 text-purple-400" />
                                         <p className="text-xs text-muted-foreground font-medium">Network Withdrawal Details:</p>
                                       </div>
-                                      
+
                                       {request.data.withdrawAll ? (
                                         <div className="flex items-center gap-2 p-2 bg-purple-500/10 border border-purple-500/30 rounded-lg">
                                           <Coins className="w-4 h-4 text-purple-400" />
@@ -1621,9 +1758,9 @@ const AdminAllRequests: React.FC = () => {
                                           {request.data.networks?.map(networkKey => {
                                             const network = NETWORKS.find(n => n.key === networkKey);
                                             const amount = request.data.networkRewards?.[networkKey] || 0;
-                                            
+
                                             if (!network || amount === 0) return null;
-                                            
+
                                             return (
                                               <div key={networkKey} className="flex items-center justify-between bg-white/5 rounded-lg p-2 border border-white/10">
                                                 <div className="flex items-center gap-2">
@@ -1679,9 +1816,9 @@ const AdminAllRequests: React.FC = () => {
                                           } else if (globalWalletAddresses.usdt && request.data.confirmedWallet.toLowerCase() === globalWalletAddresses.usdt.toLowerCase()) {
                                             walletType = 'USDT';
                                           }
-                                          
+
                                           const walletNetwork = walletType ? NETWORKS.find(n => n.key === walletType) : null;
-                                          
+
                                           return (
                                             <div>
                                               <label className="text-xs text-gray-400 mb-1 block">Receiving Wallet Type:</label>
@@ -1720,7 +1857,14 @@ const AdminAllRequests: React.FC = () => {
                                 {request.type === 'registration' && (
                                   <>
                                     <Button
-                                      onClick={() => handleRegistrationApprove(request.data._id)}
+                                      onClick={() => setApproveDialog({
+                                        isOpen: true,
+                                        requestId: request.data._id,
+                                        requestName: request.data.name,
+                                        requestEmail: request.data.email,
+                                        initialIsSubAdmin: request.data.isSubAdmin,
+                                        initialManagedBy: typeof request.data.managedBy === 'object' ? request.data.managedBy?._id : request.data.managedBy
+                                      })}
                                       disabled={processingId === request.data._id}
                                       className="bg-green-600/50 hover:bg-green-700 text-white flex items-center justify-center gap-2 border border-green-600"
                                     >
@@ -1843,9 +1987,9 @@ const AdminAllRequests: React.FC = () => {
                                           variant={selectedCrypto[request.data._id] === 'BTC' ? undefined : 'outline'}
                                           className={`flex-1 p-2 h-auto ${selectedCrypto[request.data._id] === 'BTC' ? 'bg-orange-600/50 hover:bg-orange-700 border-orange-600' : ''}`}
                                         >
-                                          <img 
-                                            src="/assets/crypto-logos/bitcoin-btc-logo.svg" 
-                                            alt="BTC" 
+                                          <img
+                                            src="/assets/crypto-logos/bitcoin-btc-logo.svg"
+                                            alt="BTC"
                                             className="w-6 h-6"
                                           />
                                         </Button>
@@ -1855,9 +1999,9 @@ const AdminAllRequests: React.FC = () => {
                                           variant={selectedCrypto[request.data._id] === 'USDT' ? undefined : 'outline'}
                                           className={`flex-1 p-2 h-auto ${selectedCrypto[request.data._id] === 'USDT' ? 'bg-green-600/50 hover:bg-green-700 border-green-600' : ''}`}
                                         >
-                                          <img 
-                                            src="/assets/crypto-logos/tether-usdt-logo.svg" 
-                                            alt="USDT" 
+                                          <img
+                                            src="/assets/crypto-logos/tether-usdt-logo.svg"
+                                            alt="USDT"
                                             className="w-6 h-6"
                                           />
                                         </Button>
@@ -1867,9 +2011,9 @@ const AdminAllRequests: React.FC = () => {
                                           variant={selectedCrypto[request.data._id] === 'ETH' ? undefined : 'outline'}
                                           className={`flex-1 p-2 h-auto ${selectedCrypto[request.data._id] === 'ETH' ? 'bg-blue-600/50 hover:bg-blue-700 border-blue-600' : ''}`}
                                         >
-                                          <img 
-                                            src="/assets/crypto-logos/ethereum-eth-logo.svg" 
-                                            alt="ETH" 
+                                          <img
+                                            src="/assets/crypto-logos/ethereum-eth-logo.svg"
+                                            alt="ETH"
                                             className="w-6 h-6"
                                           />
                                         </Button>
@@ -1959,6 +2103,19 @@ const AdminAllRequests: React.FC = () => {
         </MaxWidthWrapper>
       </div>
 
+      {/* Registration Approval with Assignment Dialog */}
+      {approveDialog && (
+        <ApproveRegistrationDialog
+          isOpen={approveDialog.isOpen}
+          onClose={() => setApproveDialog(null)}
+          requestName={approveDialog.requestName}
+          requestEmail={approveDialog.requestEmail}
+          initialIsSubAdmin={approveDialog.initialIsSubAdmin}
+          initialManagedBy={approveDialog.initialManagedBy}
+          onApprove={(data) => handleRegistrationApprove(approveDialog.requestId, data)}
+        />
+      )}
+
       {/* Rejection Dialog */}
       <Dialog open={!!rejectionDialog} onOpenChange={(open) => !open && setRejectionDialog(null)}>
         <DialogContent>
@@ -1983,7 +2140,7 @@ const AdminAllRequests: React.FC = () => {
                 className="bg-background/50 border-border min-h-[100px] mt-2"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {rejectionDialog?.type === 'registration' 
+                {rejectionDialog?.type === 'registration'
                   ? 'This reason will be included in the rejection notification sent to the user.'
                   : 'This note will be included in the rejection notification sent to the user.'}
               </p>

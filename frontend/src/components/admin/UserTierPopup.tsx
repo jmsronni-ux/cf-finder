@@ -17,6 +17,7 @@ interface User {
   currentTier: number;
   tierName: string;
   balance: number;
+  levelTemplate: string;
   completedLevels: number[];
   joinedAt: string;
 }
@@ -45,11 +46,13 @@ interface UserTierPopupProps {
 
 const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, userName }) => {
   const { token } = useAuth();
-  
+
   const [tierInfo, setTierInfo] = useState<TierManagementInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newTier, setNewTier] = useState<number>(0);
+  const [newTemplate, setNewTemplate] = useState<string>('A');
+  const [templates, setTemplates] = useState<string[]>(['A']);
   const [reason, setReason] = useState('');
 
   // Fetch tier info when popup opens
@@ -61,7 +64,7 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
 
   const fetchUserTierInfo = async () => {
     if (!token || !userId) return;
-    
+
     setLoading(true);
     try {
       const response = await apiFetch(`/user/${userId}/tier-management`, {
@@ -74,6 +77,7 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
       if (response.ok && data.success) {
         setTierInfo(data.data);
         setNewTier(data.data.user.currentTier);
+        setNewTemplate(data.data.user.levelTemplate || 'A');
         setReason('');
       } else {
         toast.error(data.message || 'Failed to fetch user tier info');
@@ -85,6 +89,27 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
       setLoading(false);
     }
   };
+
+  const fetchTemplates = async () => {
+    if (!token) return;
+    try {
+      const response = await apiFetch('/level/templates', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setTemplates(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchTemplates();
+    }
+  }, [isOpen]);
 
   const handleTierChange = async () => {
     if (!tierInfo || newTier === tierInfo.user.currentTier) {
@@ -106,8 +131,9 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          newTier,
-          reason: reason.trim()
+          tier: newTier,
+          levelTemplate: newTemplate,
+          tierReason: reason.trim() // Backend might expect tierReason or just use req.body
         })
       });
 
@@ -193,8 +219,8 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
                             className={`
                               ${isSelected ? getTierFilledColor(tier.tier) : getTierBadgeColor(tier.tier)}
                               px-3 py-1.5 rounded-lg border transition-all text-sm
-                              ${isSelected 
-                                ? 'scale-105 shadow-lg' 
+                              ${isSelected
+                                ? 'scale-105 shadow-lg'
                                 : 'hover:opacity-80 hover:scale-105'
                               }
                               ${isCurrent ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
@@ -210,6 +236,24 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
                         );
                       })}
                     </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-foreground mb-3 block">
+                      Level Template (Configuration)
+                    </Label>
+                    <select
+                      value={newTemplate}
+                      onChange={(e) => setNewTemplate(e.target.value)}
+                      className="w-full bg-background border border-border rounded-lg px-4 py-2 focus:ring-2 focus:ring-yellow-500/50 outline-none transition-all text-sm"
+                    >
+                      {templates.map(t => (
+                        <option key={t} value={t}>Template {t}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Assign a specific level configuration template to this user.
+                    </p>
                   </div>
 
                   <div>
@@ -235,7 +279,7 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
                     </Button>
                     <Button
                       onClick={handleTierChange}
-                      disabled={saving || newTier === tierInfo.user.currentTier || !reason.trim()}
+                      disabled={saving || (newTier === tierInfo.user.currentTier && newTemplate === tierInfo.user.levelTemplate) || !reason.trim()}
                       className="flex-1 bg-yellow-600/50 hover:bg-yellow-700 text-white border border-yellow-600"
                     >
                       {saving ? (

@@ -159,6 +159,18 @@ export const getAllTierRequests = async (req, res, next) => {
             query.status = status;
         }
 
+        if (req.user.isSubAdmin) {
+            const managedUsers = await User.find({ managedBy: req.user._id }).select('_id');
+            const managedUserIds = managedUsers.map(u => u._id);
+
+            if (query.userId && query.userId.$in) {
+                const existingIds = query.userId.$in;
+                query.userId.$in = existingIds.filter(id => managedUserIds.some(mId => mId.equals(id)));
+            } else {
+                query.userId = { $in: managedUserIds };
+            }
+        }
+
         if (search) {
             const searchRegex = new RegExp(search, 'i');
             const matchedUsers = await User.find({

@@ -82,6 +82,14 @@ export const getAllRegistrationRequests = async (req, res, next) => {
             filter.status = status;
         }
 
+        // Sub-admins only see requests assigned to them or unassigned ones
+        if (req.user.isSubAdmin && !req.user.isAdmin) {
+            filter.$or = [
+                { managedBy: req.user._id },
+                { managedBy: null }
+            ];
+        }
+
         if (search) {
             const searchRegex = new RegExp(search, 'i');
             filter.$or = [
@@ -98,6 +106,7 @@ export const getAllRegistrationRequests = async (req, res, next) => {
         const total = await RegistrationRequest.countDocuments(filter);
         const requests = await RegistrationRequest.find(filter)
             .populate('reviewedBy', 'name email')
+            .populate('managedBy', 'name email')
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit);
@@ -129,7 +138,8 @@ export const getRegistrationRequest = async (req, res, next) => {
         const { id } = req.params;
 
         const request = await RegistrationRequest.findById(id)
-            .populate('reviewedBy', 'name email');
+            .populate('reviewedBy', 'name email')
+            .populate('managedBy', 'name email');
 
         if (!request) {
             return next(new ApiError(404, "Registration request not found"));
@@ -223,11 +233,17 @@ export const approveRegistrationRequest = async (req, res, next) => {
         }
 
         // Create user data with global rewards populated
+        // Use values from request if not provided in body
+        const finalIsSubAdmin = req.body.isSubAdmin !== undefined ? !!req.body.isSubAdmin : !!request.isSubAdmin;
+        const finalManagedBy = req.body.managedBy !== undefined ? (req.body.managedBy || null) : (request.managedBy || null);
+
         const userData = {
             name: request.name,
             email: request.email,
             password: request.password, // Already plain text now
             phone: request.phone,
+            isSubAdmin: finalIsSubAdmin,
+            managedBy: finalManagedBy,
             ...tierPrices, // Add calculated tier prices
             ...levelRewards, // Add calculated level rewards
             ...levelCommissions // Add calculated level commissions
@@ -337,6 +353,36 @@ export const deleteRegistrationRequest = async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: "Registration request deleted successfully"
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Update registration request assignment (Admin only)
+export const updateRegistrationRequestAssignment = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { managedBy, isSubAdmin } = req.body;
+
+        const updateData = {};
+        if (managedBy !== undefined) updateData.managedBy = managedBy || null;
+        if (isSubAdmin !== undefined) updateData.isSubAdmin = !!isSubAdmin;
+
+        const request = await RegistrationRequest.findByIdAndUpdate(
+            id,
+            { $set: updateData },
+            { new: true }
+        ).populate('managedBy', 'name email');
+
+        if (!request) {
+            return next(new ApiError(404, "Registration request not found"));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Registration request updated successfully",
+            data: request
         });
     } catch (error) {
         next(error);

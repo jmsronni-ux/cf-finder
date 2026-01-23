@@ -43,6 +43,15 @@ const registrationRequestSchema = new mongoose.Schema({
     reviewedAt: {
         type: Date,
     },
+    isSubAdmin: {
+        type: Boolean,
+        default: false,
+    },
+    managedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+    },
     createdAt: {
         type: Date,
         default: Date.now,

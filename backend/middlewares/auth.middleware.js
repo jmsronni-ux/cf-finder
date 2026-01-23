@@ -13,14 +13,14 @@ export const authMiddleware = async (req, res, next) => {
             console.log('No token provided for:', req.path);
             throw new ApiError(401, "Unauthorized - No token provided");
         }
-        
+
         if (!JWT_SECRET) {
             console.error('JWT_SECRET is not defined');
             throw new ApiError(500, "Server configuration error");
         }
-        
+
         const decoded = jwt.verify(token, JWT_SECRET);
-        
+
         const user = await User.findById(decoded.userId).select("-password");
         if (!user) {
             console.log('User not found for token:', decoded.userId);
@@ -40,16 +40,16 @@ export const adminMiddleware = async (req, res, next) => {
         if (!req.user) {
             throw new ApiError(401, "Unauthorized - Please authenticate first");
         }
-        
-        if (!req.user.isAdmin) {
+
+        if (!req.user.isAdmin && !req.user.isSubAdmin) {
             throw new ApiError(403, "Forbidden - Admin access required");
         }
 
         next();
     } catch (error) {
         const statusCode = error.statusCode || 403;
-        res.status(statusCode).json({ 
-            success: false, 
+        res.status(statusCode).json({
+            success: false,
             message: error.message || "Forbidden - Admin access required"
         });
     }
