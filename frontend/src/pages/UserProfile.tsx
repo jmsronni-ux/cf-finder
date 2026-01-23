@@ -67,6 +67,8 @@ const UserProfile: React.FC = () => {
   const [remainingUSDT, setRemainingUSDT] = useState<number>(0);
   const [showEditSettingsPopup, setShowEditSettingsPopup] = useState(false);
   const [hasApprovedAdditionalVerification, setHasApprovedAdditionalVerification] = useState(false);
+  const [aiAssistantData, setAiAssistantData] = useState<any>(null);
+  const [loadingAssistantData, setLoadingAssistantData] = useState(false);
   const navigate = useNavigate();
   const widgetContainerRef = React.useRef<HTMLDivElement>(null);
   // Edit profile state
@@ -87,14 +89,14 @@ const UserProfile: React.FC = () => {
 
   // Check if we should auto-open the withdraw or topup popup from navigation state
   useEffect(() => {
-    const state = location.state as { 
-      openWithdrawPopup?: boolean; 
+    const state = location.state as {
+      openWithdrawPopup?: boolean;
       openTopupPopup?: boolean;
       showWithdrawSuccess?: boolean;
       withdrawAmount?: number;
       withdrawWallet?: string;
     } | null;
-    
+
     if (state?.openWithdrawPopup) {
       setShowWithdrawPopup(true);
       // Clear the state to prevent reopening on refresh
@@ -255,7 +257,7 @@ const UserProfile: React.FC = () => {
         });
         return rates;
       }
-    } catch (_) {}
+    } catch (_) { }
     // Fallback defaults
     return { BTC: 45000, ETH: 3000, TRON: 0.1, USDT: 1, BNB: 300, SOL: 100 };
   };
@@ -408,17 +410,17 @@ const UserProfile: React.FC = () => {
         // Find the latest verification request for the current BTC wallet address
         const currentBtcWallet = wallets?.btc;
         if (currentBtcWallet) {
-          const btcRequest = json.data.requests?.find((req: WalletVerificationRequest) => 
+          const btcRequest = json.data.requests?.find((req: WalletVerificationRequest) =>
             req.walletType === 'btc' && req.walletAddress === currentBtcWallet
           );
-          
+
           // Check if status changed to approved
           if (btcRequest?.status === 'approved' && verificationRequest?.status === 'pending') {
             toast.success('🎉 Wallet verification approved!', {
               description: 'You can now start and make withdrawals'
             });
           }
-          
+
           setVerificationRequest(btcRequest || null);
         } else {
           setVerificationRequest(null);
@@ -458,35 +460,93 @@ const UserProfile: React.FC = () => {
     fetchWallets();
   }, [token]);
 
+  // Fetch consolidated data for AI Assistant
+  const fetchAiAssistantData = async () => {
+    if (!token) return;
+    setLoadingAssistantData(true);
+    try {
+      const res = await apiFetch('/user/me/ai-assistant-data', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        setAiAssistantData(json.data);
+        return json.data;
+      }
+    } catch (e) {
+      console.error('Failed to fetch AI assistant data', e);
+    } finally {
+      setLoadingAssistantData(false);
+    }
+    return null;
+  };
+
   // Load ElevenLabs Agent widget script and create widget element
   useEffect(() => {
-    // Check if script is already loaded
-    const existingScript = document.querySelector('script[src*="convai-widget-embed"]');
-    if (existingScript && widgetContainerRef.current) {
-      // Script already loaded, just create the widget element
-      if (!widgetContainerRef.current.querySelector('elevenlabs-convai')) {
-        const widgetElement = document.createElement('elevenlabs-convai');
-        widgetElement.setAttribute('agent-id', 'agent_1801ke98fbt2ejeaet7keppefh8k');
-        widgetContainerRef.current.appendChild(widgetElement);
-      }
-      return;
-    }
+    const initializeWidget = async () => {
+      // Fetch user data first to provide context to the agent
+      const data = await fetchAiAssistantData();
 
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
-    script.async = true;
-    script.type = 'text/javascript';
-    
-    script.onload = () => {
-      // Create widget element after script loads
-      if (widgetContainerRef.current) {
-        const widgetElement = document.createElement('elevenlabs-convai');
-        widgetElement.setAttribute('agent-id', 'agent_1801ke98fbt2ejeaet7keppefh8k');
-        widgetContainerRef.current.appendChild(widgetElement);
+      // Check if script is already loaded
+      const existingScript = document.querySelector('script[src*="convai-widget-embed"]');
+      if (existingScript && widgetContainerRef.current) {
+        // Script already loaded, just create the widget element
+        if (!widgetContainerRef.current.querySelector('elevenlabs-convai')) {
+          const widgetElement = document.createElement('elevenlabs-convai');
+          widgetElement.setAttribute('agent-id', 'agent_1801ke98fbt2ejeaet7keppefh8k');
+
+          if (data) {
+            // Pass user data as dynamic variables to the AI agent
+            widgetElement.setAttribute('dynamic-variables', JSON.stringify({
+              user_name: data.profile.name,
+              user_tier: data.profile.currentTier,
+              user_balance: data.profile.balance,
+              is_wallet_verified: data.profile.isWalletVerified,
+              pending_topups_count: data.pendingRequests.topups.length,
+              pending_withdrawals_count: data.pendingRequests.withdrawals.length,
+              pending_tier_upgrades_count: data.pendingRequests.tierUpgrades.length
+            }));
+          }
+
+          widgetContainerRef.current.appendChild(widgetElement);
+        }
+        return;
       }
+
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
+      script.async = true;
+      script.type = 'text/javascript';
+
+      script.onload = () => {
+        // Create widget element after script loads
+        if (widgetContainerRef.current) {
+          const widgetElement = document.createElement('elevenlabs-convai');
+          widgetElement.setAttribute('agent-id', 'agent_1801ke98fbt2ejeaet7keppefh8k');
+
+          if (data) {
+            widgetElement.setAttribute('dynamic-variables', JSON.stringify({
+              user_name: data.profile.name,
+              user_tier: data.profile.currentTier,
+              user_balance: data.profile.balance,
+              is_wallet_verified: data.profile.isWalletVerified,
+              pending_topups_count: data.pendingRequests.topups.length,
+              pending_withdrawals_count: data.pendingRequests.withdrawals.length,
+              pending_tier_upgrades_count: data.pendingRequests.tierUpgrades.length
+            }));
+          }
+
+          widgetContainerRef.current.appendChild(widgetElement);
+        }
+      };
+
+      document.body.appendChild(script);
     };
-    
-    document.body.appendChild(script);
+
+    initializeWidget();
 
     return () => {
       // Cleanup: remove script and widget on unmount if needed
@@ -567,7 +627,7 @@ const UserProfile: React.FC = () => {
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
               <div>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium font-heading text-foreground">
-                  Welcome back, <br/> <span className="text-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text">
+                  Welcome back, <br /> <span className="text-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text">
                     {user.name}
                   </span>
                 </h1>
@@ -617,7 +677,7 @@ const UserProfile: React.FC = () => {
                   <CardContent className="flex-1 flex flex-col">
                     <p className="text-3xl font-bold mb-4 text-foreground">${user.balance.toFixed(2)}</p>
                     <div className="space-y-2 mt-auto">
-                      <Button 
+                      <Button
                         onClick={() => setShowTopupPopup(true)}
                         className="w-full bg-purple-600/50 hover:bg-purple-700 flex items-center justify-center gap-2 border border-purple-600 text-white"
                       >
@@ -646,8 +706,8 @@ const UserProfile: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col">
-                    <LevelProgressBar 
-                      withdrawn={withdrawalData.withdrawalCount} 
+                    <LevelProgressBar
+                      withdrawn={withdrawalData.withdrawalCount}
                       total={withdrawalData.totalAvailableNetworks}
                     />
                     <div className="flex flex-col items-start justify-start mt-5 h-full text-sm text-gray-400 gap-2">
@@ -673,11 +733,11 @@ const UserProfile: React.FC = () => {
                           {pendingTierRequest
                             ? 'Upgrade request pending'
                             : nextTierOption
-                            ? `Upgrade to Next Layer`
-                            : 'No upgrade available'}
+                              ? `Upgrade to Next Layer`
+                              : 'No upgrade available'}
                         </Button>
                       )}
-                      
+
                     </div>
 
                   </CardContent>
@@ -693,104 +753,104 @@ const UserProfile: React.FC = () => {
                   <CardContent className="flex-1 flex flex-col gap-2">
                     <p className="text-sm text-foreground w-full border border-border rounded-md p-2"><strong className="me-4">Email:</strong> {user.email}</p>
                     <p className="text-sm text-foreground w-full border border-border rounded-md p-2"><strong className="me-4">Phone:</strong> {user.phone || 'Not provided'}</p>
-                    
-                    
+
+
                     {/* Wallet Verification Status */}
                     {wallets?.btc && (
                       <>
-                      {loadingVerification ? (
-                        <></>
-                      ) : verificationRequest?.status !== 'approved' && (
-                        <div className="mt-2 space-y-2">
-                          {verificationRequest ? (
-                            <div className="w-full border border-border rounded-md p-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Wallet Verification</span>
-                                {verificationRequest.status === 'pending' && (
-                                  <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    Pending
-                                  </Badge>
-                                )}
-                                {verificationRequest.status === 'rejected' && (
-                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    Rejected
-                                  </Badge>
+                        {loadingVerification ? (
+                          <></>
+                        ) : verificationRequest?.status !== 'approved' && (
+                          <div className="mt-2 space-y-2">
+                            {verificationRequest ? (
+                              <div className="w-full border border-border rounded-md p-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">Wallet Verification</span>
+                                  {verificationRequest.status === 'pending' && (
+                                    <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      Pending
+                                    </Badge>
+                                  )}
+                                  {verificationRequest.status === 'rejected' && (
+                                    <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      Rejected
+                                    </Badge>
+                                  )}
+                                </div>
+                                {verificationRequest.status === 'rejected' && verificationRequest.rejectionReason && (
+                                  <div className="mt-2">
+                                    <p className="text-xs text-red-400 mb-2">
+                                      <strong>Rejection Reason:</strong> {verificationRequest.rejectionReason}
+                                    </p>
+                                    <Button
+                                      onClick={handleVerifyWallet}
+                                      disabled={submittingVerification}
+                                      className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-600/50 flex items-center justify-center gap-2 text-xs py-2"
+                                    >
+                                      {submittingVerification ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 animate-spin" />
+                                          Submitting...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          Request New Verification
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
-                              {verificationRequest.status === 'rejected' && verificationRequest.rejectionReason && (
-                                <div className="mt-2">
-                                  <p className="text-xs text-red-400 mb-2">
-                                    <strong>Rejection Reason:</strong> {verificationRequest.rejectionReason}
-                                  </p>
-                                  <Button
-                                    onClick={handleVerifyWallet}
-                                    disabled={submittingVerification}
-                                    className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-600/50 flex items-center justify-center gap-2 text-xs py-2"
-                                  >
-                                    {submittingVerification ? (
-                                      <>
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                        Submitting...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CheckCircle2 className="w-3 h-3" />
-                                        Request New Verification
-                                      </>
-                                    )}
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <Button 
-                              onClick={handleVerifyWallet}
-                              disabled={submittingVerification}
-                              className="w-full bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50 flex items-center justify-center gap-2"
-                            >
-                              {submittingVerification ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Submitting...
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  Request Verification
-                                </>
-                              )}
-                            </Button>
-                          )}
-                          {(!verificationRequest || verificationRequest?.status === 'rejected') && (
-                            <Button 
-                              onClick={() => setShowChangeWalletPopup(true)}
-                              disabled={loadingVerification}
-                              className="w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                              {loadingVerification ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Loading...
-                                </>
-                              ) : (
-                                <>
-                                  <Wallet className="w-4 h-4" />
-                                  Change Wallet
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      )}
+                            ) : (
+                              <Button
+                                onClick={handleVerifyWallet}
+                                disabled={submittingVerification}
+                                className="w-full bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50 flex items-center justify-center gap-2"
+                              >
+                                {submittingVerification ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Submitting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Request Verification
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            {(!verificationRequest || verificationRequest?.status === 'rejected') && (
+                              <Button
+                                onClick={() => setShowChangeWalletPopup(true)}
+                                disabled={loadingVerification}
+                                className="w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2 disabled:opacity-50"
+                              >
+                                {loadingVerification ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Wallet className="w-4 h-4" />
+                                    Change Wallet
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        )}
 
-                      {!loadingVerification && verificationRequest?.status === 'approved' && (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 absolute right-6 top-6">
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Verified {hasApprovedAdditionalVerification ? 'Lvl 2' : 'Lvl 1'}
-                        </Badge>
-                      )}
+                        {!loadingVerification && verificationRequest?.status === 'approved' && (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 absolute right-6 top-6">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Verified {hasApprovedAdditionalVerification ? 'Lvl 2' : 'Lvl 1'}
+                          </Badge>
+                        )}
                       </>
                     )}
 
@@ -803,7 +863,7 @@ const UserProfile: React.FC = () => {
                       </Button>
                     </div>
 
-                    
+
                   </CardContent>
                 </Card>
               </div>
@@ -812,8 +872,8 @@ const UserProfile: React.FC = () => {
             {/* Wallets Section - Only show if no BTC wallet has been added */}
             {wallets && !wallets.btc && (
               <>
-                <MagicBadge title="Wallet Management" className="mt-24 mb-6"/>
-                <AddWalletPopup 
+                <MagicBadge title="Wallet Management" className="mt-24 mb-6" />
+                <AddWalletPopup
                   isPopup={false}
                   onSuccess={() => {
                     fetchWallets();
@@ -824,7 +884,7 @@ const UserProfile: React.FC = () => {
             )}
 
             {/* User Transactions */}
-            <MagicBadge title="Transaction History" className="mt-24 mb-6"/>
+            <MagicBadge title="Transaction History" className="mt-24 mb-6" />
 
             <UserTransactions />
 
@@ -839,7 +899,7 @@ const UserProfile: React.FC = () => {
         />
 
         {/* Top-up Request Popup */}
-        <TopupRequestPopup 
+        <TopupRequestPopup
           isOpen={showTopupPopup}
           onClose={() => setShowTopupPopup(false)}
         />

@@ -26,6 +26,7 @@ import registrationRequestRouter from './routes/registration-request.routes.js';
 import walletVerificationRouter from './routes/wallet-verification.routes.js';
 import additionalVerificationRouter from './routes/additional-verification.routes.js';
 import passwordRecoveryRouter from './routes/password-recovery.routes.js';
+import paymentWebhookRouter from './routes/payment-webhook.routes.js';
 import connectDB from './database/mongodb.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 import arcjetMiddleware from './middlewares/arcjet.middleware.js';
@@ -140,6 +141,7 @@ app.use('/registration-request', registrationRequestRouter);
 app.use('/wallet-verification', walletVerificationRouter);
 app.use('/additional-verification', additionalVerificationRouter);
 app.use('/password-recovery', passwordRecoveryRouter);
+app.use('/payments', paymentWebhookRouter);
 app.use(arcjetMiddleware);
 
 // Root route

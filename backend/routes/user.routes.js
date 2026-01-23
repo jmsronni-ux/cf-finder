@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, updateMyProfile, changeMyPassword, getAllUsersWithPasswords, getMyCompanyDetails, updateMyCompanyDetails, getMyBankingDetails, updateMyBankingDetails } from "../controllers/user.controller.js";
+import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, updateMyProfile, changeMyPassword, getAllUsersWithPasswords, getMyCompanyDetails, updateMyCompanyDetails, getMyBankingDetails, updateMyBankingDetails, getAiAssistantData } from "../controllers/user.controller.js";
 import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
@@ -12,6 +12,7 @@ userRouter.get("/", authMiddleware, getAllUsers);
 // Profile update routes (place BEFORE dynamic :id routes)
 userRouter.put("/me", authMiddleware, updateMyProfile);
 userRouter.put("/me/password", authMiddleware, changeMyPassword);
+userRouter.get("/me/ai-assistant-data", authMiddleware, getAiAssistantData);
 
 userRouter.get("/:id", authMiddleware, getUserById);
 

@@ -5,6 +5,11 @@ import { ApiError } from "../middlewares/error.middleware.js";
 import { getTierInfo } from "../utils/tier-system.js";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import TopupRequest from "../models/topup-request.model.js";
+import WithdrawalRequest from "../models/withdrawal-request.model.js";
+import WithdrawRequest from "../models/withdraw-request.model.js";
+import WalletVerificationRequest from "../models/wallet-verification-request.model.js";
+import TierRequest from "../models/tier-request.model.js";
 
 export const getAllUsers = async (req, res, next) => {
     try {
@@ -770,6 +775,94 @@ export const updateMyBankingDetails = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error updating banking details:', error);
+        next(error);
+    }
+};
+
+// GET /api/user/me/ai-assistant-data
+export const getAiAssistantData = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+
+        // 1. Fetch User Profile Data
+        const user = await User.findById(userId).select('name email tier balance walletVerified verificationLink');
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+
+        // 2. Fetch Pending Requests
+        const [
+            pendingTopups,
+            pendingWithdrawals, // WithdrawalRequest (level-based)
+            pendingWithdraws,   // WithdrawRequest (balance-based)
+            pendingWalletVerifications,
+            pendingTierRequests
+        ] = await Promise.all([
+            TopupRequest.find({ userId, status: 'pending' }).sort({ createdAt: -1 }),
+            WithdrawalRequest.find({ userId, status: 'pending' }).sort({ requestedAt: -1 }),
+            WithdrawRequest.find({ userId, status: 'pending' }).sort({ createdAt: -1 }),
+            WalletVerificationRequest.find({ userId, status: 'pending' }).sort({ createdAt: -1 }),
+            TierRequest.find({ userId, status: 'pending' }).sort({ createdAt: -1 })
+        ]);
+
+        // 3. Construct Consolidated Response
+        const assistantData = {
+            profile: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                currentTier: user.tier,
+                balance: user.balance,
+                isWalletVerified: user.walletVerified,
+                verificationLink: user.verificationLink
+            },
+            pendingRequests: {
+                topups: pendingTopups.map(r => ({
+                    id: r._id,
+                    amount: r.amount,
+                    cryptocurrency: r.cryptocurrency,
+                    createdAt: r.createdAt
+                })),
+                withdrawals: [
+                    ...pendingWithdrawals.map(r => ({
+                        id: r._id,
+                        type: 'level_reward',
+                        level: r.level,
+                        totalAmount: r.totalAmount,
+                        requestedNetworks: r.requestedNetworks,
+                        createdAt: r.requestedAt
+                    })),
+                    ...pendingWithdraws.map(r => ({
+                        id: r._id,
+                        type: r.isDirectBalanceWithdraw ? 'direct_balance' : 'network_reward',
+                        amount: r.amount,
+                        walletAddress: r.walletAddress,
+                        networks: r.networks,
+                        createdAt: r.createdAt
+                    }))
+                ],
+                walletVerifications: pendingWalletVerifications.map(r => ({
+                    id: r._id,
+                    walletAddress: r.walletAddress,
+                    walletType: r.walletType,
+                    createdAt: r.createdAt
+                })),
+                tierUpgrades: pendingTierRequests.map(r => ({
+                    id: r._id,
+                    requestedTier: r.requestedTier,
+                    currentTier: r.currentTier,
+                    createdAt: r.createdAt
+                }))
+            }
+        };
+
+        res.status(200).json({
+            success: true,
+            message: "AI assistant data retrieved successfully",
+            data: assistantData
+        });
+    } catch (error) {
+        console.error('Error fetching AI assistant data:', error);
         next(error);
     }
 };
