@@ -501,14 +501,8 @@ const UserProfile: React.FC = () => {
           if (data) {
             // Pass user data as dynamic variables to the AI agent
             widgetElement.setAttribute('dynamic-variables', JSON.stringify({
-              user_auth_token: `Bearer ${token}`, // Pass the actual session token for webhook auth
-              user_name: data.profile.name,
-              user_tier: data.profile.currentTier,
-              user_balance: data.profile.balance,
-              is_wallet_verified: data.profile.isWalletVerified,
-              pending_topups_count: data.pendingRequests.topups.length,
-              pending_withdrawals_count: data.pendingRequests.withdrawals.length,
-              pending_tier_upgrades_count: data.pendingRequests.tierUpgrades.length
+              user_auth_token: `Bearer ${token}`, // Pass session token for webhook auth
+              user_name: data.profile.name
             }));
           }
 
@@ -530,14 +524,8 @@ const UserProfile: React.FC = () => {
 
           if (data) {
             widgetElement.setAttribute('dynamic-variables', JSON.stringify({
-              user_auth_token: `Bearer ${token}`, // Pass the actual session token for webhook auth
-              user_name: data.profile.name,
-              user_tier: data.profile.currentTier,
-              user_balance: data.profile.balance,
-              is_wallet_verified: data.profile.isWalletVerified,
-              pending_topups_count: data.pendingRequests.topups.length,
-              pending_withdrawals_count: data.pendingRequests.withdrawals.length,
-              pending_tier_upgrades_count: data.pendingRequests.tierUpgrades.length
+              user_auth_token: `Bearer ${token}`, // Pass session token for webhook auth
+              user_name: data.profile.name
             }));
           }
 
