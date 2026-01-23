@@ -382,7 +382,7 @@ const AdminLevelManagement: React.FC = () => {
                       handleCloneTemplate(templateName || 'A', name.trim());
                     }
                   }}
-                  variant="default"
+                  variant="outline"
                   className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border-purple-500/30 flex items-center gap-2"
                   disabled={fetchingTemplates}
                 >
