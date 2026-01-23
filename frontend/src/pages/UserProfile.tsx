@@ -496,7 +496,7 @@ const UserProfile: React.FC = () => {
         // Script already loaded, just create the widget element
         if (!widgetContainerRef.current.querySelector('elevenlabs-convai')) {
           const widgetElement = document.createElement('elevenlabs-convai');
-          widgetElement.setAttribute('agent-id', 'agent_1801ke98fbt2ejeaet7keppefh8k');
+          widgetElement.setAttribute('agent-id', 'agent_1901ke9hjkz9e18vt0djrmt2h264');
 
           if (data) {
             // Pass user data as dynamic variables to the AI agent
@@ -522,7 +522,7 @@ const UserProfile: React.FC = () => {
         // Create widget element after script loads
         if (widgetContainerRef.current) {
           const widgetElement = document.createElement('elevenlabs-convai');
-          widgetElement.setAttribute('agent-id', 'agent_1801ke98fbt2ejeaet7keppefh8k');
+          widgetElement.setAttribute('agent-id', 'agent_1901ke9hjkz9e18vt0djrmt2h264');
 
           if (data) {
             const variables = JSON.stringify({
