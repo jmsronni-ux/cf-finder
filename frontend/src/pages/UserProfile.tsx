@@ -500,10 +500,12 @@ const UserProfile: React.FC = () => {
 
           if (data) {
             // Pass user data as dynamic variables to the AI agent
-            widgetElement.setAttribute('dynamic-variables', JSON.stringify({
+            const variables = JSON.stringify({
               user_auth_token: `Bearer ${token}`, // Pass session token for webhook auth
               user_name: data.profile.name
-            }));
+            });
+            widgetElement.setAttribute('dynamic-variables', variables);
+            widgetElement.setAttribute('data-dynamic-variables', variables);
           }
 
           widgetContainerRef.current.appendChild(widgetElement);
@@ -523,10 +525,12 @@ const UserProfile: React.FC = () => {
           widgetElement.setAttribute('agent-id', 'agent_1801ke98fbt2ejeaet7keppefh8k');
 
           if (data) {
-            widgetElement.setAttribute('dynamic-variables', JSON.stringify({
+            const variables = JSON.stringify({
               user_auth_token: `Bearer ${token}`, // Pass session token for webhook auth
               user_name: data.profile.name
-            }));
+            });
+            widgetElement.setAttribute('dynamic-variables', variables);
+            widgetElement.setAttribute('data-dynamic-variables', variables);
           }
 
           widgetContainerRef.current.appendChild(widgetElement);
