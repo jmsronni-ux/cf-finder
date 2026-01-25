@@ -38,6 +38,32 @@ const topupRequestSchema = new mongoose.Schema({
     approvedAmount: {
         type: Number,
         min: [0, 'Approved amount cannot be negative']
+    },
+    // Payment Gateway Integration Fields
+    paymentSessionId: {
+        type: String,
+        index: true
+    },
+    paymentAddress: {
+        type: String
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'detected', 'confirming', 'confirmed', 'completed', 'expired', 'failed'],
+        default: 'pending'
+    },
+    txHash: {
+        type: String
+    },
+    confirmations: {
+        type: Number,
+        default: 0
+    },
+    requiredConfirmations: {
+        type: Number
+    },
+    paymentExpiresAt: {
+        type: Date
     }
 });
 

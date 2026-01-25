@@ -4,6 +4,7 @@ import User from '../models/user.model.js';
 import { ApiError } from '../middlewares/error.middleware.js';
 import { sendTopupRequestSubmittedEmail, sendTopupRequestApprovedEmail, sendTopupRequestRejectedEmail } from '../services/email.service.js';
 import { sendTopupNotification } from '../services/telegram.service.js';
+import { paymentGatewayService } from '../services/payment-gateway.service.js';
 
 // User creates a top-up request
 export const createTopupRequest = async (req, res, next) => {
@@ -245,12 +246,198 @@ export const rejectTopupRequest = async (req, res, next) => {
     }
 };
 
+// Create a top-up request with automated payment (generates payment address)
+export const createTopupRequestWithPayment = async (req, res, next) => {
+    try {
+        const { amount, cryptocurrency } = req.body;
+        const userId = req.user._id;
+
+        if (!amount || amount <= 0) {
+            throw new ApiError(400, 'Invalid amount');
+        }
+
+        // Only BTC and ETH are supported for automated payments
+        const crypto = (cryptocurrency || 'BTC').toUpperCase();
+        if (!['BTC', 'ETH'].includes(crypto)) {
+            throw new ApiError(400, 'Only BTC and ETH are supported for automated payments');
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            throw new ApiError(404, 'User not found');
+        }
+
+        // Check if payment gateway is available
+        const isAvailable = await paymentGatewayService.isAvailable();
+        if (!isAvailable) {
+            throw new ApiError(503, 'Payment gateway is currently unavailable. Please try again later.');
+        }
+
+        // Create payment session with the payment gateway
+        const paymentSession = await paymentGatewayService.createPaymentSession(
+            userId.toString(),
+            crypto,
+            amount,
+            {
+                userEmail: user.email,
+                userName: user.name
+            }
+        );
+
+        if (!paymentSession.success) {
+            throw new ApiError(500, paymentSession.error || 'Failed to create payment session');
+        }
+
+        // Get required confirmations for this crypto
+        const requiredConfirmations = paymentGatewayService.getRequiredConfirmations(crypto);
+
+        // Create the topup request in database with payment session details
+        const topupRequest = await TopupRequest.create({
+            userId,
+            amount,
+            cryptocurrency: crypto,
+            paymentSessionId: paymentSession.sessionId,
+            paymentAddress: paymentSession.paymentAddress,
+            paymentStatus: 'pending',
+            requiredConfirmations,
+            paymentExpiresAt: paymentSession.expiresAt ? new Date(paymentSession.expiresAt) : null
+        });
+
+        // Send confirmation email to user (optional - can be disabled for automated flow)
+        sendTopupRequestSubmittedEmail(
+            user.email,
+            user.name,
+            amount,
+            crypto,
+            topupRequest._id
+        ).catch(err => console.error('Failed to send topup request submitted email:', err));
+
+        res.status(201).json({
+            success: true,
+            message: 'Payment address generated successfully',
+            data: {
+                requestId: topupRequest._id,
+                sessionId: paymentSession.sessionId,
+                paymentAddress: paymentSession.paymentAddress,
+                cryptocurrency: crypto,
+                amount,
+                paymentStatus: 'pending',
+                requiredConfirmations,
+                expiresAt: paymentSession.expiresAt
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Get payment status for a topup request
+export const getPaymentStatus = async (req, res, next) => {
+    try {
+        const { requestId } = req.params;
+        const userId = req.user._id;
+
+        const topupRequest = await TopupRequest.findOne({
+            _id: requestId,
+            userId
+        });
+
+        if (!topupRequest) {
+            throw new ApiError(404, 'Top-up request not found');
+        }
+
+        // If there's a payment session, get the latest status from the gateway
+        if (topupRequest.paymentSessionId) {
+            const sessionStatus = await paymentGatewayService.getSessionStatus(topupRequest.paymentSessionId);
+            
+            if (sessionStatus.success && sessionStatus.session) {
+                const session = sessionStatus.session;
+                
+                // Update local record if status has changed
+                if (session.status !== topupRequest.paymentStatus || 
+                    session.confirmations !== topupRequest.confirmations) {
+                    topupRequest.paymentStatus = session.status;
+                    topupRequest.confirmations = session.confirmations || 0;
+                    if (session.txHash) {
+                        topupRequest.txHash = session.txHash;
+                    }
+                    await topupRequest.save();
+                }
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                requestId: topupRequest._id,
+                status: topupRequest.status,
+                paymentStatus: topupRequest.paymentStatus,
+                paymentAddress: topupRequest.paymentAddress,
+                cryptocurrency: topupRequest.cryptocurrency,
+                amount: topupRequest.amount,
+                confirmations: topupRequest.confirmations || 0,
+                requiredConfirmations: topupRequest.requiredConfirmations,
+                txHash: topupRequest.txHash,
+                createdAt: topupRequest.createdAt,
+                expiresAt: topupRequest.paymentExpiresAt
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Cancel a payment session (user initiated)
+export const cancelPaymentSession = async (req, res, next) => {
+    try {
+        const { requestId } = req.params;
+        const userId = req.user._id;
+
+        const topupRequest = await TopupRequest.findOne({
+            _id: requestId,
+            userId
+        });
+
+        if (!topupRequest) {
+            throw new ApiError(404, 'Top-up request not found');
+        }
+
+        // Can only cancel pending payments
+        if (topupRequest.status !== 'pending' || 
+            !['pending', 'detected'].includes(topupRequest.paymentStatus)) {
+            throw new ApiError(400, 'Cannot cancel this payment - it may already be processing');
+        }
+
+        // Cancel the session in the payment gateway
+        if (topupRequest.paymentSessionId) {
+            await paymentGatewayService.cancelSession(topupRequest.paymentSessionId);
+        }
+
+        // Update the topup request
+        topupRequest.status = 'rejected';
+        topupRequest.paymentStatus = 'expired';
+        topupRequest.notes = 'Cancelled by user';
+        topupRequest.processedAt = new Date();
+        await topupRequest.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Payment cancelled successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export default {
     createTopupRequest,
     getAllTopupRequests,
     getMyTopupRequests,
     approveTopupRequest,
-    rejectTopupRequest
+    rejectTopupRequest,
+    createTopupRequestWithPayment,
+    getPaymentStatus,
+    cancelPaymentSession
 };
 
 
