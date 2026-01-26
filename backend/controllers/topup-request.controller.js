@@ -256,10 +256,17 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
             throw new ApiError(400, 'Invalid amount');
         }
 
+<<<<<<< HEAD
         // Only BTC and ETH are supported for automated payments
         const crypto = (cryptocurrency || 'BTC').toUpperCase();
         if (!['BTC', 'ETH'].includes(crypto)) {
             throw new ApiError(400, 'Only BTC and ETH are supported for automated payments');
+=======
+        // BTC, ETH, and BCY (BlockCypher test) are supported for automated payments
+        const crypto = (cryptocurrency || 'BTC').toUpperCase();
+        if (!['BTC', 'ETH', 'BCY'].includes(crypto)) {
+            throw new ApiError(400, 'Only BTC, ETH, and BCY are supported for automated payments');
+>>>>>>> 2f68444 (connect with 2nd server and front)
         }
 
         const user = await User.findById(userId);
@@ -274,6 +281,10 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
         }
 
         // Create payment session with the payment gateway
+<<<<<<< HEAD
+=======
+        console.log(`[TopupRequest] Creating payment session - Chain: ${crypto}, Amount: ${amount}, User: ${userId}`);
+>>>>>>> 2f68444 (connect with 2nd server and front)
         const paymentSession = await paymentGatewayService.createPaymentSession(
             userId.toString(),
             crypto,
@@ -303,6 +314,11 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
             paymentExpiresAt: paymentSession.expiresAt ? new Date(paymentSession.expiresAt) : null
         });
 
+<<<<<<< HEAD
+=======
+        console.log(`[TopupRequest] Topup request created with payment - Chain: ${crypto}, Amount: ${amount}, RequestId: ${topupRequest._id}, SessionId: ${paymentSession.sessionId}`);
+
+>>>>>>> 2f68444 (connect with 2nd server and front)
         // Send confirmation email to user (optional - can be disabled for automated flow)
         sendTopupRequestSubmittedEmail(
             user.email,
@@ -363,9 +379,100 @@ export const getPaymentStatus = async (req, res, next) => {
                     }
                     await topupRequest.save();
                 }
+<<<<<<< HEAD
             }
         }
 
+=======
+
+                // Check if payment should be auto-approved:
+                // 1. Session status is 'confirmed' or 'completed', OR
+                // 2. Confirmations >= required confirmations (regardless of status)
+                const sessionConfirmations = session.confirmations || 0;
+                const requiredConfirmations = topupRequest.requiredConfirmations || 1;
+                const hasEnoughConfirmations = sessionConfirmations >= requiredConfirmations;
+                const isConfirmedStatus = ['confirmed', 'completed'].includes(session.status);
+                
+                // Auto-approve if confirmed OR has enough confirmations
+                if ((isConfirmedStatus || hasEnoughConfirmations) && topupRequest.status !== 'approved') {
+                    const user = await User.findById(topupRequest.userId);
+                    if (user) {
+                        const paymentAmount = topupRequest.amount;
+                        
+                        // Update user balance
+                        user.balance += paymentAmount;
+                        await user.save();
+
+                        // Update topup request status
+                        topupRequest.status = 'approved';
+                        topupRequest.processedAt = new Date();
+                        topupRequest.approvedAmount = paymentAmount;
+                        topupRequest.notes = `Auto-approved by payment gateway (TX: ${session.txHash || topupRequest.txHash || 'N/A'}, Confirmations: ${sessionConfirmations}/${requiredConfirmations})`;
+                        await topupRequest.save();
+
+                        console.log(`[TopupRequest] Payment confirmed - Auto-approved topup request ${topupRequest._id}, User: ${user._id}, Amount: ${paymentAmount}, New balance: ${user.balance}, Confirmations: ${sessionConfirmations}/${requiredConfirmations}`);
+
+                        // Send approval email
+                        sendTopupRequestApprovedEmail(
+                            user.email,
+                            user.name,
+                            paymentAmount,
+                            topupRequest.cryptocurrency,
+                            user.balance,
+                            topupRequest._id
+                        ).catch(err => console.error('Failed to send topup approval email:', err));
+                    }
+                }
+            }
+        }
+
+        // Also check local confirmation count in case payment gateway session wasn't available
+        // This handles the case where confirmations were updated but status wasn't
+        if (topupRequest.status !== 'approved' && topupRequest.confirmations >= (topupRequest.requiredConfirmations || 1)) {
+            const user = await User.findById(topupRequest.userId);
+            if (user) {
+                const paymentAmount = topupRequest.amount;
+                
+                // Update user balance
+                user.balance += paymentAmount;
+                await user.save();
+
+                // Update topup request status
+                topupRequest.status = 'approved';
+                topupRequest.processedAt = new Date();
+                topupRequest.approvedAmount = paymentAmount;
+                topupRequest.notes = `Auto-approved based on confirmation count (TX: ${topupRequest.txHash || 'N/A'}, Confirmations: ${topupRequest.confirmations}/${topupRequest.requiredConfirmations})`;
+                await topupRequest.save();
+
+                console.log(`[TopupRequest] Payment confirmed (local check) - Auto-approved topup request ${topupRequest._id}, User: ${user._id}, Amount: ${paymentAmount}, New balance: ${user.balance}`);
+
+                // Send approval email
+                sendTopupRequestApprovedEmail(
+                    user.email,
+                    user.name,
+                    paymentAmount,
+                    topupRequest.cryptocurrency,
+                    user.balance,
+                    topupRequest._id
+                ).catch(err => console.error('Failed to send topup approval email:', err));
+            }
+        }
+
+        // Check for timeout: if 1 hour passed since creation with 0 confirmations, mark as expired
+        // This allows admin to manually review the request
+        const confirmations = topupRequest.confirmations || 0;
+        const createdAt = new Date(topupRequest.createdAt);
+        const timeoutAt = new Date(createdAt.getTime() + 60 * 60 * 1000); // 1 hour after creation
+        const isTimedOut = new Date() > timeoutAt && confirmations === 0 && topupRequest.paymentStatus === 'pending';
+        
+        if (isTimedOut && topupRequest.paymentStatus !== 'expired') {
+            topupRequest.paymentStatus = 'expired';
+            topupRequest.notes = 'Payment session timed out (1 hour with no confirmations) - awaiting manual review';
+            await topupRequest.save();
+            console.log(`[TopupRequest] Payment session timed out - Request ${topupRequest._id}, User: ${topupRequest.userId}, Created: ${createdAt.toISOString()}`);
+        }
+
+>>>>>>> 2f68444 (connect with 2nd server and front)
         res.status(200).json({
             success: true,
             data: {

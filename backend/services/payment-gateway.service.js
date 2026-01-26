@@ -28,13 +28,23 @@ class PaymentGatewayService {
                 throw new Error('Payment gateway URL not configured');
             }
 
+<<<<<<< HEAD
+=======
+            const crypto = cryptocurrency.toLowerCase();
+            console.log(`[PaymentGateway] Creating payment session - Chain: ${crypto.toUpperCase()}, Amount: ${amount}, UserId: ${userId}`);
+
+>>>>>>> 2f68444 (connect with 2nd server and front)
             const response = await fetch(`${this.baseUrl}/address`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
+<<<<<<< HEAD
                     cryptocurrency: cryptocurrency.toLowerCase(),
+=======
+                    cryptocurrency: crypto,
+>>>>>>> 2f68444 (connect with 2nd server and front)
                     userId: userId.toString(),
                     amount,
                     metadata
@@ -44,13 +54,22 @@ class PaymentGatewayService {
             const data = await response.json();
 
             if (!response.ok || !data.success) {
+<<<<<<< HEAD
                 console.error('Payment gateway error:', data);
+=======
+                console.error(`[PaymentGateway] Error creating payment session - Chain: ${crypto.toUpperCase()}, Amount: ${amount}:`, data);
+>>>>>>> 2f68444 (connect with 2nd server and front)
                 return {
                     success: false,
                     error: data.error || 'Failed to create payment session'
                 };
             }
 
+<<<<<<< HEAD
+=======
+            console.log(`[PaymentGateway] Payment session created successfully - Chain: ${crypto.toUpperCase()}, Amount: ${amount}, SessionId: ${data.data.sessionId}, Address: ${data.data.paymentAddress}`);
+
+>>>>>>> 2f68444 (connect with 2nd server and front)
             return {
                 success: true,
                 sessionId: data.data.sessionId,
@@ -177,15 +196,25 @@ class PaymentGatewayService {
     /**
      * Get confirmation requirements for a cryptocurrency
      * 
+<<<<<<< HEAD
      * @param {string} cryptocurrency - 'btc' or 'eth'
+=======
+     * @param {string} cryptocurrency - 'btc', 'eth', or 'bcy'
+>>>>>>> 2f68444 (connect with 2nd server and front)
      * @returns {number} Required confirmations
      */
     getRequiredConfirmations(cryptocurrency) {
         const crypto = cryptocurrency.toLowerCase();
         // These should match the payment gateway configuration
         const confirmations = {
+<<<<<<< HEAD
             btc: 3,  // ~30 minutes
             eth: 12  // ~3 minutes
+=======
+            btc: 3,   // ~30 minutes
+            eth: 12,  // ~3 minutes
+            bcy: 1    // BlockCypher test chain - 1 confirmation for testing
+>>>>>>> 2f68444 (connect with 2nd server and front)
         };
         return confirmations[crypto] || 3;
     }

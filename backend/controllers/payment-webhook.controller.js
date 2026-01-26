@@ -88,7 +88,7 @@ export const handlePaymentWebhook = async (req, res, next) => {
         user.balance += Number(amount);
         await user.save();
 
-        console.log(`Payment processed for user ${userId}: ${amount} ${cryptocurrency}. New balance: ${user.balance}`);
+        console.log(`[PaymentWebhook] Payment processed - Chain: ${cryptocurrency}, Amount: ${amount}, User: ${userId}, New balance: ${user.balance}`);
 
         res.status(200).json({
             success: true,
@@ -110,8 +110,13 @@ export const handlePaymentWebhook = async (req, res, next) => {
 async function handlePaymentGatewayWebhook(req, res, data) {
     const { sessionId, userId, amount, cryptocurrency, transactionHash, confirmations, paymentStatus } = data;
 
+<<<<<<< HEAD
     console.log(`Payment gateway webhook received for session ${sessionId}`);
     console.log(`Status: ${paymentStatus}, Confirmations: ${confirmations}, Amount: ${amount} ${cryptocurrency}`);
+=======
+    console.log(`[PaymentWebhook] Payment gateway webhook received for session ${sessionId}`);
+    console.log(`[PaymentWebhook] Chain: ${cryptocurrency}, Amount: ${amount}, Status: ${paymentStatus}, Confirmations: ${confirmations}`);
+>>>>>>> 2f68444 (connect with 2nd server and front)
 
     // Find the topup request by sessionId
     let topupRequest = await TopupRequest.findOne({ paymentSessionId: sessionId });
@@ -172,7 +177,11 @@ async function handlePaymentGatewayWebhook(req, res, data) {
             topupRequest.approvedAmount = paymentAmount;
             topupRequest.notes = `Auto-approved by payment gateway (TX: ${transactionHash || 'N/A'})`;
 
+<<<<<<< HEAD
             console.log(`Payment completed for user ${user._id}: ${paymentAmount} ${cryptocurrency}. New balance: ${user.balance}`);
+=======
+            console.log(`[PaymentWebhook] Payment completed - Chain: ${cryptocurrency}, Amount: ${paymentAmount}, User: ${user._id}, New balance: ${user.balance}`);
+>>>>>>> 2f68444 (connect with 2nd server and front)
 
             // Send approval email
             sendTopupRequestApprovedEmail(

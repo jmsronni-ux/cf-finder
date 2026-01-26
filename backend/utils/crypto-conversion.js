@@ -8,7 +8,8 @@ const DEFAULT_CONVERSION_RATES = {
   TRON: 0.1,
   USDT: 1,
   BNB: 300,
-  SOL: 100
+  SOL: 100,
+  BCY: 80000  // BlockCypher test chain: 1 BCY = 80000 USD
 };
 
 // In-memory cache for conversion rates

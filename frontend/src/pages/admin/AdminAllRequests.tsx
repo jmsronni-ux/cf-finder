@@ -93,7 +93,7 @@ interface TopupRequestData {
     managedBy?: string | null;
   } | null;
   amount: number;
-  cryptocurrency?: 'BTC' | 'USDT' | 'ETH';
+  cryptocurrency?: 'BTC' | 'USDT' | 'ETH' | 'BCY';
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
   processedAt?: string;
@@ -103,6 +103,13 @@ interface TopupRequestData {
   };
   notes?: string;
   approvedAmount?: number;
+  // Payment gateway fields
+  paymentStatus?: 'pending' | 'detected' | 'confirming' | 'confirmed' | 'completed' | 'expired' | 'failed';
+  confirmations?: number;
+  requiredConfirmations?: number;
+  paymentExpiresAt?: string;
+  txHash?: string;
+  paymentAddress?: string;
 }
 
 interface WithdrawRequestData {
@@ -211,6 +218,7 @@ const AdminAllRequests: React.FC = () => {
   // Form states
   const [rejectionReasons, setRejectionReasons] = useState<{ [key: string]: string }>({});
   const [adminNotes, setAdminNotes] = useState<{ [key: string]: string }>({});
+  // customAmounts state - used for manual approval of timed-out topup requests
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [confirmedWallet, setConfirmedWallet] = useState<{ [key: string]: string }>({});
   const [confirmedAmount, setConfirmedAmount] = useState<{ [key: string]: string }>({});
@@ -1034,6 +1042,7 @@ const AdminAllRequests: React.FC = () => {
     }
   };
 
+  // Topup approve/reject handlers - only used for timed-out requests that need manual review
   const handleTopupApprove = async (requestId: string, approvedAmount?: number) => {
     setProcessingId(requestId);
     try {
@@ -1928,52 +1937,114 @@ const AdminAllRequests: React.FC = () => {
                                   </>
                                 )}
 
-                                {/* Topup Actions */}
-                                {request.type === 'topup' && (
-                                  <>
-                                    <div className="flex flex-col gap-2">
-                                      <label className="text-xs text-muted-foreground">Approval Amount</label>
-                                      <Input
-                                        type="number"
-                                        placeholder={`Requested: $${request.data.amount.toFixed(2)}`}
-                                        value={customAmounts[request.data._id] ?? request.data.amount.toString()}
-                                        onChange={(e) => setCustomAmounts(prev => ({
-                                          ...prev,
-                                          [request.data._id]: e.target.value
-                                        }))}
-                                        className="bg-background/50 border-border text-foreground"
-                                        min="0"
-                                        step="0.01"
-                                      />
-                                    </div>
-                                    <div className="flex gap-2">
-                                      <Button
-                                        onClick={() => handleTopupApproveWithAmount(request.data._id, request.data.amount)}
-                                        disabled={processingId === request.data._id}
-                                        className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600 flex-1"
-                                      >
-                                        {processingId === request.data._id ? (
-                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                {/* Topup Actions - Show manual controls only for timed-out requests with 0 confirmations */}
+                                {request.type === 'topup' && (() => {
+                                  const topupData = request.data as TopupRequestData;
+                                  const confirmations = topupData.confirmations || 0;
+                                  const requiredConfirmations = topupData.requiredConfirmations || 1;
+                                  
+                                  // Calculate timeout based on createdAt + 1 hour
+                                  const createdAt = new Date(topupData.createdAt);
+                                  const timeoutAt = new Date(createdAt.getTime() + 60 * 60 * 1000); // 1 hour after creation
+                                  const hasTimedOut = new Date() > timeoutAt;
+                                  
+                                  // If transaction has confirmations, it should auto-approve (not show manual controls)
+                                  const hasConfirmations = confirmations > 0;
+                                  const hasEnoughConfirmations = confirmations >= requiredConfirmations;
+                                  
+                                  // Only show manual controls if:
+                                  // - Timed out (1 hour since creation) AND
+                                  // - 0 confirmations AND
+                                  // - Payment status is still pending or expired
+                                  const isTimedOut = hasTimedOut && !hasConfirmations && 
+                                                     ['pending', 'expired'].includes(topupData.paymentStatus || 'pending');
+                                  
+                                  if (isTimedOut) {
+                                    // Timed out - show manual approval controls
+                                    return (
+                                      <>
+                                        <div className="flex flex-col items-center justify-center gap-2 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg mb-3">
+                                          <Clock className="w-5 h-5 text-orange-400" />
+                                          <span className="text-sm text-orange-400 font-medium text-center">Payment Timed Out</span>
+                                          <span className="text-xs text-muted-foreground text-center">No transaction detected - manual review required</span>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                          <label className="text-xs text-muted-foreground">Approval Amount (USD)</label>
+                                          <Input
+                                            type="number"
+                                            placeholder={`Requested: $${topupData.amount.toFixed(2)}`}
+                                            value={customAmounts[topupData._id] ?? topupData.amount.toString()}
+                                            onChange={(e) => setCustomAmounts(prev => ({
+                                              ...prev,
+                                              [topupData._id]: e.target.value
+                                            }))}
+                                            className="bg-background/50 border-border text-foreground"
+                                            min="0"
+                                            step="0.01"
+                                          />
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <Button
+                                            onClick={() => handleTopupApproveWithAmount(topupData._id, topupData.amount)}
+                                            disabled={processingId === topupData._id}
+                                            className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600 flex-1"
+                                          >
+                                            {processingId === topupData._id ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <CheckCircle className="w-4 h-4" />
+                                            )}
+                                            Approve
+                                          </Button>
+                                          <Button
+                                            onClick={() => handleTopupReject(topupData._id)}
+                                            disabled={processingId === topupData._id}
+                                            className="bg-red-600/50 hover:bg-red-700 text-white flex items-center gap-2 border border-red-600 flex-1"
+                                          >
+                                            {processingId === topupData._id ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <XCircle className="w-4 h-4" />
+                                            )}
+                                            Reject
+                                          </Button>
+                                        </div>
+                                      </>
+                                    );
+                                  } else {
+                                    // Still processing - show auto-processing indicator with status
+                                    const remainingMs = timeoutAt.getTime() - new Date().getTime();
+                                    const remainingMins = Math.max(0, Math.ceil(remainingMs / 60000));
+                                    
+                                    return (
+                                      <div className="flex flex-col items-center justify-center gap-2 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                                        {hasConfirmations ? (
+                                          <>
+                                            <CheckCircle className="w-5 h-5 text-green-400" />
+                                            <span className="text-sm text-green-400 font-medium text-center">Confirming Payment</span>
+                                            <span className="text-xs text-muted-foreground text-center">
+                                              {confirmations}/{requiredConfirmations} confirmations
+                                            </span>
+                                            {hasEnoughConfirmations && (
+                                              <span className="text-xs text-green-400 text-center">Will auto-approve shortly</span>
+                                            )}
+                                          </>
                                         ) : (
-                                          <CheckCircle className="w-4 h-4" />
+                                          <>
+                                            <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                                            <span className="text-sm text-blue-400 font-medium text-center">Awaiting Payment</span>
+                                            <span className="text-xs text-muted-foreground text-center">
+                                              {remainingMins > 0 
+                                                ? `Manual review in ${remainingMins} min${remainingMins !== 1 ? 's' : ''}`
+                                                : 'Will require manual review soon'
+                                              }
+                                            </span>
+                                          </>
                                         )}
-                                        Approve
-                                      </Button>
-                                      <Button
-                                        onClick={() => handleTopupReject(request.data._id)}
-                                        disabled={processingId === request.data._id}
-                                        className="bg-red-600/50 hover:bg-red-700 text-white flex items-center gap-2 border border-red-600 flex-1"
-                                      >
-                                        {processingId === request.data._id ? (
-                                          <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                          <XCircle className="w-4 h-4" />
-                                        )}
-                                        Reject
-                                      </Button>
-                                    </div>
-                                  </>
-                                )}
+                                      </div>
+                                    );
+                                  }
+                                })()}
 
                                 {/* Withdraw Actions */}
                                 {request.type === 'withdraw' && (
