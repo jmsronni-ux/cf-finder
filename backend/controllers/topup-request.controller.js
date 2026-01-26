@@ -256,17 +256,10 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
             throw new ApiError(400, 'Invalid amount');
         }
 
-<<<<<<< HEAD
-        // Only BTC and ETH are supported for automated payments
-        const crypto = (cryptocurrency || 'BTC').toUpperCase();
-        if (!['BTC', 'ETH'].includes(crypto)) {
-            throw new ApiError(400, 'Only BTC and ETH are supported for automated payments');
-=======
         // BTC, ETH, and BCY (BlockCypher test) are supported for automated payments
         const crypto = (cryptocurrency || 'BTC').toUpperCase();
         if (!['BTC', 'ETH', 'BCY'].includes(crypto)) {
             throw new ApiError(400, 'Only BTC, ETH, and BCY are supported for automated payments');
->>>>>>> 2f68444 (connect with 2nd server and front)
         }
 
         const user = await User.findById(userId);
@@ -281,10 +274,7 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
         }
 
         // Create payment session with the payment gateway
-<<<<<<< HEAD
-=======
         console.log(`[TopupRequest] Creating payment session - Chain: ${crypto}, Amount: ${amount}, User: ${userId}`);
->>>>>>> 2f68444 (connect with 2nd server and front)
         const paymentSession = await paymentGatewayService.createPaymentSession(
             userId.toString(),
             crypto,
@@ -314,11 +304,8 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
             paymentExpiresAt: paymentSession.expiresAt ? new Date(paymentSession.expiresAt) : null
         });
 
-<<<<<<< HEAD
-=======
         console.log(`[TopupRequest] Topup request created with payment - Chain: ${crypto}, Amount: ${amount}, RequestId: ${topupRequest._id}, SessionId: ${paymentSession.sessionId}`);
 
->>>>>>> 2f68444 (connect with 2nd server and front)
         // Send confirmation email to user (optional - can be disabled for automated flow)
         sendTopupRequestSubmittedEmail(
             user.email,
@@ -379,11 +366,6 @@ export const getPaymentStatus = async (req, res, next) => {
                     }
                     await topupRequest.save();
                 }
-<<<<<<< HEAD
-            }
-        }
-
-=======
 
                 // Check if payment should be auto-approved:
                 // 1. Session status is 'confirmed' or 'completed', OR
@@ -472,7 +454,6 @@ export const getPaymentStatus = async (req, res, next) => {
             console.log(`[TopupRequest] Payment session timed out - Request ${topupRequest._id}, User: ${topupRequest.userId}, Created: ${createdAt.toISOString()}`);
         }
 
->>>>>>> 2f68444 (connect with 2nd server and front)
         res.status(200).json({
             success: true,
             data: {

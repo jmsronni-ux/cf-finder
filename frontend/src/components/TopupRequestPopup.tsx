@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, useRef } from 'react';
-import { X, DollarSign, CheckCircle, Copy, Loader2, AlertCircle, Clock } from 'lucide-react';
-=======
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, DollarSign, CheckCircle, Copy, Loader2, AlertCircle, ArrowRightLeft, Clock } from 'lucide-react';
->>>>>>> 2f68444 (connect with 2nd server and front)
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/utils/api';
@@ -16,33 +11,21 @@ interface TopupRequestPopupProps {
   onClose: () => void;
 }
 
-<<<<<<< HEAD
-type CryptoType = 'BTC' | 'ETH';
-=======
 type CryptoType = 'BTC' | 'ETH' | 'BCY';
->>>>>>> 2f68444 (connect with 2nd server and front)
 
 // Payment status from the backend
 type PaymentStatus = 'pending' | 'detected' | 'confirming' | 'confirmed' | 'completed' | 'expired' | 'failed';
 
 // UI states for the popup
-<<<<<<< HEAD
-type UIState = 'form' | 'awaiting_payment' | 'payment_detected' | 'confirming' | 'success' | 'error';
-=======
 type UIState = 'form' | 'awaiting_payment' | 'payment_detected' | 'confirming' | 'success' | 'error' | 'timeout';
->>>>>>> 2f68444 (connect with 2nd server and front)
 
 interface PaymentSession {
   requestId: string;
   sessionId: string;
   paymentAddress: string;
   cryptocurrency: CryptoType;
-<<<<<<< HEAD
-  amount: number;
-=======
   amount: number; // Amount in USD
   cryptoAmount: number; // Amount in selected crypto
->>>>>>> 2f68444 (connect with 2nd server and front)
   paymentStatus: PaymentStatus;
   confirmations: number;
   requiredConfirmations: number;
@@ -50,12 +33,6 @@ interface PaymentSession {
   expiresAt?: string;
 }
 
-<<<<<<< HEAD
-// Only BTC and ETH are supported for automated payments
-const cryptoOptions = [
-  { key: 'BTC' as CryptoType, name: 'BTC', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30' },
-  { key: 'ETH' as CryptoType, name: 'ETH', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30' },
-=======
 type InputMode = 'USD' | 'CRYPTO';
 
 // BTC, ETH, and BCY (test) are supported for automated payments
@@ -63,26 +40,18 @@ const cryptoOptions = [
   { key: 'BTC' as CryptoType, name: 'BTC', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30', confirmations: 3 },
   { key: 'ETH' as CryptoType, name: 'ETH', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30', confirmations: 12 },
   { key: 'BCY' as CryptoType, name: 'BCY (Test)', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30', confirmations: 1, isTest: true },
->>>>>>> 2f68444 (connect with 2nd server and front)
 ];
 
 const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }) => {
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoType>('BTC');
-<<<<<<< HEAD
-=======
   const [inputMode, setInputMode] = useState<InputMode>('USD');
->>>>>>> 2f68444 (connect with 2nd server and front)
   const [uiState, setUiState] = useState<UIState>('form');
   const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   const { token } = useAuth();
-<<<<<<< HEAD
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-=======
   const { ratesMap, loading: ratesLoading } = useConversionRates();
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -116,8 +85,6 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       return { usdAmount: usd, cryptoAmount: crypto };
     }
   }, [amount, inputMode, selectedCrypto, ratesMap, isTestCrypto]);
-
->>>>>>> 2f68444 (connect with 2nd server and front)
   // Clean up polling on unmount or close
   useEffect(() => {
     return () => {
@@ -133,10 +100,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       // Delay reset to allow close animation
       setTimeout(() => {
         setAmount('');
-<<<<<<< HEAD
-=======
         setInputMode('USD');
->>>>>>> 2f68444 (connect with 2nd server and front)
         setUiState('form');
         setPaymentSession(null);
         setError(null);
@@ -180,34 +144,6 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
             txHash: status.txHash
           } : null);
 
-<<<<<<< HEAD
-          // Update UI state based on payment status
-          switch (status.paymentStatus) {
-            case 'detected':
-              setUiState('payment_detected');
-              break;
-            case 'confirming':
-              setUiState('confirming');
-              break;
-            case 'confirmed':
-            case 'completed':
-              setUiState('success');
-              // Stop polling on success
-              if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-                pollingIntervalRef.current = null;
-              }
-              break;
-            case 'expired':
-            case 'failed':
-              setUiState('error');
-              setError('Payment session expired or failed. Please try again.');
-              if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-                pollingIntervalRef.current = null;
-              }
-              break;
-=======
           // Check for timeout: 0 confirmations after 1 hour from creation
           const confirmations = status.confirmations || 0;
           const createdAt = status.createdAt ? new Date(status.createdAt) : null;
@@ -267,7 +203,6 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 }
                 break;
             }
->>>>>>> 2f68444 (connect with 2nd server and front)
           }
         }
       } catch (err) {
@@ -308,12 +243,8 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           sessionId: data.data.sessionId,
           paymentAddress: data.data.paymentAddress,
           cryptocurrency: data.data.cryptocurrency,
-<<<<<<< HEAD
-          amount: numAmount,
-=======
           amount: usdAmount,
           cryptoAmount: cryptoAmount,
->>>>>>> 2f68444 (connect with 2nd server and front)
           paymentStatus: 'pending',
           confirmations: 0,
           requiredConfirmations: data.data.requiredConfirmations,
@@ -378,116 +309,13 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
         return renderSuccess();
       case 'error':
         return renderError();
-<<<<<<< HEAD
-=======
       case 'timeout':
         return renderTimeout();
->>>>>>> 2f68444 (connect with 2nd server and front)
       default:
         return renderForm();
     }
   };
 
-<<<<<<< HEAD
-  const renderForm = () => (
-    <>
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6 relative z-10">
-        <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
-          <DollarSign className="text-purple-400" size={24} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-white">Request Top-Up</h2>
-          <p className="text-gray-400 text-sm">Pay with BTC or ETH</p>
-        </div>
-      </div>
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-        {/* Amount Input */}
-        <div className="relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <DollarSign className="w-5 h-5" />
-          </div>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Enter amount in USD"
-            className="w-full bg-white/5 text-white pl-10 pr-4 py-3 rounded-lg border border-white/10 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 text-lg transition-all"
-            disabled={isLoading}
-            required
-          />
-        </div>
-
-        {/* Crypto Selector */}
-        <div className="space-y-2">
-          <label className="text-sm text-gray-400 font-medium">Select Cryptocurrency</label>
-          <div className="grid grid-cols-2 gap-2 p-1 bg-white/5 rounded-lg border border-white/10">
-            {cryptoOptions.map((crypto) => (
-              <button
-                key={crypto.key}
-                type="button"
-                onClick={() => setSelectedCrypto(crypto.key)}
-                disabled={isLoading}
-                className={`px-4 py-3 rounded-md font-medium transition-all flex flex-col items-center justify-center ${selectedCrypto === crypto.key
-                    ? `${crypto.bgColor} ${crypto.borderColor} border text-white`
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-              >
-                <img 
-                  src={crypto.icon} 
-                  alt={crypto.name} 
-                  className={`w-8 h-8 ${selectedCrypto === crypto.key ? '' : 'opacity-70'}`}
-                />
-                <span className="text-sm mt-2">{crypto.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Info Box */}
-        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-gray-300">
-              <p className="font-medium text-blue-400 mb-1">Automated Payment</p>
-              <p>After submitting, you'll receive a unique wallet address. Send your {selectedCrypto} to this address and your balance will be automatically updated after {selectedCrypto === 'BTC' ? '3' : '12'} confirmations.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Buttons */}
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isLoading}
-            className="flex-1 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="flex-1 px-6 py-3 bg-purple-600/40 hover:bg-purple-700 border border-purple-600 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              'Generate Address'
-            )}
-          </button>
-        </div>
-      </form>
-    </>
-  );
-=======
   const renderForm = () => {
     const selectedCryptoOption = cryptoOptions.find(c => c.key === selectedCrypto)!;
     
@@ -688,7 +516,6 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       </>
     );
   };
->>>>>>> 2f68444 (connect with 2nd server and front)
 
   const renderPaymentStatus = () => {
     if (!paymentSession) return null;
@@ -727,12 +554,6 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
 
         {/* Amount and Address */}
         <div className="space-y-4 mb-6">
-<<<<<<< HEAD
-          {/* Amount */}
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-            <div className="text-sm text-gray-400 mb-1">Amount</div>
-            <div className="text-2xl font-bold text-white">${paymentSession.amount} USD</div>
-=======
           {/* Crypto Amount - Primary */}
           <div className={`${cryptoInfo.bgColor} border ${cryptoInfo.borderColor} rounded-lg p-4`}>
             <div className="text-sm text-gray-400 mb-1">Send Exactly</div>
@@ -741,7 +562,6 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               {formatCryptoAmount(paymentSession.cryptoAmount, paymentSession.cryptocurrency)} {paymentSession.cryptocurrency}
             </div>
             <div className="text-sm text-gray-500 mt-1">≈ ${paymentSession.amount.toFixed(2)} USD</div>
->>>>>>> 2f68444 (connect with 2nd server and front)
           </div>
 
           {/* Address */}
@@ -883,8 +703,6 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     </div>
   );
 
-<<<<<<< HEAD
-=======
   const renderTimeout = () => (
     <div className="flex flex-col items-center justify-center py-8 text-center relative z-10">
       <div className="w-20 h-20 rounded-lg bg-orange-500/20 flex items-center justify-center mb-4 border border-orange-500/30">
@@ -933,7 +751,6 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     </div>
   );
 
->>>>>>> 2f68444 (connect with 2nd server and front)
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-lg w-full relative shadow-2xl max-h-[90vh] overflow-y-auto">
