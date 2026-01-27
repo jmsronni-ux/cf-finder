@@ -102,7 +102,7 @@ export const convertToUSD = (amount, fromCurrency, conversionRates = null) => {
   if (!amount || amount <= 0) return 0;
 
   const rates = conversionRates || DEFAULT_CONVERSION_RATES;
-  const rate = rates[fromCurrency];
+  const rate = rates[fromCurrency] || DEFAULT_CONVERSION_RATES[fromCurrency];
 
   if (!rate) {
     console.warn(`Unknown currency: ${fromCurrency}`);
@@ -134,7 +134,7 @@ export const convertFromUSD = (usdAmount, toCurrency, conversionRates = null) =>
   if (!usdAmount || usdAmount <= 0) return 0;
 
   const rates = conversionRates || DEFAULT_CONVERSION_RATES;
-  const rate = rates[toCurrency];
+  const rate = rates[toCurrency] || DEFAULT_CONVERSION_RATES[toCurrency];
 
   if (!rate || rate <= 0) {
     console.warn(`Unknown or invalid currency: ${toCurrency}`);
