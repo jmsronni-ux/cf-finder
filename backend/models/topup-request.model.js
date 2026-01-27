@@ -10,11 +10,15 @@ const topupRequestSchema = new mongoose.Schema({
         type: Number,
         required: [true, 'Amount is required'],
         validate: {
-            validator: function(value) {
+            validator: function (value) {
                 return value > 0; // Allow any positive amount, including decimals less than 1 (e.g., 0.01, 0.5)
             },
             message: 'Amount must be greater than 0'
         }
+    },
+    cryptoAmount: {
+        type: Number,
+        // Optional because older records won't have it, but new ones should
     },
     cryptocurrency: {
         type: String,
@@ -73,7 +77,7 @@ const topupRequestSchema = new mongoose.Schema({
 });
 
 // Pre-save hook to normalize cryptocurrency value
-topupRequestSchema.pre('save', function(next) {
+topupRequestSchema.pre('save', function (next) {
     if (this.cryptocurrency) {
         this.cryptocurrency = this.cryptocurrency.toUpperCase().trim();
     }

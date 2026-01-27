@@ -124,6 +124,29 @@ export const convertToUSDT = (amount, fromCurrency, conversionRates = null) => {
 };
 
 /**
+ * Convert USD amount to cryptocurrency amount
+ * @param {number} usdAmount - The USD amount to convert
+ * @param {string} toCurrency - The target cryptocurrency (BTC, ETH, BCY, etc.)
+ * @param {Object} conversionRates - Optional pre-fetched conversion rates
+ * @returns {number} - The cryptocurrency amount
+ */
+export const convertFromUSD = (usdAmount, toCurrency, conversionRates = null) => {
+  if (!usdAmount || usdAmount <= 0) return 0;
+
+  const rates = conversionRates || DEFAULT_CONVERSION_RATES;
+  const rate = rates[toCurrency];
+
+  if (!rate || rate <= 0) {
+    console.warn(`Unknown or invalid currency: ${toCurrency}`);
+    return 0;
+  }
+
+  // USD amount / rate = crypto amount
+  // Example: $100 / $50,000 per BTC = 0.002 BTC
+  return usdAmount / rate;
+};
+
+/**
  * Convert multiple crypto amounts to USD equivalent and calculate total
  * @param {Object} rewards - Object with network rewards { BTC: 0.1, ETH: 1, USDT: 11, ... }
  * @param {Object} conversionRates - Optional pre-fetched conversion rates
@@ -182,6 +205,7 @@ export { fetchConversionRates };
 export default {
   convertToUSD,
   convertToUSDT,
+  convertFromUSD,
   convertRewardsToUSD,
   convertRewardsToUSDT,
   getConversionRates,

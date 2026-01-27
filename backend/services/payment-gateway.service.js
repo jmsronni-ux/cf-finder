@@ -22,19 +22,34 @@ class PaymentGatewayService {
      * @param {Object} metadata - Optional metadata to attach to the session
      * @returns {Promise<Object>} Payment session details including address
      */
+    /**
+     * Map user-facing cryptocurrency names to payment gateway format
+     * @param {string} crypto - User-facing crypto name (BTC, ETH, BCY)
+     * @returns {string} Payment gateway format (btc, eth, btc_test, eth_test)
+     */
+    mapCryptocurrency(crypto) {
+        const mapping = {
+            'bcy': 'bcy_test',  // BlockCypher testnet
+            'btc': 'btc',       // Bitcoin mainnet
+            'eth': 'eth'        // Ethereum mainnet (when supported)
+        };
+        return mapping[crypto.toLowerCase()] || crypto.toLowerCase();
+    }
+
     async createPaymentSession(userId, cryptocurrency, amount, metadata = {}) {
         try {
             if (!this.baseUrl) {
                 throw new Error('Payment gateway URL not configured');
             }
 
-            const crypto = cryptocurrency.toLowerCase();
-            console.log(`[PaymentGateway] Creating payment session - Chain: ${crypto.toUpperCase()}, Amount: ${amount}, UserId: ${userId}`);
+            const crypto = this.mapCryptocurrency(cryptocurrency);
+            console.log(`[PaymentGateway] Creating payment session - Chain: ${cryptocurrency.toUpperCase()} (mapped to ${crypto}), Amount: ${amount}, UserId: ${userId}`);
 
             const response = await fetch(`${this.baseUrl}/address`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
                 },
                 body: JSON.stringify({
                     cryptocurrency: crypto,
@@ -89,7 +104,8 @@ class PaymentGatewayService {
             const response = await fetch(`${this.baseUrl}/session/${sessionId}`, {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
                 }
             });
 
@@ -130,7 +146,8 @@ class PaymentGatewayService {
             const response = await fetch(`${this.baseUrl}/session/${sessionId}`, {
                 method: 'DELETE',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
                 }
             });
 
@@ -169,6 +186,9 @@ class PaymentGatewayService {
 
             const response = await fetch(`${this.baseUrl}/health`, {
                 method: 'GET',
+                headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 timeout: 5000
             });
 

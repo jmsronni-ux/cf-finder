@@ -50,7 +50,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
   const [uiState, setUiState] = useState<UIState>('form');
   const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { token } = useAuth();
   const { ratesMap, loading: ratesLoading } = useConversionRates();
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -70,10 +70,10 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     // This allows testing without requiring conversion rate setup
     const hasRate = ratesMap[selectedCrypto];
     const testRate = selectedCrypto === 'BCY' ? 80000 : 1; // BCY: 1 BCY = 80000 USD, other test coins: 1:1
-    
+
     if (inputMode === 'USD') {
       const usd = numAmount;
-      const crypto = hasRate 
+      const crypto = hasRate
         ? convertUSDTToCrypto(usd, selectedCrypto, ratesMap)
         : (isTestCrypto ? usd / testRate : 0);
       return { usdAmount: usd, cryptoAmount: crypto };
@@ -109,8 +109,65 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           pollingIntervalRef.current = null;
         }
       }, 300);
+    } else {
+      // Check for existing pending request when opening
+      checkPendingRequest();
     }
   }, [isOpen]);
+
+  const checkPendingRequest = async () => {
+    try {
+      const response = await apiFetch('/topup-request/my-requests', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success && data.data.length > 0) {
+        // Find the most recent pending request with payment session
+        const pendingRequest = data.data.find((req: any) =>
+          req.status === 'pending' &&
+          req.paymentStatus &&
+          ['pending', 'detected', 'confirming'].includes(req.paymentStatus) &&
+          req.paymentSessionId
+        );
+
+        if (pendingRequest) {
+          // Check if it's expired
+          const createdAt = new Date(pendingRequest.createdAt);
+          const timeoutAt = new Date(createdAt.getTime() + 60 * 60 * 1000);
+          const isExpired = new Date() > timeoutAt;
+
+          if (!isExpired) {
+            setPaymentSession({
+              requestId: pendingRequest._id,
+              sessionId: pendingRequest.paymentSessionId,
+              paymentAddress: pendingRequest.paymentAddress,
+              cryptocurrency: pendingRequest.cryptocurrency,
+              amount: pendingRequest.amount,
+              cryptoAmount: pendingRequest.cryptoAmount || 0, // Fallback for old records
+              paymentStatus: pendingRequest.paymentStatus,
+              confirmations: pendingRequest.confirmations || 0,
+              requiredConfirmations: pendingRequest.requiredConfirmations || 1, // Default to 1 if missing
+              txHash: pendingRequest.txHash,
+              expiresAt: pendingRequest.paymentExpiresAt
+            });
+
+            setUiState(pendingRequest.paymentStatus === 'pending' ? 'awaiting_payment' :
+              pendingRequest.paymentStatus === 'detected' ? 'payment_detected' : 'confirming');
+
+            // Resume polling
+            startPolling(pendingRequest._id);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error checking pending requests:', err);
+    }
+  };
 
   // Generate QR code URL from address
   const getQrCodeUrl = (address: string) => {
@@ -136,7 +193,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
 
         if (response.ok && data.success) {
           const status = data.data;
-          
+
           setPaymentSession(prev => prev ? {
             ...prev,
             paymentStatus: status.paymentStatus,
@@ -149,10 +206,10 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           const createdAt = status.createdAt ? new Date(status.createdAt) : null;
           const timeoutAt = createdAt ? new Date(createdAt.getTime() + 60 * 60 * 1000) : null; // 1 hour after creation
           const hasTimedOut = timeoutAt && new Date() > timeoutAt;
-          
+
           // Timed out only if: 1 hour passed AND still 0 confirmations
-          const isTimedOut = (hasTimedOut && confirmations === 0) || 
-                             (status.paymentStatus === 'expired' && confirmations === 0);
+          const isTimedOut = (hasTimedOut && confirmations === 0) ||
+            (status.paymentStatus === 'expired' && confirmations === 0);
 
           // Check if topup request is approved (balance already updated)
           const requiredConfirmations = status.requiredConfirmations || 1;
@@ -222,6 +279,9 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     setIsLoading(true);
     setError(null);
 
+    const isCryptoInput = inputMode === 'CRYPTO';
+    const requestAmount = isCryptoInput ? parseFloat(amount) : parseFloat(amount); // Use raw input amount
+
     try {
       const response = await apiFetch('/topup-request/create-with-payment', {
         method: 'POST',
@@ -230,8 +290,9 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          amount: usdAmount,
-          cryptocurrency: selectedCrypto
+          amount: requestAmount,
+          cryptocurrency: selectedCrypto,
+          amountType: isCryptoInput ? 'crypto' : 'usd'
         }),
       });
 
@@ -243,8 +304,8 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           sessionId: data.data.sessionId,
           paymentAddress: data.data.paymentAddress,
           cryptocurrency: data.data.cryptocurrency,
-          amount: usdAmount,
-          cryptoAmount: cryptoAmount,
+          amount: data.data.usdAmount, // Use backend returned USD amount
+          cryptoAmount: data.data.cryptoAmount, // Use backend returned crypto amount
           paymentStatus: 'pending',
           confirmations: 0,
           requiredConfirmations: data.data.requiredConfirmations,
@@ -252,7 +313,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
         });
         setUiState('awaiting_payment');
         toast.success('Payment address generated!');
-        
+
         // Start polling for payment status
         startPolling(data.data.requestId);
       } else {
@@ -278,7 +339,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       toast.info('Payment cancelled');
       onClose();
     } catch (err) {
@@ -318,7 +379,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
 
   const renderForm = () => {
     const selectedCryptoOption = cryptoOptions.find(c => c.key === selectedCrypto)!;
-    
+
     return (
       <>
         {/* Header */}
@@ -345,16 +406,16 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                   onClick={() => setSelectedCrypto(crypto.key)}
                   disabled={isLoading}
                   className={`px-3 py-3 rounded-md font-medium transition-all flex flex-col items-center justify-center relative ${selectedCrypto === crypto.key
-                      ? `${crypto.bgColor} ${crypto.borderColor} border text-white`
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    ? `${crypto.bgColor} ${crypto.borderColor} border text-white`
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                 >
                   {crypto.isTest && (
                     <span className="absolute -top-1 -right-1 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold">TEST</span>
                   )}
-                  <img 
-                    src={crypto.icon} 
-                    alt={crypto.name} 
+                  <img
+                    src={crypto.icon}
+                    alt={crypto.name}
                     className={`w-7 h-7 ${selectedCrypto === crypto.key ? '' : 'opacity-70'} ${crypto.isTest ? 'hue-rotate-90' : ''}`}
                   />
                   <span className="text-xs mt-2">{crypto.name}</span>
@@ -379,11 +440,10 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                   }
                 }}
                 disabled={isLoading || ratesLoading}
-                className={`flex-1 px-4 py-2 rounded-md font-medium transition-all flex items-center justify-center gap-2 ${
-                  inputMode === 'USD'
-                    ? 'bg-purple-500/20 border border-purple-500/30 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
+                className={`flex-1 px-4 py-2 rounded-md font-medium transition-all flex items-center justify-center gap-2 ${inputMode === 'USD'
+                  ? 'bg-purple-500/20 border border-purple-500/30 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
               >
                 <DollarSign className="w-4 h-4" />
                 USD
@@ -400,11 +460,10 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                   }
                 }}
                 disabled={isLoading || ratesLoading}
-                className={`flex-1 px-4 py-2 rounded-md font-medium transition-all flex items-center justify-center gap-2 ${
-                  inputMode === 'CRYPTO'
-                    ? `${selectedCryptoOption.bgColor} ${selectedCryptoOption.borderColor} border text-white`
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
+                className={`flex-1 px-4 py-2 rounded-md font-medium transition-all flex items-center justify-center gap-2 ${inputMode === 'CRYPTO'
+                  ? `${selectedCryptoOption.bgColor} ${selectedCryptoOption.borderColor} border text-white`
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
               >
                 <img src={selectedCryptoOption.icon} alt={selectedCrypto} className="w-4 h-4" />
                 {selectedCrypto}
@@ -434,7 +493,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 required
               />
             </div>
-            
+
             {/* Conversion Display */}
             {parseFloat(amount) > 0 && (ratesMap[selectedCrypto] || isTestCrypto) && (
               <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg border border-white/10">
@@ -519,7 +578,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
 
   const renderPaymentStatus = () => {
     if (!paymentSession) return null;
-    
+
     const cryptoInfo = cryptoOptions.find(c => c.key === paymentSession.cryptocurrency)!;
     const isDetected = uiState === 'payment_detected' || uiState === 'confirming';
 
@@ -602,13 +661,13 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 </p>
               </div>
             </div>
-            
+
             {/* Progress bar */}
             <div className="mt-3 h-2 bg-white/10 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-green-500 transition-all duration-500"
-                style={{ 
-                  width: `${Math.min(100, (paymentSession.confirmations / paymentSession.requiredConfirmations) * 100)}%` 
+                style={{
+                  width: `${Math.min(100, (paymentSession.confirmations / paymentSession.requiredConfirmations) * 100)}%`
                 }}
               />
             </div>
@@ -658,7 +717,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
         Your top-up of <span className="text-green-500 font-bold">${paymentSession?.amount}</span> has been processed successfully.
       </p>
       <p className="text-gray-500 text-sm mb-6">Your balance has been updated.</p>
-      
+
       {paymentSession?.txHash && (
         <p className="text-xs text-gray-500 font-mono mb-4 break-all px-4">
           TX: {paymentSession.txHash}
@@ -681,7 +740,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       </div>
       <h2 className="text-2xl font-bold text-white mb-2">Payment Failed</h2>
       <p className="text-gray-400 mb-6">{error || 'Something went wrong with your payment.'}</p>
-      
+
       <div className="flex gap-3">
         <button
           onClick={onClose}
@@ -715,7 +774,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       <p className="text-gray-500 text-sm mb-6">
         If you sent a payment after the session expired, please contact support with your transaction details. Your request has been forwarded to an admin for manual review.
       </p>
-      
+
       {paymentSession && (
         <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-6 w-full max-w-sm text-left">
           <p className="text-sm text-gray-400 mb-2">
@@ -729,7 +788,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           </p>
         </div>
       )}
-      
+
       <div className="flex gap-3">
         <button
           onClick={onClose}

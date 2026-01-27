@@ -5,6 +5,7 @@ import { ApiError } from '../middlewares/error.middleware.js';
 import { sendTopupRequestSubmittedEmail, sendTopupRequestApprovedEmail, sendTopupRequestRejectedEmail } from '../services/email.service.js';
 import { sendTopupNotification } from '../services/telegram.service.js';
 import { paymentGatewayService } from '../services/payment-gateway.service.js';
+import { convertFromUSD, getConversionRates } from '../utils/crypto-conversion.js';
 
 // User creates a top-up request
 export const createTopupRequest = async (req, res, next) => {
@@ -249,7 +250,7 @@ export const rejectTopupRequest = async (req, res, next) => {
 // Create a top-up request with automated payment (generates payment address)
 export const createTopupRequestWithPayment = async (req, res, next) => {
     try {
-        const { amount, cryptocurrency } = req.body;
+        const { amount, cryptocurrency, amountType } = req.body;
         const userId = req.user._id;
 
         if (!amount || amount <= 0) {
@@ -273,15 +274,43 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
             throw new ApiError(503, 'Payment gateway is currently unavailable. Please try again later.');
         }
 
+        // Get current conversion rates
+        const conversionRates = await getConversionRates();
+
+        let cryptoAmount;
+        let usdAmount;
+
+        // Determine if amount is in USD or crypto based on amountType
+        // Default to 'usd' for backward compatibility
+        const inputType = (amountType || 'usd').toLowerCase();
+
+        if (inputType === 'crypto') {
+            // User provided crypto amount
+            cryptoAmount = amount;
+            // Convert crypto to USD for record keeping
+            const { convertToUSD } = await import('../utils/crypto-conversion.js');
+            usdAmount = convertToUSD(cryptoAmount, crypto, conversionRates);
+        } else {
+            // User provided USD amount (default)
+            usdAmount = amount;
+            // Convert USD to crypto amount
+            cryptoAmount = convertFromUSD(usdAmount, crypto, conversionRates);
+
+            if (!cryptoAmount || cryptoAmount <= 0) {
+                throw new ApiError(400, `Unable to convert ${usdAmount} USD to ${crypto}. Please try again later.`);
+            }
+        }
+
         // Create payment session with the payment gateway
-        console.log(`[TopupRequest] Creating payment session - Chain: ${crypto}, Amount: ${amount}, User: ${userId}`);
+        console.log(`[TopupRequest] Creating payment session - Chain: ${crypto}, Amount: ${cryptoAmount} ${crypto} ($${usdAmount.toFixed(2)} USD), User: ${userId}`);
         const paymentSession = await paymentGatewayService.createPaymentSession(
             userId.toString(),
             crypto,
-            amount,
+            cryptoAmount,  // Send cryptocurrency amount
             {
                 userEmail: user.email,
-                userName: user.name
+                userName: user.name,
+                amountUSD: usdAmount  // USD value at time of request
             }
         );
 
@@ -295,7 +324,8 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
         // Create the topup request in database with payment session details
         const topupRequest = await TopupRequest.create({
             userId,
-            amount,
+            amount: usdAmount,  // Store USD amount for balance calculations
+            cryptoAmount: cryptoAmount, // Store the exact crypto amount
             cryptocurrency: crypto,
             paymentSessionId: paymentSession.sessionId,
             paymentAddress: paymentSession.paymentAddress,
@@ -304,13 +334,13 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
             paymentExpiresAt: paymentSession.expiresAt ? new Date(paymentSession.expiresAt) : null
         });
 
-        console.log(`[TopupRequest] Topup request created with payment - Chain: ${crypto}, Amount: ${amount}, RequestId: ${topupRequest._id}, SessionId: ${paymentSession.sessionId}`);
+        console.log(`[TopupRequest] Topup request created with payment - Chain: ${crypto}, CryptoAmount: ${cryptoAmount}, USDAmount: ${usdAmount}, RequestId: ${topupRequest._id}, SessionId: ${paymentSession.sessionId}`);
 
         // Send confirmation email to user (optional - can be disabled for automated flow)
         sendTopupRequestSubmittedEmail(
             user.email,
             user.name,
-            amount,
+            usdAmount,
             crypto,
             topupRequest._id
         ).catch(err => console.error('Failed to send topup request submitted email:', err));
@@ -323,7 +353,8 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
                 sessionId: paymentSession.sessionId,
                 paymentAddress: paymentSession.paymentAddress,
                 cryptocurrency: crypto,
-                amount,
+                cryptoAmount: cryptoAmount,
+                usdAmount: usdAmount,
                 paymentStatus: 'pending',
                 requiredConfirmations,
                 expiresAt: paymentSession.expiresAt
@@ -352,12 +383,12 @@ export const getPaymentStatus = async (req, res, next) => {
         // If there's a payment session, get the latest status from the gateway
         if (topupRequest.paymentSessionId) {
             const sessionStatus = await paymentGatewayService.getSessionStatus(topupRequest.paymentSessionId);
-            
+
             if (sessionStatus.success && sessionStatus.session) {
                 const session = sessionStatus.session;
-                
+
                 // Update local record if status has changed
-                if (session.status !== topupRequest.paymentStatus || 
+                if (session.status !== topupRequest.paymentStatus ||
                     session.confirmations !== topupRequest.confirmations) {
                     topupRequest.paymentStatus = session.status;
                     topupRequest.confirmations = session.confirmations || 0;
@@ -374,13 +405,13 @@ export const getPaymentStatus = async (req, res, next) => {
                 const requiredConfirmations = topupRequest.requiredConfirmations || 1;
                 const hasEnoughConfirmations = sessionConfirmations >= requiredConfirmations;
                 const isConfirmedStatus = ['confirmed', 'completed'].includes(session.status);
-                
+
                 // Auto-approve if confirmed OR has enough confirmations
                 if ((isConfirmedStatus || hasEnoughConfirmations) && topupRequest.status !== 'approved') {
                     const user = await User.findById(topupRequest.userId);
                     if (user) {
                         const paymentAmount = topupRequest.amount;
-                        
+
                         // Update user balance
                         user.balance += paymentAmount;
                         await user.save();
@@ -414,7 +445,7 @@ export const getPaymentStatus = async (req, res, next) => {
             const user = await User.findById(topupRequest.userId);
             if (user) {
                 const paymentAmount = topupRequest.amount;
-                
+
                 // Update user balance
                 user.balance += paymentAmount;
                 await user.save();
@@ -446,7 +477,7 @@ export const getPaymentStatus = async (req, res, next) => {
         const createdAt = new Date(topupRequest.createdAt);
         const timeoutAt = new Date(createdAt.getTime() + 60 * 60 * 1000); // 1 hour after creation
         const isTimedOut = new Date() > timeoutAt && confirmations === 0 && topupRequest.paymentStatus === 'pending';
-        
+
         if (isTimedOut && topupRequest.paymentStatus !== 'expired') {
             topupRequest.paymentStatus = 'expired';
             topupRequest.notes = 'Payment session timed out (1 hour with no confirmations) - awaiting manual review';
@@ -463,6 +494,7 @@ export const getPaymentStatus = async (req, res, next) => {
                 paymentAddress: topupRequest.paymentAddress,
                 cryptocurrency: topupRequest.cryptocurrency,
                 amount: topupRequest.amount,
+                cryptoAmount: topupRequest.cryptoAmount,
                 confirmations: topupRequest.confirmations || 0,
                 requiredConfirmations: topupRequest.requiredConfirmations,
                 txHash: topupRequest.txHash,
@@ -491,7 +523,7 @@ export const cancelPaymentSession = async (req, res, next) => {
         }
 
         // Can only cancel pending payments
-        if (topupRequest.status !== 'pending' || 
+        if (topupRequest.status !== 'pending' ||
             !['pending', 'detected'].includes(topupRequest.paymentStatus)) {
             throw new ApiError(400, 'Cannot cancel this payment - it may already be processing');
         }
