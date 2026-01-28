@@ -21,7 +21,6 @@ import { apiFetch } from '../utils/api';
 import { useLevelData } from '../hooks/useLevelData';
 import { useNetworkRewards } from '../hooks/useNetworkRewards';
 import { PulsatingButton } from './ui/pulsating-button';
-import { Download, RefreshCw, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNodeAnimation } from '../hooks/useNodeAnimation';
 import { usePendingStatus } from '../hooks/usePendingStatus';
@@ -36,6 +35,7 @@ interface FlowCanvasProps {
   onNodeAppear?: (nodeId: string) => void;
   externalSelectedNodeId?: string | null;
   editingTemplate?: string;
+  onCanvasUpdate?: (nodes: any[], edges: any[]) => void;
 }
 
 // Helper function to get level data based on level number
@@ -50,8 +50,8 @@ const nodeTypes = {
   fingerprintNode: FingerprintNode,
 };
 
-const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId, editingTemplate = 'A' }) => {
-  const { levels, loading: levelsLoading, refetch: refetchLevels } = useLevelData(editingTemplate);
+const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId, editingTemplate = 'A', onCanvasUpdate }) => {
+  const { levels, loading: levelsLoading } = useLevelData(editingTemplate);
 
   // Debug levels data changes
   useEffect(() => {
@@ -61,12 +61,17 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [currentLevel, setCurrentLevel] = useState(1);
+
+  // Emit nodes/edges changes to parent component (for admin save functionality)
+  useEffect(() => {
+    if (onCanvasUpdate) {
+      onCanvasUpdate(nodes, edges);
+    }
+  }, [nodes, edges, onCanvasUpdate]);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [levelData, setLevelData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<Set<number>>(new Set());
-  const [downloadLevel, setDownloadLevel] = useState<number | 'all'>('all');
-  const [isSavingToDatabase, setIsSavingToDatabase] = useState(false);
   const [nextTierInfo, setNextTierInfo] = useState<{ tier: number; name: string } | null>(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [animationStartedForLevel, setAnimationStartedForLevel] = useState<number | null>(null);
@@ -508,202 +513,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   }, [setNodes, selectedNode]);
 
-  const savePositionsToJSON = useCallback(() => {
-    const MAX_LEVEL = 5;
-
-    const downloadForLevel = (levelNum: number) => {
-      const filteredNodes = nodes
-        .filter((node: any) => {
-          const nodeLevel = node?.data?.level ?? 1;
-          return nodeLevel <= levelNum;
-        })
-        .map((node: any) => {
-          const cleanNode: any = {
-            id: node.id,
-            type: node.type,
-            data: {
-              label: node.data.label,
-              logo: node.data.logo,
-              handles: node.data.handles,
-            },
-            position: {
-              x: Math.round(node.position.x),
-              y: Math.round(node.position.y)
-            },
-            sourcePosition: node.sourcePosition,
-            targetPosition: node.targetPosition,
-            hidden: node.hidden,
-            width: node.width,
-            height: node.height,
-          };
-
-          if (node.type === 'fingerprintNode' && node.data.transaction) {
-            cleanNode.data.transaction = node.data.transaction;
-            cleanNode.data.level = node.data.level;
-            cleanNode.data.pending = node.data.pending;
-          }
-
-          if (node.selected !== undefined) cleanNode.selected = node.selected;
-          if (node.positionAbsolute) cleanNode.positionAbsolute = node.positionAbsolute;
-          if (node.dragging !== undefined) cleanNode.dragging = node.dragging;
-
-          return cleanNode;
-        });
-
-      const filteredNodeIds = new Set(filteredNodes.map((n: any) => n.id));
-      const filteredEdges = edges
-        .filter((edge: any) =>
-          filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
-        )
-        .map((edge: any) => {
-          const cleanEdge: any = {
-            id: edge.id,
-            source: edge.source,
-            target: edge.target,
-          };
-
-          if (edge.sourceHandle) cleanEdge.sourceHandle = edge.sourceHandle;
-          if (edge.targetHandle) cleanEdge.targetHandle = edge.targetHandle;
-          if (edge.style) cleanEdge.style = edge.style;
-          if (edge.animated !== undefined) cleanEdge.animated = edge.animated;
-
-          return cleanEdge;
-        });
-
-      const updatedLevelData = {
-        nodes: filteredNodes,
-        edges: filteredEdges
-      };
-
-      const dataStr = JSON.stringify(updatedLevelData, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-      const exportFileDefaultName = `level-${levelNum}-updated.json`;
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileDefaultName);
-      linkElement.click();
-      toast.success(`Downloaded level ${levelNum} JSON with ${filteredNodes.length} nodes`);
-    };
-
-    if (downloadLevel === 'all') {
-      for (let lvl = 1; lvl <= MAX_LEVEL; lvl++) {
-        downloadForLevel(lvl);
-      }
-    } else {
-      downloadForLevel(downloadLevel);
-    }
-  }, [nodes, edges, downloadLevel]);
-
-  const saveLevelToDatabase = useCallback(async () => {
-    if (!user?.isAdmin || !token) {
-      toast.error('Admin access required');
-      return;
-    }
-
-    setIsSavingToDatabase(true);
-    try {
-      const MAX_LEVEL = 5;
-
-      const saveOneLevel = async (levelNum: number) => {
-        const filteredNodes = nodes
-          .filter((node: any) => {
-            const nodeLevel = node?.data?.level ?? 1;
-            return nodeLevel <= levelNum;
-          })
-          .map((node: any) => {
-            const cleanNode: any = {
-              id: node.id,
-              type: node.type,
-              data: {
-                label: node.data.label,
-                logo: node.data.logo,
-                handles: node.data.handles,
-              },
-              position: {
-                x: Math.round(node.position.x),
-                y: Math.round(node.position.y)
-              },
-              sourcePosition: node.sourcePosition,
-              targetPosition: node.targetPosition,
-              hidden: node.hidden,
-              width: node.width,
-              height: node.height,
-            };
-
-            if (node.type === 'fingerprintNode' && node.data.transaction) {
-              cleanNode.data.transaction = node.data.transaction;
-              cleanNode.data.level = node.data.level;
-              cleanNode.data.pending = node.data.pending;
-            }
-
-            if (node.selected !== undefined) cleanNode.selected = node.selected;
-            if (node.positionAbsolute) cleanNode.positionAbsolute = node.positionAbsolute;
-            if (node.dragging !== undefined) cleanNode.dragging = node.dragging;
-
-            return cleanNode;
-          });
-
-        const filteredNodeIds = new Set(filteredNodes.map((n: any) => n.id));
-        const filteredEdges = edges
-          .filter((edge: any) =>
-            filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
-          )
-          .map((edge: any) => {
-            const cleanEdge: any = {
-              id: edge.id,
-              source: edge.source,
-              target: edge.target,
-            };
-
-            if (edge.sourceHandle) cleanEdge.sourceHandle = edge.sourceHandle;
-            if (edge.targetHandle) cleanEdge.targetHandle = edge.targetHandle;
-            if (edge.style) cleanEdge.style = edge.style;
-            if (edge.animated !== undefined) cleanEdge.animated = edge.animated;
-
-            return cleanEdge;
-          });
-
-        const response = await apiFetch(`/level/${levelNum}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            name: `Level ${levelNum}`,
-            description: `Animation level ${levelNum}`,
-            nodes: filteredNodes,
-            edges: filteredEdges,
-            templateName: editingTemplate
-          })
-        });
-
-        const data = await response.json();
-        if (!response.ok || !data.success) {
-          throw new Error(data.message || `Failed to save level ${levelNum}`);
-        }
-        return { nodesCount: filteredNodes.length, edgesCount: filteredEdges.length };
-      };
-
-      if (downloadLevel === 'all') {
-        for (let lvl = 1; lvl <= MAX_LEVEL; lvl++) {
-          await saveOneLevel(lvl);
-        }
-        toast.success('All levels saved to database');
-        refetchLevels();
-      } else {
-        const result = await saveOneLevel(downloadLevel);
-        toast.success(`Level ${downloadLevel} saved to database! (${result.nodesCount} nodes, ${result.edgesCount} edges)`);
-        refetchLevels();
-      }
-    } catch (error) {
-      console.error('Error saving level to database:', error);
-      toast.error('An error occurred while saving to database');
-    } finally {
-      setIsSavingToDatabase(false);
-    }
-  }, [nodes, edges, downloadLevel, user, token, refetchLevels]);
-
   const handleAddChildNode = useCallback((parentNodeId: string) => {
     const parentNode = nodes.find((n: any) => n.id === parentNodeId);
     // Allow admins to create child nodes from both cryptoNode and fingerprintNode
@@ -842,66 +651,15 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
         {/* Data Visual Component - Admin users see edit panel, regular users see details panel */}
         {user?.isAdmin ? (
-          <>
-            <div className="absolute top-6 right-[17.5rem] flex z-30 items-center gap-2">
-              <select
-                value={downloadLevel}
-                onChange={(e) => setDownloadLevel(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-                className="bg-gray-800 text-white font-medium px-3 h-9 rounded-lg border border-gray-600 focus:border-gray-500 focus:outline-none text-sm"
-              >
-                <option value="all">All Levels</option>
-                <option value={1}>Level 1</option>
-                <option value={2}>Level 2</option>
-                <option value={3}>Level 3</option>
-                <option value={4}>Level 4</option>
-                <option value={5}>Level 5</option>
-              </select>
-              <button
-                onClick={saveLevelToDatabase}
-                disabled={isSavingToDatabase}
-                className="flex items-center gap-2 text-white font-medium px-4 h-9 rounded-lg bg-gradient-to-t from-green-800 to-green-700 hover:from-green-700 hover:to-green-600 transition-all duration-200 border border-green-600 hover:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Save current level to database"
-              >
-                {isSavingToDatabase ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save
-                  </>
-                )}
-              </button>
-              <button
-                onClick={savePositionsToJSON}
-                className="flex items-center gap-2 text-white font-medium px-4 h-9 rounded-lg bg-gradient-to-t from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 transition-all duration-200 border border-gray-600 hover:border-gray-500"
-                title="Download level as JSON file"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  refetchLevels();
-                  toast.success('Level data refreshed!');
-                }}
-                className="flex items-center gap-2 text-white font-medium px-4 h-9 rounded-lg bg-gradient-to-t from-blue-800 to-blue-700 hover:from-blue-700 hover:to-blue-600 transition-all duration-200 border border-blue-600 hover:border-blue-500"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </button>
-            </div>
-            <DataVisual
-              selectedNode={selectedNode}
-              onUpdateNodeData={updateNodeData}
-              onClose={() => setSelectedNode(null)}
-              onAddChildNode={handleAddChildNode}
-              onDeleteNode={handleDeleteNode}
-              canDelete={canDeleteSelectedNode}
-              isAdmin={true}
-            />
-          </>
+          <DataVisual
+            selectedNode={selectedNode}
+            onUpdateNodeData={updateNodeData}
+            onClose={() => setSelectedNode(null)}
+            onAddChildNode={handleAddChildNode}
+            onDeleteNode={handleDeleteNode}
+            canDelete={canDeleteSelectedNode}
+            isAdmin={true}
+          />
         ) : (
           <NodeDetailsPanel
             selectedNode={selectedNode}

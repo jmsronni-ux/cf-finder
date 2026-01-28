@@ -43,7 +43,7 @@ export const PulsatingButton = React.forwardRef<
         case "verifyWallet":
           return "bg-[#1F4F2B] hover:bg-[#2F6F3B] border border-green-500/50 shadow-lg";
         case "withdraw":
-          return "bg-yellow-600/40 hover:bg-yellow-700 border border-yellow-600";
+          return "bg-[#5A4014] hover:bg-yellow-700 border border-yellow-600";
         case "loading":
           return "bg-[#2F1746] border border-purple-500 cursor-wait";
         case "start":

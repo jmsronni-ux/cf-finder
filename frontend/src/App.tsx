@@ -9,7 +9,6 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import Dashboard from "./pages/Dashboard";
 import UserProfile from "./pages/UserProfile";
 import AdminAllRequests from "./pages/admin/AdminAllRequests";
-import AdminLevelManagement from "./pages/admin/AdminLevelManagement";
 import AdminGlobalSettings from "./pages/admin/AdminGlobalSettings";
 import AdminVerifications from "./pages/admin/AdminVerifications";
 import AdditionalVerification from "./pages/AdditionalVerification";
@@ -61,11 +60,6 @@ function App() {
         <Route path="/admin/wallet-verifications" element={
           <ProtectedRoute>
             <AdminVerifications />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/level-management" element={
-          <ProtectedRoute>
-            <AdminLevelManagement />
           </ProtectedRoute>
         } />
         <Route path="/admin/global-settings" element={

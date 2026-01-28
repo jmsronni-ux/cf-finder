@@ -4,7 +4,6 @@ import {
   Users,
   Crown,
   Coins,
-  Layers,
   ChevronRight,
   Home,
   Settings,
@@ -44,13 +43,6 @@ const AdminNavigation: React.FC = () => {
       icon: <ShieldCheck className="w-5 h-5" />,
       description: 'Wallet & additional verifications',
       color: 'from-teal-500 to-teal-600'
-    },
-    {
-      name: 'Level Management',
-      path: '/admin/level-management',
-      icon: <Layers className="w-5 h-5" />,
-      description: 'Configure levels',
-      color: 'from-cyan-500 to-cyan-600'
     }
   ];
 

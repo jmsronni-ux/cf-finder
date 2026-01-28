@@ -10,11 +10,11 @@ import { CryptoTransactionTable } from "@/components/CryptoTransactionTable";
 import AddWalletPopup from "@/components/AddWalletPopup";
 import InsufficientBalancePopup from "@/components/InsufficientBalancePopup";
 import AnimatedCounter from "@/components/AnimatedCounter";
+import AdminTemplateControls from "@/components/AdminTemplateControls";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLevelData } from "@/hooks/useLevelData";
 import type { CryptoTransaction } from "@/components/CryptoTransactionTable";
 import { apiFetch } from "@/utils/api";
-import { Plus } from "lucide-react";
 
 interface TransactionWithPending extends CryptoTransaction {
   nodeId: string;
@@ -81,6 +81,16 @@ const Dashboard = () => {
   // Initialize transactions as empty, they will be added as nodes appear
   const [transactions, setTransactions] = useState<TransactionWithPending[]>([]);
   const [completedPendingNodes, setCompletedPendingNodes] = useState<Set<string>>(new Set());
+
+  // Store current canvas data for admin save functionality
+  const [currentNodes, setCurrentNodes] = useState<any[]>([]);
+  const [currentEdges, setCurrentEdges] = useState<any[]>([]);
+
+  // Callback to receive canvas updates from FlowCanvas
+  const handleCanvasUpdate = useCallback((nodes: any[], edges: any[]) => {
+    setCurrentNodes(nodes);
+    setCurrentEdges(edges);
+  }, []);
 
   // All nodes from current level (for levelTotal calculation)
   // All transaction amounts are already in USD from backend
@@ -338,45 +348,24 @@ const Dashboard = () => {
       <ResizablePanelGroup direction="vertical" className="flex-1">
         <ResizablePanel>
           {user?.isAdmin && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[20] flex items-center gap-3 bg-black/60 backdrop-blur-md border border-white/10 p-2 rounded-xl shadow-2xl">
-              <div className="flex items-center gap-2 px-3 py-1 border-r border-white/10">
-                <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Editor Mode</span>
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              </div>
-              <select
-                value={editingTemplate}
-                onChange={(e) => setEditingTemplate(e.target.value)}
-                className="bg-transparent text-sm font-semibold focus:outline-none cursor-pointer hover:text-purple-400 transition-colors mr-1"
-              >
-                {availableTemplates.map(t => (
-                  <option key={t} value={t} className="bg-neutral-900">Template {t}</option>
-                ))}
-                {!availableTemplates.includes('A') && (
-                  <option value="A" className="bg-neutral-900">Template A</option>
-                )}
-              </select>
-              <button
-                onClick={() => {
-                  const name = prompt('Enter new template name (e.g. B, Seasonal):');
-                  if (name && name.trim()) {
-                    const newName = name.trim();
-                    if (!availableTemplates.includes(newName)) {
-                      setAvailableTemplates(prev => [...prev, newName].sort());
-                    }
-                    setEditingTemplate(newName);
-                  }
-                }}
-                className="p-1 hover:bg-white/10 rounded transition-colors text-purple-400"
-                title="Start new template"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
+            <AdminTemplateControls
+              editingTemplate={editingTemplate}
+              availableTemplates={availableTemplates}
+              onTemplateChange={setEditingTemplate}
+              onTemplatesUpdate={setAvailableTemplates}
+              nodes={currentNodes}
+              edges={currentEdges}
+              onSaveComplete={() => {
+                // Refetch levels after successful save
+                // The useLevelData hook will automatically refetch when needed
+              }}
+            />
           )}
           <FlowCanvas
             onNodeAppear={handleNodeAppear}
             externalSelectedNodeId={selectedNodeId}
             editingTemplate={editingTemplate}
+            onCanvasUpdate={handleCanvasUpdate}
           />
         </ResizablePanel>
 
