@@ -11,7 +11,7 @@ interface TopupRequestPopupProps {
   onClose: () => void;
 }
 
-type CryptoType = 'BTC' | 'ETH' | 'BCY';
+type CryptoType = 'BTC' | 'ETH' | 'BCY' | 'BETH';
 
 // Payment status from the backend
 type PaymentStatus = 'pending' | 'detected' | 'confirming' | 'confirmed' | 'completed' | 'expired' | 'failed';
@@ -35,11 +35,12 @@ interface PaymentSession {
 
 type InputMode = 'USD' | 'CRYPTO';
 
-// BTC, ETH, and BCY (test) are supported for automated payments
+// BTC, ETH, BCY (test), and BETH (test) are supported for automated payments
 const cryptoOptions = [
   { key: 'BTC' as CryptoType, name: 'BTC', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30', confirmations: 3 },
   { key: 'ETH' as CryptoType, name: 'ETH', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30', confirmations: 12 },
   { key: 'BCY' as CryptoType, name: 'BCY (Test)', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30', confirmations: 1, isTest: true },
+  { key: 'BETH' as CryptoType, name: 'BETH (Test)', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-purple-500', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/30', confirmations: 1, isTest: true },
 ];
 
 const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }) => {
@@ -69,7 +70,8 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     // For test cryptocurrencies, use a default test rate if no rate is configured
     // This allows testing without requiring conversion rate setup
     const hasRate = ratesMap[selectedCrypto];
-    const testRate = selectedCrypto === 'BCY' ? 80000 : 1; // BCY: 1 BCY = 80000 USD, other test coins: 1:1
+    // BCY: 1 BCY = 80000 USD, BETH: 1 BETH = 3000 USD (same as ETH), other test coins: 1:1
+    const testRate = selectedCrypto === 'BCY' ? 80000 : selectedCrypto === 'BETH' ? 3000 : 1;
 
     if (inputMode === 'USD') {
       const usd = numAmount;

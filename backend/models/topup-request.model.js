@@ -22,7 +22,7 @@ const topupRequestSchema = new mongoose.Schema({
     },
     cryptocurrency: {
         type: String,
-        enum: ['BTC', 'USDT', 'ETH', 'BCY'],
+        enum: ['BTC', 'USDT', 'ETH', 'BCY', 'BETH'],
         default: 'BTC'
     },
     status: {

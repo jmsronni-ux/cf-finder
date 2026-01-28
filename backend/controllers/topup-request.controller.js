@@ -257,10 +257,10 @@ export const createTopupRequestWithPayment = async (req, res, next) => {
             throw new ApiError(400, 'Invalid amount');
         }
 
-        // BTC, ETH, and BCY (BlockCypher test) are supported for automated payments
+        // BTC, ETH, BCY (BlockCypher test), and BETH (BlockCypher Ethereum test) are supported for automated payments
         const crypto = (cryptocurrency || 'BTC').toUpperCase();
-        if (!['BTC', 'ETH', 'BCY'].includes(crypto)) {
-            throw new ApiError(400, 'Only BTC, ETH, and BCY are supported for automated payments');
+        if (!['BTC', 'ETH', 'BCY', 'BETH'].includes(crypto)) {
+            throw new ApiError(400, 'Only BTC, ETH, BCY, and BETH are supported for automated payments');
         }
 
         const user = await User.findById(userId);

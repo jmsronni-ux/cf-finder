@@ -5,7 +5,7 @@ const conversionRateSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    enum: ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL', 'BCY']
+    enum: ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL', 'BCY', 'BETH']
     // Note: unique: true automatically creates an index, so we don't need the explicit index below
   },
   rateToUSD: {

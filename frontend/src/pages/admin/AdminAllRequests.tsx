@@ -93,7 +93,7 @@ interface TopupRequestData {
     managedBy?: string | null;
   } | null;
   amount: number;
-  cryptocurrency?: 'BTC' | 'USDT' | 'ETH' | 'BCY';
+  cryptocurrency?: 'BTC' | 'USDT' | 'ETH' | 'BCY' | 'BETH';
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
   processedAt?: string;

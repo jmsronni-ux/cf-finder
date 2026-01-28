@@ -9,7 +9,8 @@ const DEFAULT_CONVERSION_RATES = {
   USDT: 1,
   BNB: 300,
   SOL: 100,
-  BCY: 80000  // BlockCypher test chain: 1 BCY = 80000 USD
+  BCY: 80000,  // BlockCypher Bitcoin test chain: 1 BCY = 80000 USD
+  BETH: 3000  // BlockCypher Ethereum test chain: 1 BETH = 3000 USD (same as ETH)
 };
 
 // In-memory cache for conversion rates

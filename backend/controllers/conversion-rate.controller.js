@@ -10,7 +10,8 @@ const DEFAULT_RATES = {
   USDT: 1,
   BNB: 300,
   SOL: 100,
-  BCY: 80000  // BlockCypher test chain: 1 BCY = 80000 USD
+  BCY: 80000,  // BlockCypher Bitcoin test chain: 1 BCY = 80000 USD
+  BETH: 3000  // BlockCypher Ethereum test chain: 1 BETH = 3000 USD (same as ETH)
 };
 
 // Get all conversion rates
@@ -151,7 +152,7 @@ export const updateConversionRates = async (req, res, next) => {
 
     // If we have rates to update (either from body or real-time)
     if (ratesToUpdate) {
-      const validNetworks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL', 'BCY'];
+      const validNetworks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL', 'BCY', 'BETH'];
       const rateEntries = Object.entries(ratesToUpdate);
 
       // Validate all networks and rates

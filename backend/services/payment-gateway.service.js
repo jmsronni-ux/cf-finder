@@ -24,12 +24,13 @@ class PaymentGatewayService {
      */
     /**
      * Map user-facing cryptocurrency names to payment gateway format
-     * @param {string} crypto - User-facing crypto name (BTC, ETH, BCY)
-     * @returns {string} Payment gateway format (btc, eth, btc_test, eth_test)
+     * @param {string} crypto - User-facing crypto name (BTC, ETH, BCY, BETH)
+     * @returns {string} Payment gateway format (btc, eth, bcy, beth)
      */
     mapCryptocurrency(crypto) {
         const mapping = {
-            'bcy': 'bcy_test',  // BlockCypher testnet
+            'bcy': 'bcy',       // BlockCypher Bitcoin testnet
+            'beth': 'beth',     // BlockCypher Ethereum testnet
             'btc': 'btc',       // Bitcoin mainnet
             'eth': 'eth'        // Ethereum mainnet (when supported)
         };
@@ -202,7 +203,7 @@ class PaymentGatewayService {
     /**
      * Get confirmation requirements for a cryptocurrency
      * 
-     * @param {string} cryptocurrency - 'btc', 'eth', or 'bcy'
+     * @param {string} cryptocurrency - 'btc', 'eth', 'bcy', or 'beth'
      * @returns {number} Required confirmations
      */
     getRequiredConfirmations(cryptocurrency) {
@@ -211,7 +212,8 @@ class PaymentGatewayService {
         const confirmations = {
             btc: 3,   // ~30 minutes
             eth: 12,  // ~3 minutes
-            bcy: 1    // BlockCypher test chain - 1 confirmation for testing
+            bcy: 1,   // BlockCypher Bitcoin test chain - 1 confirmation for testing
+            beth: 1   // BlockCypher Ethereum test chain - 1 confirmation for testing
         };
         return confirmations[crypto] || 3;
     }
