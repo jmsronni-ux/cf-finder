@@ -52,13 +52,26 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
   const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { ratesMap, loading: ratesLoading } = useConversionRates();
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Filter crypto options based on admin status - only show test cryptos to admins
+  const availableCryptoOptions = useMemo(() => {
+    return cryptoOptions.filter(crypto => !crypto.isTest || user?.isAdmin);
+  }, [user?.isAdmin]);
+
   // Get selected crypto option to check if it's a test network
-  const selectedCryptoOption = cryptoOptions.find(c => c.key === selectedCrypto)!;
+  const selectedCryptoOption = availableCryptoOptions.find(c => c.key === selectedCrypto) || availableCryptoOptions[0];
   const isTestCrypto = selectedCryptoOption?.isTest || false;
+
+  // Ensure selected crypto is valid when available options change
+  useEffect(() => {
+    const isCurrentCryptoAvailable = availableCryptoOptions.some(c => c.key === selectedCrypto);
+    if (!isCurrentCryptoAvailable && availableCryptoOptions.length > 0) {
+      setSelectedCrypto(availableCryptoOptions[0].key);
+    }
+  }, [availableCryptoOptions, selectedCrypto]);
 
   // Calculate converted amounts based on input mode
   const { usdAmount, cryptoAmount } = useMemo(() => {
@@ -380,7 +393,12 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
   };
 
   const renderForm = () => {
-    const selectedCryptoOption = cryptoOptions.find(c => c.key === selectedCrypto)!;
+    const selectedCryptoOption = availableCryptoOptions.find(c => c.key === selectedCrypto) || availableCryptoOptions[0];
+
+    // Calculate grid columns based on available cryptos
+    const gridCols = availableCryptoOptions.length <= 2 ? 'grid-cols-2' :
+                     availableCryptoOptions.length === 3 ? 'grid-cols-3' :
+                     'grid-cols-4';
 
     return (
       <>
@@ -390,7 +408,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
             <DollarSign className="text-purple-400" size={24} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">Request Top-Up</h2>
+            <h2 className="text-2xl font-bold text-white">Top-Up</h2>
             <p className="text-gray-400 text-sm">Pay with BTC or ETH</p>
           </div>
         </div>
@@ -400,8 +418,8 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           {/* Crypto Selector - Moved up */}
           <div className="space-y-2">
             <label className="text-sm text-gray-400 font-medium">Select Cryptocurrency</label>
-            <div className="grid grid-cols-3 gap-2 p-1 bg-white/5 rounded-lg border border-white/10">
-              {cryptoOptions.map((crypto) => (
+            <div className={`grid ${gridCols} gap-2 p-1 bg-white/5 rounded-lg border border-white/10`}>
+              {availableCryptoOptions.map((crypto) => (
                 <button
                   key={crypto.key}
                   type="button"
@@ -426,55 +444,9 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
             </div>
           </div>
 
-          {/* Input Mode Toggle */}
+          {/* Amount Input with integrated mode toggle and conversion display */}
           <div className="space-y-2">
-            <label className="text-sm text-gray-400 font-medium">Enter Amount In</label>
-            <div className="flex p-1 bg-white/5 rounded-lg border border-white/10">
-              <button
-                type="button"
-                onClick={() => {
-                  if (inputMode !== 'USD') {
-                    // Convert current crypto amount to USD when switching
-                    if (cryptoAmount > 0) {
-                      setAmount(usdAmount.toFixed(2));
-                    }
-                    setInputMode('USD');
-                  }
-                }}
-                disabled={isLoading || ratesLoading}
-                className={`flex-1 px-4 py-2 rounded-md font-medium transition-all flex items-center justify-center gap-2 ${inputMode === 'USD'
-                  ? 'bg-purple-500/20 border border-purple-500/30 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-              >
-                <DollarSign className="w-4 h-4" />
-                USD
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (inputMode !== 'CRYPTO') {
-                    // Convert current USD amount to crypto when switching
-                    if (usdAmount > 0) {
-                      setAmount(formatCryptoAmount(cryptoAmount, selectedCrypto));
-                    }
-                    setInputMode('CRYPTO');
-                  }
-                }}
-                disabled={isLoading || ratesLoading}
-                className={`flex-1 px-4 py-2 rounded-md font-medium transition-all flex items-center justify-center gap-2 ${inputMode === 'CRYPTO'
-                  ? `${selectedCryptoOption.bgColor} ${selectedCryptoOption.borderColor} border text-white`
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-              >
-                <img src={selectedCryptoOption.icon} alt={selectedCrypto} className="w-4 h-4" />
-                {selectedCrypto}
-              </button>
-            </div>
-          </div>
-
-          {/* Amount Input */}
-          <div className="space-y-2">
+            <label className="text-sm text-gray-400 font-medium">Amount</label>
             <div className="relative">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                 {inputMode === 'USD' ? (
@@ -490,37 +462,57 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={inputMode === 'USD' ? 'Enter amount in USD' : `Enter amount in ${selectedCrypto}`}
-                className="w-full bg-white/5 text-white pl-10 pr-4 py-3 rounded-lg border border-white/10 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 text-lg transition-all"
+                className="w-full bg-white/5 text-white pl-10 pr-[200px] py-3 rounded-lg border border-white/10 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 text-lg transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 disabled={isLoading || (!isTestCrypto && ratesLoading)}
                 required
               />
-            </div>
 
-            {/* Conversion Display */}
-            {parseFloat(amount) > 0 && (ratesMap[selectedCrypto] || isTestCrypto) && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg border border-white/10">
-                <ArrowRightLeft className="w-4 h-4 text-gray-500" />
-                {inputMode === 'USD' ? (
-                  <span className="text-sm text-gray-400">
-                    ≈ <span className={`font-medium ${selectedCryptoOption.color}`}>
-                      {formatCryptoAmount(cryptoAmount, selectedCrypto)} {selectedCrypto}
-                    </span>
-                    {isTestCrypto && !ratesMap[selectedCrypto] && (
-                      <span className="text-xs text-gray-500 ml-1">(test rate)</span>
+              {/* Conversion display inside input on right */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                {parseFloat(amount) > 0 && (ratesMap[selectedCrypto] || isTestCrypto) && (
+                  <>
+                    {inputMode === 'USD' ? (
+                      <span className="text-sm text-gray-400">
+                        ≈ <span className={`font-medium ${selectedCryptoOption.color}`}>
+                          {formatCryptoAmount(cryptoAmount, selectedCrypto)} {selectedCrypto}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">
+                        ≈ <span className="font-medium text-green-400">
+                          ${usdAmount.toFixed(2)}
+                        </span>
+                      </span>
                     )}
-                  </span>
-                ) : (
-                  <span className="text-sm text-gray-400">
-                    ≈ <span className="font-medium text-green-400">
-                      ${usdAmount.toFixed(2)} USD
-                    </span>
-                    {isTestCrypto && !ratesMap[selectedCrypto] && (
-                      <span className="text-xs text-gray-500 ml-1">(test rate)</span>
-                    )}
-                  </span>
+                    <div className="w-px h-5 bg-white/10 mx-1" />
+                  </>
                 )}
+
+                {/* Subtle mode toggle inside input */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (inputMode === 'USD') {
+                      if (usdAmount > 0) {
+                        setAmount(formatCryptoAmount(cryptoAmount, selectedCrypto));
+                      }
+                      setInputMode('CRYPTO');
+                    } else {
+                      if (cryptoAmount > 0) {
+                        setAmount(usdAmount.toFixed(2));
+                      }
+                      setInputMode('USD');
+                    }
+                  }}
+                  disabled={isLoading || ratesLoading}
+                  className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 flex items-center gap-1"
+                  title={inputMode === 'USD' ? `Switch to ${selectedCrypto}` : 'Switch to USD'}
+                >
+                  <ArrowRightLeft className="w-4 h-4" />
+                  <span className="text-xs">{inputMode === 'USD' ? selectedCrypto : 'USD'}</span>
+                </button>
               </div>
-            )}
+            </div>
 
             {/* Loading rates indicator */}
             {ratesLoading && (
@@ -529,23 +521,9 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 Loading conversion rates...
               </div>
             )}
-          </div>
-
-          {/* Info Box */}
-          <div className={`${selectedCryptoOption.isTest ? 'bg-green-500/10 border-green-500/30' : 'bg-blue-500/10 border-blue-500/30'} border rounded-lg p-4`}>
-            <div className="flex items-start gap-3">
-              <AlertCircle className={`w-5 h-5 ${selectedCryptoOption.isTest ? 'text-green-400' : 'text-blue-400'} flex-shrink-0 mt-0.5`} />
-              <div className="text-sm text-gray-300">
-                <p className={`font-medium ${selectedCryptoOption.isTest ? 'text-green-400' : 'text-blue-400'} mb-1`}>
-                  {selectedCryptoOption.isTest ? 'Test Network Payment' : 'Automated Payment'}
-                </p>
-                {selectedCryptoOption.isTest ? (
-                  <p>BCY is a BlockCypher test cryptocurrency. This is for <strong>testing purposes only</strong> - no real funds are required. Your balance will be updated after {selectedCryptoOption.confirmations} confirmation.</p>
-                ) : (
-                  <p>After submitting, you'll receive a unique wallet address. Send your {selectedCrypto} to this address and your balance will be automatically updated after {selectedCryptoOption.confirmations} confirmations.</p>
-                )}
-              </div>
-            </div>
+            {isTestCrypto && !ratesMap[selectedCrypto] && parseFloat(amount) > 0 && (
+              <div className="text-xs text-gray-500">Using test exchange rate</div>
+            )}
           </div>
 
           {/* Buttons */}
@@ -566,10 +544,10 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating...
+                  Depositing...
                 </>
               ) : (
-                'Generate Address'
+                'Deposit'
               )}
             </button>
           </div>
@@ -584,88 +562,44 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     const cryptoInfo = cryptoOptions.find(c => c.key === paymentSession.cryptocurrency)!;
     const isDetected = uiState === 'payment_detected' || uiState === 'confirming';
 
-    return (
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className={`w-12 h-12 rounded-lg ${cryptoInfo.bgColor} flex items-center justify-center border ${cryptoInfo.borderColor}`}>
-            <img src={cryptoInfo.icon} alt={cryptoInfo.name} className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-white">
-              {isDetected ? 'Payment Detected!' : 'Awaiting Payment'}
-            </h2>
-            <p className="text-gray-400 text-sm">
-              {isDetected ? 'Waiting for confirmations...' : `Send ${paymentSession.cryptocurrency} to complete`}
-            </p>
-          </div>
-        </div>
+    const copyAmount = () => {
+      const amountText = `${formatCryptoAmount(paymentSession.cryptoAmount, paymentSession.cryptocurrency)}`;
+      navigator.clipboard.writeText(amountText);
+      toast.success('Amount copied!');
+    };
 
-        {/* QR Code */}
-        <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg p-6 mb-4">
-          <div className="w-48 h-48 rounded-lg overflow-hidden bg-white mb-3">
-            <img
-              src={getQrCodeUrl(paymentSession.paymentAddress)}
-              alt="Payment QR Code"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <p className="text-gray-400 text-sm">Scan to pay</p>
-        </div>
-
-        {/* Amount and Address */}
-        <div className="space-y-4 mb-6">
-          {/* Crypto Amount - Primary */}
-          <div className={`${cryptoInfo.bgColor} border ${cryptoInfo.borderColor} rounded-lg p-4`}>
-            <div className="text-sm text-gray-400 mb-1">Send Exactly</div>
-            <div className={`text-2xl font-bold ${cryptoInfo.color} flex items-center gap-2`}>
-              <img src={cryptoInfo.icon} alt={cryptoInfo.name} className="w-6 h-6" />
-              {formatCryptoAmount(paymentSession.cryptoAmount, paymentSession.cryptocurrency)} {paymentSession.cryptocurrency}
+    // Show spinner view when payment is detected
+    if (isDetected) {
+      return (
+        <div className="relative z-10 flex flex-col items-center justify-center py-12">
+          {/* Animated spinner */}
+          <div className="relative mb-6">
+            <div className="w-20 h-20 rounded-full border-4 border-green-500/20" />
+            <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-transparent border-t-green-500 animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <img src={cryptoInfo.icon} alt={cryptoInfo.name} className="w-8 h-8" />
             </div>
-            <div className="text-sm text-gray-500 mt-1">≈ ${paymentSession.amount.toFixed(2)} USD</div>
           </div>
 
-          {/* Address */}
-          <div className="space-y-2">
-            <label className={`text-sm font-medium flex items-center gap-2 ${cryptoInfo.color}`}>
+          <h2 className="text-2xl font-bold text-white mb-2">Payment Received</h2>
+          <p className="text-gray-400 text-center mb-6">
+            Awaiting blockchain confirmations...
+          </p>
+
+          {/* Amount display */}
+          <div className={`${cryptoInfo.bgColor} border ${cryptoInfo.borderColor} rounded-lg px-6 py-3 mb-4`}>
+            <div className="flex items-center gap-2">
               <img src={cryptoInfo.icon} alt={cryptoInfo.name} className="w-5 h-5" />
-              {cryptoInfo.name} Payment Address
-            </label>
-            <div className="flex">
-              <input
-                type="text"
-                value={paymentSession.paymentAddress}
-                readOnly
-                className="w-full bg-white/5 text-white px-4 py-3 rounded-l-lg border border-r-0 border-white/10 text-sm font-mono"
-              />
-              <button
-                type="button"
-                onClick={copyAddress}
-                className="bg-white/5 border border-white/10 px-4 rounded-r-lg flex items-center justify-center text-white hover:bg-purple-500/20 hover:text-purple-500 transition-colors"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
+              <span className={`text-lg font-bold ${cryptoInfo.color}`}>
+                {formatCryptoAmount(paymentSession.cryptoAmount, paymentSession.cryptocurrency)} {paymentSession.cryptocurrency}
+              </span>
+              <span className="text-sm text-gray-500">≈ ${paymentSession.amount.toFixed(2)}</span>
             </div>
           </div>
-        </div>
 
-        {/* Status Indicator */}
-        {isDetected && (
-          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-              </div>
-              <div>
-                <p className="font-medium text-green-400">Payment Detected</p>
-                <p className="text-sm text-gray-400">
-                  Confirmations: {paymentSession.confirmations}/{paymentSession.requiredConfirmations}
-                </p>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="mt-3 h-2 bg-white/10 rounded-full overflow-hidden">
+          {/* Progress bar */}
+          <div className="w-full max-w-xs">
+            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-green-500 transition-all duration-500"
                 style={{
@@ -673,67 +607,138 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 }}
               />
             </div>
-
-            {paymentSession.txHash && (
-              <p className="text-xs text-gray-500 mt-2 font-mono truncate">
-                TX: {paymentSession.txHash}
-              </p>
-            )}
           </div>
-        )}
+        </div>
+      );
+    }
 
-        {/* Waiting Indicator */}
-        {uiState === 'awaiting_payment' && (
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-3">
-              <Loader2 className="w-5 h-5 text-yellow-500 animate-spin" />
-              <div>
-                <p className="font-medium text-yellow-400">Waiting for payment...</p>
-                <p className="text-sm text-gray-400">Send {paymentSession.cryptocurrency} to the address above</p>
-              </div>
+    // Awaiting payment view
+    return (
+      <div className="relative z-10">
+        {/* Status Badge at Top */}
+        <div className="flex justify-center mb-4">
+          <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-2">
+            <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />
+            <span className="text-sm font-medium text-yellow-400">Awaiting Payment</span>
+          </div>
+        </div>
+
+        {/* Header */}
+        <div className="text-center mb-4">
+          <h2 className="text-2xl font-bold text-white mb-1">Send Payment</h2>
+          <p className="text-gray-400 text-sm">Scan QR code or copy details below</p>
+        </div>
+
+        {/* QR Code - More compact with padding */}
+        <div className="flex justify-center mb-4">
+          <div className="bg-white border border-white/10 rounded-lg p-4">
+            <div className="w-40 h-40 overflow-hidden bg-white">
+              <img
+                src={getQrCodeUrl(paymentSession.paymentAddress)}
+                alt="Payment QR Code"
+                className="w-full h-full object-contain"
+              />
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Amount - Compact with Copy */}
+        <div className="space-y-3 mb-4">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Send Exactly</label>
+            <div className="flex h-11">
+              <div className={`flex-1 ${cryptoInfo.bgColor} border ${cryptoInfo.borderColor} rounded-l-lg px-3 flex items-center gap-2`}>
+                <img src={cryptoInfo.icon} alt={cryptoInfo.name} className="w-5 h-5" />
+                <div className="flex items-baseline gap-2">
+                  <span className={`text-lg font-bold ${cryptoInfo.color}`}>
+                    {formatCryptoAmount(paymentSession.cryptoAmount, paymentSession.cryptocurrency)} {paymentSession.cryptocurrency}
+                  </span>
+                  <span className="text-xs text-gray-500">≈ ${paymentSession.amount.toFixed(2)}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={copyAmount}
+                className={`${cryptoInfo.bgColor} border ${cryptoInfo.borderColor} border-l-0 px-3 rounded-r-lg flex items-center justify-center text-white hover:opacity-80 transition-opacity`}
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Address - Compact with Copy */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">To Address</label>
+            <div className="flex h-11">
+              <input
+                type="text"
+                value={paymentSession.paymentAddress}
+                readOnly
+                className="flex-1 bg-white/5 text-white px-3 rounded-l-lg border border-r-0 border-white/10 text-sm font-mono"
+              />
+              <button
+                type="button"
+                onClick={copyAddress}
+                className="bg-white/5 border border-white/10 px-3 rounded-r-lg flex items-center justify-center text-white hover:bg-purple-500/20 hover:text-purple-500 transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Cancel Button */}
-        {uiState === 'awaiting_payment' && (
-          <button
-            type="button"
-            onClick={handleCancelPayment}
-            className="w-full px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all"
-          >
-            Cancel Payment
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={handleCancelPayment}
+          className="w-full px-6 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 rounded-lg transition-all mt-7"
+        >
+          Cancel Payment
+        </button>
       </div>
     );
   };
 
-  const renderSuccess = () => (
-    <div className="flex flex-col items-center justify-center py-8 text-center relative z-10">
-      <div className="w-20 h-20 rounded-lg bg-green-500/20 flex items-center justify-center mb-4 animate-pulse border border-green-500/30">
-        <CheckCircle className="text-green-500" size={48} />
+  const renderSuccess = () => {
+    const cryptoInfo = paymentSession ? cryptoOptions.find(c => c.key === paymentSession.cryptocurrency) : null;
+
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center relative z-10">
+        {/* Animated success icon */}
+        <div className="relative mb-6">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center border border-green-500/30">
+            <CheckCircle className="text-green-500 w-12 h-12" />
+          </div>
+          {/* Decorative rings */}
+          <div className="absolute inset-0 w-24 h-24 rounded-full border border-green-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+        </div>
+
+        <h2 className="text-2xl font-bold text-white mb-2">Payment Complete!</h2>
+        <p className="text-gray-400 mb-2">Your balance has been updated</p>
+
+        {/* Amount card */}
+        <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-xl py-4 mb-4 w-3/4 my-4">
+          <div className="text-sm text-gray-400 mb-1">Amount Added</div>
+          <div className="text-3xl font-bold text-green-400">
+            ${paymentSession?.amount.toFixed(2)}
+          </div>
+          {cryptoInfo && paymentSession && (
+            <div className="flex items-center justify-center gap-1 mt-1 text-sm text-gray-500">
+              <img src={cryptoInfo.icon} alt={cryptoInfo.name} className="w-4 h-4" />
+              {formatCryptoAmount(paymentSession.cryptoAmount, paymentSession.cryptocurrency)} {paymentSession.cryptocurrency}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onClose}
+          className="px-10 w-3/4 py-3 mt-5 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white rounded-lg font-medium transition-all shadow-lg shadow-green-500/20"
+        >
+          Done
+        </button>
       </div>
-      <h2 className="text-2xl font-bold text-white mb-2">Payment Complete!</h2>
-      <p className="text-gray-400 mb-4">
-        Your top-up of <span className="text-green-500 font-bold">${paymentSession?.amount}</span> has been processed successfully.
-      </p>
-      <p className="text-gray-500 text-sm mb-6">Your balance has been updated.</p>
-
-      {paymentSession?.txHash && (
-        <p className="text-xs text-gray-500 font-mono mb-4 break-all px-4">
-          TX: {paymentSession.txHash}
-        </p>
-      )}
-
-      <button
-        onClick={onClose}
-        className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all"
-      >
-        Done
-      </button>
-    </div>
-  );
+    );
+  };
 
   const renderError = () => (
     <div className="flex flex-col items-center justify-center py-8 text-center relative z-10">
