@@ -232,13 +232,20 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           const isApproved = status.status === 'approved';
 
           // Update UI state based on payment status
-          if (isApproved || (hasEnoughConfirmations && confirmations > 0)) {
-            // Request is approved or has enough confirmations - show success
+          // IMPORTANT: Only show success when status === 'approved' (backend confirmed balance update)
+          // Don't show success just because confirmations are met - wait for backend to process
+          if (isApproved) {
+            // Request is officially approved by backend - balance has been updated
             setUiState('success');
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
             }
+          } else if (hasEnoughConfirmations && confirmations > 0) {
+            // Confirmations met but backend hasn't approved yet - show confirming state and keep polling
+            // Backend will auto-approve on next poll, then we'll show success
+            setUiState('confirming');
+            // Don't stop polling - keep waiting for backend to approve
           } else if (isTimedOut && ['pending', 'expired'].includes(status.paymentStatus)) {
             // Timed out with no confirmations - show timeout error
             setUiState('timeout');
@@ -257,12 +264,10 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 break;
               case 'confirmed':
               case 'completed':
-                setUiState('success');
-                // Stop polling on success
-                if (pollingIntervalRef.current) {
-                  clearInterval(pollingIntervalRef.current);
-                  pollingIntervalRef.current = null;
-                }
+                // Payment gateway says confirmed/completed, but wait for backend to approve
+                // Keep showing confirming state and continue polling until status === 'approved'
+                setUiState('confirming');
+                // Don't stop polling - wait for backend approval
                 break;
               case 'expired':
               case 'failed':
@@ -458,7 +463,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               <input
                 type="number"
                 min="0"
-                step={inputMode === 'USD' ? '1' : '0.00000001'}
+                step={inputMode === 'USD' ? '0.1' : '0.00000001'}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={inputMode === 'USD' ? 'Enter amount in USD' : `Enter amount in ${selectedCrypto}`}
@@ -597,17 +602,6 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="w-full max-w-xs">
-            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-500 transition-all duration-500"
-                style={{
-                  width: `${Math.min(100, (paymentSession.confirmations / paymentSession.requiredConfirmations) * 100)}%`
-                }}
-              />
-            </div>
-          </div>
         </div>
       );
     }

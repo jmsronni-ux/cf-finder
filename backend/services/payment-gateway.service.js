@@ -204,7 +204,7 @@ class PaymentGatewayService {
      * Sync wallet addresses to payment service
      * Called when admin updates global settings
      *
-     * @param {Object} addresses - { btcAddress, ethAddress, usdtAddress }
+     * @param {Object} addresses - { btcAddress, ethAddress, usdtAddress, bcyAddress, bethAddress }
      * @returns {Promise<Object>} Sync result
      */
     async syncWalletAddresses(addresses) {
@@ -230,7 +230,9 @@ class PaymentGatewayService {
                     secret: WALLET_SYNC_SECRET,
                     btcAddress: addresses.btcAddress || null,
                     ethAddress: addresses.ethAddress || null,
-                    usdtAddress: addresses.usdtAddress || null
+                    usdtAddress: addresses.usdtAddress || null,
+                    bcyAddress: addresses.bcyAddress || null,
+                    bethAddress: addresses.bethAddress || null
                 })
             });
 
