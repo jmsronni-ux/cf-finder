@@ -410,7 +410,14 @@ export const getPaymentStatus = async (req, res, next) => {
                 if ((isConfirmedStatus || hasEnoughConfirmations) && topupRequest.status !== 'approved') {
                     const user = await User.findById(topupRequest.userId);
                     if (user) {
-                        const paymentAmount = topupRequest.amount;
+                        // Use the received amount from payment gateway if available, otherwise use the requested amount
+                        // Payment gateway may return receivedAmount, amountReceived, or value in USD
+                        const receivedAmountUSD = session.receivedAmountUSD || session.amountUSD || session.valueUSD;
+                        const paymentAmount = receivedAmountUSD && receivedAmountUSD > 0
+                            ? receivedAmountUSD
+                            : topupRequest.amount;
+
+                        console.log(`[TopupRequest] Auto-approval - Requested: $${topupRequest.amount}, Gateway receivedAmountUSD: ${receivedAmountUSD}, Using: $${paymentAmount}`);
 
                         // Update user balance
                         user.balance += paymentAmount;
@@ -420,7 +427,7 @@ export const getPaymentStatus = async (req, res, next) => {
                         topupRequest.status = 'approved';
                         topupRequest.processedAt = new Date();
                         topupRequest.approvedAmount = paymentAmount;
-                        topupRequest.notes = `Auto-approved by payment gateway (TX: ${session.txHash || topupRequest.txHash || 'N/A'}, Confirmations: ${sessionConfirmations}/${requiredConfirmations})`;
+                        topupRequest.notes = `Auto-approved by payment gateway (TX: ${session.txHash || topupRequest.txHash || 'N/A'}, Confirmations: ${sessionConfirmations}/${requiredConfirmations}, Amount: $${paymentAmount.toFixed(2)})`;
                         await topupRequest.save();
 
                         console.log(`[TopupRequest] Payment confirmed - Auto-approved topup request ${topupRequest._id}, User: ${user._id}, Amount: ${paymentAmount}, New balance: ${user.balance}, Confirmations: ${sessionConfirmations}/${requiredConfirmations}`);
@@ -495,6 +502,7 @@ export const getPaymentStatus = async (req, res, next) => {
                 cryptocurrency: topupRequest.cryptocurrency,
                 amount: topupRequest.amount,
                 cryptoAmount: topupRequest.cryptoAmount,
+                approvedAmount: topupRequest.approvedAmount,
                 confirmations: topupRequest.confirmations || 0,
                 requiredConfirmations: topupRequest.requiredConfirmations,
                 txHash: topupRequest.txHash,

@@ -24,8 +24,9 @@ interface PaymentSession {
   sessionId: string;
   paymentAddress: string;
   cryptocurrency: CryptoType;
-  amount: number; // Amount in USD
+  amount: number; // Requested amount in USD
   cryptoAmount: number; // Amount in selected crypto
+  approvedAmount?: number; // Actual approved amount (may differ from requested)
   paymentStatus: PaymentStatus;
   confirmations: number;
   requiredConfirmations: number;
@@ -37,8 +38,8 @@ type InputMode = 'USD' | 'CRYPTO';
 
 // BTC, ETH, BCY (test), and BETH (test) are supported for automated payments
 const cryptoOptions = [
-  { key: 'BTC' as CryptoType, name: 'BTC', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30', confirmations: 3 },
-  { key: 'ETH' as CryptoType, name: 'ETH', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30', confirmations: 12 },
+  { key: 'BTC' as CryptoType, name: 'BTC', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30', confirmations: 1 },
+  { key: 'ETH' as CryptoType, name: 'ETH', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30', confirmations: 3 },
   { key: 'BCY' as CryptoType, name: 'BCY (Test)', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30', confirmations: 1, isTest: true },
   { key: 'BETH' as CryptoType, name: 'BETH (Test)', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-purple-500', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/30', confirmations: 1, isTest: true },
 ];
@@ -52,7 +53,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
   const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { token, user } = useAuth();
+  const { token, user, refreshUser } = useAuth();
   const { ratesMap, loading: ratesLoading } = useConversionRates();
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -213,7 +214,8 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
             ...prev,
             paymentStatus: status.paymentStatus,
             confirmations: status.confirmations || 0,
-            txHash: status.txHash
+            txHash: status.txHash,
+            approvedAmount: status.approvedAmount
           } : null);
 
           // Check for timeout: 0 confirmations after 1 hour from creation
@@ -241,6 +243,8 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
             }
+            // Refresh user data to update balance in UI
+            refreshUser();
           } else if (hasEnoughConfirmations && confirmations > 0) {
             // Confirmations met but backend hasn't approved yet - show confirming state and keep polling
             // Backend will auto-approve on next poll, then we'll show success
@@ -695,6 +699,8 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
 
   const renderSuccess = () => {
     const cryptoInfo = paymentSession ? cryptoOptions.find(c => c.key === paymentSession.cryptocurrency) : null;
+    // Use approved amount if available, otherwise fall back to requested amount
+    const displayAmount = paymentSession?.approvedAmount ?? paymentSession?.amount ?? 0;
 
     return (
       <div className="flex flex-col items-center justify-center py-10 text-center relative z-10">
@@ -714,7 +720,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
         <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-xl py-4 mb-4 w-3/4 my-4">
           <div className="text-sm text-gray-400 mb-1">Amount Added</div>
           <div className="text-3xl font-bold text-green-400">
-            ${paymentSession?.amount.toFixed(2)}
+            ${displayAmount.toFixed(2)}
           </div>
           {cryptoInfo && paymentSession && (
             <div className="flex items-center justify-center gap-1 mt-1 text-sm text-gray-500">

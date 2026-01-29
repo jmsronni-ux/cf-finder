@@ -261,8 +261,8 @@ class PaymentGatewayService {
         const crypto = cryptocurrency.toLowerCase();
         // These should match the payment gateway configuration
         const confirmations = {
-            btc: 3,   // ~30 minutes
-            eth: 12,  // ~3 minutes
+            btc: 1,   // ~10 minutes
+            eth: 3,   // ~45 seconds
             bcy: 1,   // BlockCypher Bitcoin test chain - 1 confirmation for testing
             beth: 1   // BlockCypher Ethereum test chain - 1 confirmation for testing
         };
