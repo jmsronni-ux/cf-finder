@@ -9,11 +9,20 @@ const topupRequestSchema = new mongoose.Schema({
     amount: {
         type: Number,
         required: [true, 'Amount is required'],
-        min: [1, 'Amount must be at least 1']
+        validate: {
+            validator: function (value) {
+                return value > 0; // Allow any positive amount, including decimals less than 1 (e.g., 0.01, 0.5)
+            },
+            message: 'Amount must be greater than 0'
+        }
+    },
+    cryptoAmount: {
+        type: Number,
+        // Optional because older records won't have it, but new ones should
     },
     cryptocurrency: {
         type: String,
-        enum: ['BTC', 'USDT', 'ETH'],
+        enum: ['BTC', 'USDT', 'ETH', 'BCY', 'BETH'],
         default: 'BTC'
     },
     status: {
@@ -38,7 +47,41 @@ const topupRequestSchema = new mongoose.Schema({
     approvedAmount: {
         type: Number,
         min: [0, 'Approved amount cannot be negative']
+    },
+    // Payment Gateway Integration Fields
+    paymentSessionId: {
+        type: String,
+        index: true
+    },
+    paymentAddress: {
+        type: String
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'detected', 'confirming', 'confirmed', 'completed', 'expired', 'failed'],
+        default: 'pending'
+    },
+    txHash: {
+        type: String
+    },
+    confirmations: {
+        type: Number,
+        default: 0
+    },
+    requiredConfirmations: {
+        type: Number
+    },
+    paymentExpiresAt: {
+        type: Date
     }
+});
+
+// Pre-save hook to normalize cryptocurrency value
+topupRequestSchema.pre('save', function (next) {
+    if (this.cryptocurrency) {
+        this.cryptocurrency = this.cryptocurrency.toUpperCase().trim();
+    }
+    next();
 });
 
 const TopupRequest = mongoose.model('TopupRequest', topupRequestSchema);

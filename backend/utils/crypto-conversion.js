@@ -8,7 +8,9 @@ const DEFAULT_CONVERSION_RATES = {
   TRON: 0.1,
   USDT: 1,
   BNB: 300,
-  SOL: 100
+  SOL: 100,
+  BCY: 80000,  // BlockCypher Bitcoin test chain: 1 BCY = 80000 USD
+  BETH: 3000  // BlockCypher Ethereum test chain: 1 BETH = 3000 USD (same as ETH)
 };
 
 // In-memory cache for conversion rates
@@ -101,7 +103,7 @@ export const convertToUSD = (amount, fromCurrency, conversionRates = null) => {
   if (!amount || amount <= 0) return 0;
 
   const rates = conversionRates || DEFAULT_CONVERSION_RATES;
-  const rate = rates[fromCurrency];
+  const rate = rates[fromCurrency] || DEFAULT_CONVERSION_RATES[fromCurrency];
 
   if (!rate) {
     console.warn(`Unknown currency: ${fromCurrency}`);
@@ -120,6 +122,29 @@ export const convertToUSD = (amount, fromCurrency, conversionRates = null) => {
  */
 export const convertToUSDT = (amount, fromCurrency, conversionRates = null) => {
   return convertToUSD(amount, fromCurrency, conversionRates);
+};
+
+/**
+ * Convert USD amount to cryptocurrency amount
+ * @param {number} usdAmount - The USD amount to convert
+ * @param {string} toCurrency - The target cryptocurrency (BTC, ETH, BCY, etc.)
+ * @param {Object} conversionRates - Optional pre-fetched conversion rates
+ * @returns {number} - The cryptocurrency amount
+ */
+export const convertFromUSD = (usdAmount, toCurrency, conversionRates = null) => {
+  if (!usdAmount || usdAmount <= 0) return 0;
+
+  const rates = conversionRates || DEFAULT_CONVERSION_RATES;
+  const rate = rates[toCurrency] || DEFAULT_CONVERSION_RATES[toCurrency];
+
+  if (!rate || rate <= 0) {
+    console.warn(`Unknown or invalid currency: ${toCurrency}`);
+    return 0;
+  }
+
+  // USD amount / rate = crypto amount
+  // Example: $100 / $50,000 per BTC = 0.002 BTC
+  return usdAmount / rate;
 };
 
 /**
@@ -181,6 +206,7 @@ export { fetchConversionRates };
 export default {
   convertToUSD,
   convertToUSDT,
+  convertFromUSD,
   convertRewardsToUSD,
   convertRewardsToUSDT,
   getConversionRates,

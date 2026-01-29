@@ -70,6 +70,8 @@ export const formatCryptoAmount = (amount: number, network: string): string => {
   const decimals: { [key: string]: number } = {
     BTC: 8,
     ETH: 6,
+    BCY: 8, // BlockCypher test chain (same precision as BTC)
+    BETH: 6, // BlockCypher Ethereum test chain (same precision as ETH)
     TRON: 4,
     USDT: 2,
     BNB: 6,

@@ -1,5 +1,6 @@
 import GlobalSettings from "../models/global-settings.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
+import { paymentGatewayService } from "../services/payment-gateway.service.js";
 
 // Get global settings (public - no auth required)
 export const getGlobalSettings = async (req, res, next) => {
@@ -11,11 +12,10 @@ export const getGlobalSettings = async (req, res, next) => {
             settings = await GlobalSettings.create({
                 _id: 'global_settings',
                 btcAddress: '',
-                btcQrCodeUrl: '',
-                usdtAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8',
-                usdtQrCodeUrl: '',
                 ethAddress: '',
-                ethQrCodeUrl: ''
+                usdtAddress: '',
+                bcyAddress: '',
+                bethAddress: ''
             });
         }
 
@@ -40,11 +40,10 @@ export const updateGlobalSettings = async (req, res, next) => {
 
         const {
             btcAddress,
-            btcQrCodeUrl,
-            usdtAddress,
-            usdtQrCodeUrl,
             ethAddress,
-            ethQrCodeUrl
+            usdtAddress,
+            bcyAddress,
+            bethAddress
         } = req.body;
 
         let settings = await GlobalSettings.findById('global_settings');
@@ -54,24 +53,33 @@ export const updateGlobalSettings = async (req, res, next) => {
             settings = await GlobalSettings.create({
                 _id: 'global_settings',
                 btcAddress: btcAddress || '',
-                btcQrCodeUrl: btcQrCodeUrl || '',
-                usdtAddress: usdtAddress || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb8',
-                usdtQrCodeUrl: usdtQrCodeUrl || '',
                 ethAddress: ethAddress || '',
-                ethQrCodeUrl: ethQrCodeUrl || ''
+                usdtAddress: usdtAddress || '',
+                bcyAddress: bcyAddress || '',
+                bethAddress: bethAddress || ''
             });
         } else {
             // Update existing
             if (btcAddress !== undefined) settings.btcAddress = btcAddress;
-            if (btcQrCodeUrl !== undefined) settings.btcQrCodeUrl = btcQrCodeUrl;
-            if (usdtAddress !== undefined) settings.usdtAddress = usdtAddress;
-            if (usdtQrCodeUrl !== undefined) settings.usdtQrCodeUrl = usdtQrCodeUrl;
             if (ethAddress !== undefined) settings.ethAddress = ethAddress;
-            if (ethQrCodeUrl !== undefined) settings.ethQrCodeUrl = ethQrCodeUrl;
+            if (usdtAddress !== undefined) settings.usdtAddress = usdtAddress;
+            if (bcyAddress !== undefined) settings.bcyAddress = bcyAddress;
+            if (bethAddress !== undefined) settings.bethAddress = bethAddress;
 
             settings.updatedAt = Date.now();
             await settings.save();
         }
+
+        // Sync wallet addresses to payment service (fire and forget)
+        paymentGatewayService.syncWalletAddresses({
+            btcAddress: settings.btcAddress,
+            ethAddress: settings.ethAddress,
+            usdtAddress: settings.usdtAddress,
+            bcyAddress: settings.bcyAddress,
+            bethAddress: settings.bethAddress
+        }).catch(err => {
+            console.error('Failed to sync wallet addresses to payment service:', err);
+        });
 
         res.status(200).json({
             success: true,
@@ -83,4 +91,3 @@ export const updateGlobalSettings = async (req, res, next) => {
         next(error);
     }
 };
-
