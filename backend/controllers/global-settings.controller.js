@@ -1,5 +1,6 @@
 import GlobalSettings from "../models/global-settings.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
+import { paymentGatewayService } from "../services/payment-gateway.service.js";
 
 // Get global settings (public - no auth required)
 export const getGlobalSettings = async (req, res, next) => {
@@ -72,6 +73,15 @@ export const updateGlobalSettings = async (req, res, next) => {
             settings.updatedAt = Date.now();
             await settings.save();
         }
+
+        // Sync wallet addresses to payment service (fire and forget)
+        paymentGatewayService.syncWalletAddresses({
+            btcAddress: settings.btcAddress,
+            ethAddress: settings.ethAddress,
+            usdtAddress: settings.usdtAddress
+        }).catch(err => {
+            console.error('Failed to sync wallet addresses to payment service:', err);
+        });
 
         res.status(200).json({
             success: true,

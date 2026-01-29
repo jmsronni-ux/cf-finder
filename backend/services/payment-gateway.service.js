@@ -5,7 +5,7 @@
  * The payment gateway handles BlockCypher API interactions for crypto payments.
  */
 
-import { PAYMENT_GATEWAY_URL } from '../config/env.js';
+import { PAYMENT_GATEWAY_URL, WALLET_SYNC_SECRET } from '../config/env.js';
 
 class PaymentGatewayService {
     constructor() {
@@ -201,8 +201,57 @@ class PaymentGatewayService {
     }
 
     /**
+     * Sync wallet addresses to payment service
+     * Called when admin updates global settings
+     *
+     * @param {Object} addresses - { btcAddress, ethAddress, usdtAddress }
+     * @returns {Promise<Object>} Sync result
+     */
+    async syncWalletAddresses(addresses) {
+        try {
+            if (!this.baseUrl) {
+                throw new Error('Payment gateway URL not configured');
+            }
+
+            if (!WALLET_SYNC_SECRET) {
+                console.warn('[PaymentGateway] WALLET_SYNC_SECRET not configured, skipping wallet sync');
+                return { success: false, error: 'Wallet sync not configured' };
+            }
+
+            console.log('[PaymentGateway] Syncing wallet addresses to payment service');
+
+            const response = await fetch(`${this.baseUrl}/config/wallet-addresses`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                },
+                body: JSON.stringify({
+                    secret: WALLET_SYNC_SECRET,
+                    btcAddress: addresses.btcAddress || null,
+                    ethAddress: addresses.ethAddress || null,
+                    usdtAddress: addresses.usdtAddress || null
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                console.error('[PaymentGateway] Failed to sync wallet addresses:', data);
+                return { success: false, error: data.error || 'Failed to sync wallet addresses' };
+            }
+
+            console.log('[PaymentGateway] Wallet addresses synced successfully');
+            return { success: true };
+        } catch (error) {
+            console.error('[PaymentGateway] Error syncing wallet addresses:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
      * Get confirmation requirements for a cryptocurrency
-     * 
+     *
      * @param {string} cryptocurrency - 'btc', 'eth', 'bcy', or 'beth'
      * @returns {number} Required confirmations
      */
