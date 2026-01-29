@@ -410,10 +410,10 @@ export const getPaymentStatus = async (req, res, next) => {
                 if ((isConfirmedStatus || hasEnoughConfirmations) && topupRequest.status !== 'approved') {
                     const user = await User.findById(topupRequest.userId);
                     if (user) {
-                        // Use the received amount from payment gateway if available, otherwise use the requested amount
-                        // Payment gateway may return receivedAmount, amountReceived, or value in USD
+                        // Use the requested amount so the user receives what they asked for. Gateway may return
+                        // receivedAmount in crypto or 0 for testnet; using it as USD would show $0.00 approved.
                         const receivedAmountUSD = session.receivedAmountUSD || session.amountUSD || session.valueUSD;
-                        const paymentAmount = receivedAmountUSD && receivedAmountUSD > 0
+                        const paymentAmount = (receivedAmountUSD != null && receivedAmountUSD > 0)
                             ? receivedAmountUSD
                             : topupRequest.amount;
 

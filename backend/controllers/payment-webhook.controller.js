@@ -160,7 +160,9 @@ async function handlePaymentGatewayWebhook(req, res, data) {
     if (paymentStatus === 'completed') {
         // Only process if not already approved
         if (topupRequest.status !== 'approved') {
-            const paymentAmount = Number(amount) || topupRequest.amount;
+            // Always credit the requested amount (USD). Webhook 'amount' may be in crypto (e.g. 0.001 BETH),
+            // which would show as $0.00 and short the user. User requested $X and sent the payment → credit $X.
+            const paymentAmount = topupRequest.amount;
             
             // Update user balance
             user.balance += paymentAmount;

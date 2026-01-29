@@ -1632,12 +1632,12 @@ const AdminAllRequests: React.FC = () => {
                                         <p className="font-bold text-green-400">${request.data.amount.toFixed(2)}</p>
                                       </div>
                                     </div>
-                                    {request.data.approvedAmount !== undefined && request.data.status === 'approved' && (
+                                    {request.data.status === 'approved' && (
                                       <div className="flex items-center gap-2">
                                         <DollarSign className="w-4 h-4 text-blue-500" />
                                         <div>
                                           <p className="text-xs text-gray-400">Approved</p>
-                                          <p className="font-bold text-blue-400">${request.data.approvedAmount.toFixed(2)}</p>
+                                          <p className="font-bold text-blue-400">${(request.data.approvedAmount != null && request.data.approvedAmount > 0 ? request.data.approvedAmount : request.data.amount).toFixed(2)}</p>
                                         </div>
                                       </div>
                                     )}
