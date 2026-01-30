@@ -58,7 +58,7 @@ const topupRequestSchema = new mongoose.Schema({
     },
     paymentStatus: {
         type: String,
-        enum: ['pending', 'detected', 'confirming', 'confirmed', 'completed', 'expired', 'failed'],
+        enum: ['pending', 'detected', 'confirming', 'confirmed', 'completed', 'detecting', 'expired', 'failed'],
         default: 'pending'
     },
     txHash: {

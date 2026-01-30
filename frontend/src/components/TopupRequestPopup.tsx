@@ -13,8 +13,8 @@ interface TopupRequestPopupProps {
 
 type CryptoType = 'BTC' | 'ETH' | 'BCY' | 'BETH';
 
-// Payment status from the backend
-type PaymentStatus = 'pending' | 'detected' | 'confirming' | 'confirmed' | 'completed' | 'expired' | 'failed';
+// Payment status from the backend (detecting = under/over payment, amount under review)
+type PaymentStatus = 'pending' | 'detected' | 'confirming' | 'confirmed' | 'completed' | 'detecting' | 'expired' | 'failed';
 
 // UI states for the popup
 type UIState = 'form' | 'awaiting_payment' | 'payment_detected' | 'confirming' | 'success' | 'error' | 'timeout';
@@ -272,6 +272,11 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 // Keep showing confirming state and continue polling until status === 'approved'
                 setUiState('confirming');
                 // Don't stop polling - wait for backend approval
+                break;
+              case 'detecting':
+                // Under/over payment: gateway returns 'detecting' instead of 'completed'
+                // Show confirming-style UI with amount-under-review message; backend won't auto-approve
+                setUiState('confirming');
                 break;
               case 'expired':
               case 'failed':
@@ -570,6 +575,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
 
     const cryptoInfo = cryptoOptions.find(c => c.key === paymentSession.cryptocurrency)!;
     const isDetected = uiState === 'payment_detected' || uiState === 'confirming';
+    const isDetecting = paymentSession.paymentStatus === 'detecting';
 
     const copyAmount = () => {
       const amountText = `${formatCryptoAmount(paymentSession.cryptoAmount, paymentSession.cryptocurrency)}`;
@@ -577,7 +583,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       toast.success('Amount copied!');
     };
 
-    // Show spinner view when payment is detected
+    // Show spinner view when payment is detected or amount under review (detecting)
     if (isDetected) {
       return (
         <div className="relative z-10 flex flex-col items-center justify-center py-12">
@@ -592,7 +598,9 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
 
           <h2 className="text-2xl font-bold text-white mb-2">Payment Received</h2>
           <p className="text-gray-400 text-center mb-6">
-            Awaiting blockchain confirmations...
+            {isDetecting
+              ? 'The amount sent differs from the requested amount. Your payment is under review and may require manual approval.'
+              : 'Awaiting blockchain confirmations...'}
           </p>
 
           {/* Amount display */}
