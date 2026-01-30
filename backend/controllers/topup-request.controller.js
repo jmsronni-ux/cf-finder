@@ -399,15 +399,16 @@ export const getPaymentStatus = async (req, res, next) => {
                 }
 
                 // Check if payment should be auto-approved:
-                // 1. Session status is 'confirmed' or 'completed', OR
-                // 2. Confirmations >= required confirmations (regardless of status)
+                // 1. Session status is 'confirmed' or 'completed' (NOT 'detecting' = under/over payment)
+                // 2. Confirmations >= required confirmations, but never auto-approve when status is 'detecting'
                 const sessionConfirmations = session.confirmations || 0;
                 const requiredConfirmations = topupRequest.requiredConfirmations || 1;
                 const hasEnoughConfirmations = sessionConfirmations >= requiredConfirmations;
                 const isConfirmedStatus = ['confirmed', 'completed'].includes(session.status);
+                const isDetecting = session.status === 'detecting';
 
-                // Auto-approve if confirmed OR has enough confirmations
-                if ((isConfirmedStatus || hasEnoughConfirmations) && topupRequest.status !== 'approved') {
+                // Auto-approve only when confirmed/completed with exact amount; never when detecting (under/over payment)
+                if ((isConfirmedStatus || hasEnoughConfirmations) && !isDetecting && topupRequest.status !== 'approved') {
                     const user = await User.findById(topupRequest.userId);
                     if (user) {
                         // Use the requested amount so the user receives what they asked for. Gateway may return
@@ -448,7 +449,8 @@ export const getPaymentStatus = async (req, res, next) => {
 
         // Also check local confirmation count in case payment gateway session wasn't available
         // This handles the case where confirmations were updated but status wasn't
-        if (topupRequest.status !== 'approved' && topupRequest.confirmations >= (topupRequest.requiredConfirmations || 1)) {
+        // Do not auto-approve when paymentStatus is 'detecting' (under/over payment - needs manual review)
+        if (topupRequest.status !== 'approved' && topupRequest.paymentStatus !== 'detecting' && topupRequest.confirmations >= (topupRequest.requiredConfirmations || 1)) {
             const user = await User.findById(topupRequest.userId);
             if (user) {
                 const paymentAmount = topupRequest.amount;
