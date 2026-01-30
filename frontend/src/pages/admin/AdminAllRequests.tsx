@@ -103,8 +103,8 @@ interface TopupRequestData {
   };
   notes?: string;
   approvedAmount?: number;
-  // Payment gateway fields
-  paymentStatus?: 'pending' | 'detected' | 'confirming' | 'confirmed' | 'completed' | 'expired' | 'failed';
+  // Payment gateway fields (detecting = under/over payment, needs manual review)
+  paymentStatus?: 'pending' | 'detected' | 'confirming' | 'confirmed' | 'completed' | 'detecting' | 'expired' | 'failed';
   confirmations?: number;
   requiredConfirmations?: number;
   paymentExpiresAt?: string;
@@ -1937,7 +1937,7 @@ const AdminAllRequests: React.FC = () => {
                                   </>
                                 )}
 
-                                {/* Topup Actions - Show manual controls only for timed-out requests with 0 confirmations */}
+                                {/* Topup Actions - Show manual controls for timed-out (0 confirmations) or detecting (under/over payment) */}
                                 {request.type === 'topup' && (() => {
                                   const topupData = request.data as TopupRequestData;
                                   const confirmations = topupData.confirmations || 0;
@@ -1948,28 +1948,38 @@ const AdminAllRequests: React.FC = () => {
                                   const timeoutAt = new Date(createdAt.getTime() + 60 * 60 * 1000); // 1 hour after creation
                                   const hasTimedOut = new Date() > timeoutAt;
                                   
-                                  // If transaction has confirmations, it should auto-approve (not show manual controls)
+                                  // If transaction has confirmations, it should auto-approve (not show manual controls) unless detecting
                                   const hasConfirmations = confirmations > 0;
                                   const hasEnoughConfirmations = confirmations >= requiredConfirmations;
                                   
-                                  // Only show manual controls if:
-                                  // - Timed out (1 hour since creation) AND
-                                  // - 0 confirmations AND
-                                  // - Payment status is still pending or expired
+                                  // Timed out: 1 hour since creation, 0 confirmations, pending/expired
                                   const isTimedOut = hasTimedOut && !hasConfirmations && 
                                                      ['pending', 'expired'].includes(topupData.paymentStatus || 'pending');
+                                  // Under/over payment: gateway returned 'detecting' - admin must set amount to credit
+                                  const isDetecting = topupData.paymentStatus === 'detecting';
                                   
-                                  if (isTimedOut) {
-                                    // Timed out - show manual approval controls
+                                  const showManualControls = isTimedOut || isDetecting;
+                                  
+                                  if (showManualControls) {
                                     return (
                                       <>
-                                        <div className="flex flex-col items-center justify-center gap-2 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg mb-3">
-                                          <Clock className="w-5 h-5 text-orange-400" />
-                                          <span className="text-sm text-orange-400 font-medium text-center">Payment Timed Out</span>
-                                          <span className="text-xs text-muted-foreground text-center">No transaction detected - manual review required</span>
+                                        <div className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg mb-3 border ${isDetecting ? 'bg-amber-500/10 border-amber-500/30' : 'bg-orange-500/10 border-orange-500/30'}`}>
+                                          {isDetecting ? (
+                                            <>
+                                              <DollarSign className="w-5 h-5 text-amber-400" />
+                                              <span className="text-sm text-amber-400 font-medium text-center">Amount Mismatch</span>
+                                              <span className="text-xs text-muted-foreground text-center">User sent a different amount than requested. Enter the amount (USD) to add to their balance, then Approve or Reject.</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Clock className="w-5 h-5 text-orange-400" />
+                                              <span className="text-sm text-orange-400 font-medium text-center">Payment Timed Out</span>
+                                              <span className="text-xs text-muted-foreground text-center">No transaction detected - manual review required</span>
+                                            </>
+                                          )}
                                         </div>
                                         <div className="flex flex-col gap-2">
-                                          <label className="text-xs text-muted-foreground">Approval Amount (USD)</label>
+                                          <label className="text-xs text-muted-foreground">{isDetecting ? 'Amount to add to balance (USD)' : 'Approval Amount (USD)'}</label>
                                           <Input
                                             type="number"
                                             placeholder={`Requested: $${topupData.amount.toFixed(2)}`}
