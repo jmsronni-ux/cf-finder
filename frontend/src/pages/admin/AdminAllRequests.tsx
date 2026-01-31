@@ -1666,10 +1666,54 @@ const AdminAllRequests: React.FC = () => {
                                       <Calendar className="w-4 h-4 text-gray-500" />
                                       <div>
                                         <p className="text-xs text-gray-400">Requested</p>
-                                        <p className="font-bold text-sm">{new Date(request.data.createdAt).toLocaleDateString()}</p>
+                                        <p className="font-bold text-sm">{new Date(request.data.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}</p>
                                       </div>
                                     </div>
                                   </div>
+
+                                  {/* Payment Address */}
+                                  {request.data.paymentAddress && (
+                                    <div className="bg-background/50 border border-border rounded-lg p-3 mt-2">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs text-muted-foreground">Payment Address</p>
+                                          <p className="text-sm font-mono text-foreground break-all">{request.data.paymentAddress}</p>
+                                        </div>
+                                        <button
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(request.data.paymentAddress || '');
+                                            toast.success('Payment address copied!');
+                                          }}
+                                          className="p-1.5 hover:bg-background/50 rounded transition-colors flex-shrink-0 ml-2"
+                                          title="Copy payment address"
+                                        >
+                                          <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Transaction Hash */}
+                                  {request.data.txHash && (
+                                    <div className="bg-background/50 border border-border rounded-lg p-3 mt-2">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs text-muted-foreground">Transaction Hash</p>
+                                          <p className="text-sm font-mono text-foreground break-all">{request.data.txHash}</p>
+                                        </div>
+                                        <button
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(request.data.txHash || '');
+                                            toast.success('Transaction hash copied!');
+                                          }}
+                                          className="p-1.5 hover:bg-background/50 rounded transition-colors flex-shrink-0 ml-2"
+                                          title="Copy transaction hash"
+                                        >
+                                          <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
 
                                   {request.data.processedAt && (
                                     <div className="text-xs text-gray-500 pt-2">
