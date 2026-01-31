@@ -55,7 +55,7 @@ export const submitVerificationRequest = async (req, res, next) => {
         await verificationRequest.save();
 
         // Send confirmation email to user
-        const userForEmail = await User.findById(userId).select('name email');
+        const userForEmail = await User.findById(userId).select('name email managedBy');
         if (userForEmail) {
             sendWalletVerificationSubmittedEmail(
                 userForEmail.email,

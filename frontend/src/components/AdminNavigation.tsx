@@ -10,8 +10,13 @@ import {
   ShieldCheck,
   FileText,
   Key,
-  UserCircle
+  UserCircle,
+  Copy,
+  Send
 } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { SHOW_ADDITIONAL_VERIFICATION_UI } from '../config/featureFlags';
 import { useAuth } from '../contexts/AuthContext';
@@ -74,6 +79,43 @@ const AdminNavigation: React.FC = () => {
             <p className="text-sm text-gray-400">{user?.email || ''}</p>
           </div>
         </div>
+
+        {/* Telegram Connect (Compact) */}
+        {(user?.isSubAdmin || user?.isAdmin) && (
+          <div className="flex items-center gap-2 mx-4 flex-1 max-w-md">
+            <div className="relative flex-1">
+              <Input
+                readOnly
+                value={user._id}
+                className="h-9 pr-16 bg-white/5 border-white/10 text-xs font-mono text-gray-300 focus-visible:ring-1 focus-visible:ring-white/20"
+              />
+              <div className="absolute right-1 top-1 bottom-1 flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-gray-400 hover:text-white hover:bg-white/10"
+                  onClick={() => {
+                    navigator.clipboard.writeText(user._id);
+                    toast.success('ID Copied');
+                  }}
+                  title="Copy System ID"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              className="h-9 bg-[#24A1DE]/20 hover:bg-[#24A1DE]/30 text-[#24A1DE] border border-[#24A1DE]/50 gap-2 shrink-0"
+              onClick={() => window.open(`https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'notif347823_bot'}`, '_blank')}
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Connect</span>
+            </Button>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/admin/global-settings')}

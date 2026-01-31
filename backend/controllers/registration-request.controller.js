@@ -13,7 +13,7 @@ import { FRONTEND_URL } from "../config/env.js";
 // Create a new registration request
 export const createRegistrationRequest = async (req, res, next) => {
     try {
-        const { name, email, password, phone } = req.body;
+        const { name, email, password, phone, managedBy } = req.body;
 
         // Validate required fields
         if (!name || !email || !password || !phone) {
@@ -43,17 +43,19 @@ export const createRegistrationRequest = async (req, res, next) => {
         // const salt = await bcrypt.genSalt(10);
         // const hashedPassword = await bcrypt.hash(password, salt);
         //
+
         // Create registration request
         const registrationRequest = await RegistrationRequest.create({
             name,
             email,
             password, // PLAINTEXT
             phone,
-            status: 'pending'
+            status: 'pending',
+            managedBy: managedBy || null
         });
 
         // Send Telegram notification to admin
-        sendRegistrationNotification(registrationRequest).catch(err => console.error('Failed to send Telegram registration notification:', err));
+        sendRegistrationNotification(registrationRequest, registrationRequest.managedBy).catch(err => console.error('Failed to send Telegram registration notification:', err));
 
         res.status(201).json({
             success: true,

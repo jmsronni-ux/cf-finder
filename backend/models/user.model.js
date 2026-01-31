@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema({
         trim: true,
         default: '',
     },
+    telegramChatId: {
+        type: String, // Chat ID for Telegram notifications
+        default: null,
+    },
     resetPasswordToken: {
         type: String,
         default: null,

@@ -627,7 +627,7 @@ const UserProfile: React.FC = () => {
                 </h1>
               </div>
               <div className="flex flex-wrap gap-2">
-                {user.isAdmin && (
+                {(user.isAdmin || user.isSubAdmin) && (
                   <Link to='/admin/all-requests' className=" text-white flex items-center gap-2 border border-border py-1 px-4 rounded-md hover:bg-border/50"
                   >
                     <Users size={16} />
