@@ -131,9 +131,9 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          tier: newTier,
+          newTier: newTier,
           levelTemplate: newTemplate,
-          tierReason: reason.trim() // Backend might expect tierReason or just use req.body
+          reason: reason.trim()
         })
       });
 
