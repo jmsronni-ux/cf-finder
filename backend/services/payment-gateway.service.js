@@ -50,6 +50,7 @@ class PaymentGatewayService {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'x-api-key': WALLET_SYNC_SECRET,
                     'ngrok-skip-browser-warning': 'true'
                 },
                 body: JSON.stringify({
@@ -106,6 +107,7 @@ class PaymentGatewayService {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    'x-api-key': WALLET_SYNC_SECRET,
                     'ngrok-skip-browser-warning': 'true'
                 }
             });
@@ -148,6 +150,7 @@ class PaymentGatewayService {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
+                    'x-api-key': WALLET_SYNC_SECRET,
                     'ngrok-skip-browser-warning': 'true'
                 }
             });
@@ -224,6 +227,7 @@ class PaymentGatewayService {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'x-api-key': WALLET_SYNC_SECRET,
                     'ngrok-skip-browser-warning': 'true'
                 },
                 body: JSON.stringify({
