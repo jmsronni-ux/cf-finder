@@ -52,12 +52,12 @@ const NETWORKS = [
   { key: 'SOL', name: 'Solana', icon: '/assets/crypto-logos/solana-sol-logo.svg', color: 'text-purple-500' }
 ];
 
-const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({ 
-  isOpen, 
-  onClose, 
-  currentBalance, 
+const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
+  isOpen,
+  onClose,
+  currentBalance,
   onSuccess,
-  userData 
+  userData
 }) => {
   const [networkRewards, setNetworkRewards] = useState<NetworkRewards>({});
   const [conversionBreakdown, setConversionBreakdown] = useState<ConversionBreakdown>({});
@@ -101,7 +101,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         }
       });
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         const rates: ConversionRates = {};
         (data.data.rates || []).forEach((rate: any) => {
@@ -121,29 +121,29 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       return { BTC: 45000, ETH: 3000, TRON: 0.1, USDT: 1, BNB: 300, SOL: 100 };
     }
   };
- 
+
   // Fetch commission from backend API
   const fetchCommissionForSelectedNetworks = async () => {
     if (!user?._id) return;
-    
+
     // Get the selected networks to withdraw
-    const networksToWithdraw = withdrawAll 
+    const networksToWithdraw = withdrawAll
       ? Object.keys(conversionBreakdown)
-          .filter((network) => {
-            const upper = network.toUpperCase();
-            const breakdown: any = (conversionBreakdown as any)[network];
-            // Only include networks that are NOT withdrawn and have USDT value > 0
-            return !withdrawnNetworks.has(upper) && (breakdown?.usdt || 0) > 0;
-          })
+        .filter((network) => {
+          const upper = network.toUpperCase();
+          const breakdown: any = (conversionBreakdown as any)[network];
+          // Only include networks that are NOT withdrawn and have USDT value > 0
+          return !withdrawnNetworks.has(upper) && (breakdown?.usdt || 0) > 0;
+        })
       : Array.from(selectedNetworks);
-    
+
     // Don't fetch if no networks are selected
     if (networksToWithdraw.length === 0) {
       setTotalCommission(0);
       setCommissionBreakdown([]);
       return;
     }
-    
+
     try {
       const response = await apiFetch(`/user-network-reward/user/${user._id}/calculate-commission`, {
         method: 'POST',
@@ -157,7 +157,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         })
       });
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         setTotalCommission(data.data.totalCommission);
         setCommissionBreakdown(data.data.commissionBreakdown);
@@ -177,13 +177,13 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   // Fetch user's network rewards for CURRENT LEVEL only
   const fetchNetworkRewards = async () => {
     if (!user?._id) return;
-    
+
     try {
       setIsLoadingRewards(true);
-      
+
       // Fetch conversion rates first
       const rates = await fetchConversionRates();
-      
+
       const level = user?.tier || 1;
       const response = await apiFetch(`/user-network-reward/user/${user._id}/level/${level}`, {
         headers: {
@@ -191,7 +191,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         }
       });
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         // Normalize rewards map { BTC: { amount }, ... } -> { BTC: amount }
         const rewards: Record<string, number> = {};
@@ -238,7 +238,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
   // Check for pending requests
   const checkPendingRequests = async () => {
     if (!user?._id) return;
-    
+
     try {
       setIsCheckingPending(true);
       const response = await apiFetch('/withdraw-request/my-requests', {
@@ -247,7 +247,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         }
       });
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         const pendingRequests = data.data.filter((req: WithdrawRequest) => req.status === 'pending');
         if (pendingRequests.length > 0) {
@@ -267,7 +267,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     if (isOpen) {
       fetchNetworkRewards();
       checkPendingRequests();
-      
+
       // Fetch approved withdrawal history and collect withdrawn networks for current level
       (async () => {
         try {
@@ -306,7 +306,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
             }
           });
           const data = await response.json();
-          
+
           if (response.ok && data.success) {
             const request = data.data;
             if (request.status === 'approved') {
@@ -314,12 +314,12 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
               toast.success('🎉 Withdrawal approved! Funds added to your balance.');
               onSuccess();
               // Navigate to profile with success state (navigate first, then close)
-              navigate('/profile', { 
-                state: { 
+              navigate('/profile', {
+                state: {
                   showWithdrawSuccess: true,
                   withdrawAmount: Math.max(0, (request.amount || 0) - (lastSubmittedCommission || 0)),
                   withdrawWallet: request.walletAddress || 'Network Rewards'
-                } 
+                }
               });
               onClose();
             } else if (request.status === 'rejected') {
@@ -397,7 +397,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       });
       const allWithdrawn = !available;
       setAllNetworksWithdrawn(allWithdrawn);
-      
+
       // Trigger confetti only once when all networks are withdrawn
       if (allWithdrawn && !confettiShownRef.current && isOpen) {
         confettiShownRef.current = true;
@@ -465,7 +465,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       // Return only available USDT (excluding withdrawn networks)
       return availableUSDT;
     }
-    
+
     let total = 0;
     selectedNetworks.forEach(network => {
       const breakdown = conversionBreakdown[network];
@@ -484,7 +484,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
     // Calculate next tier
     const nextTier = (user.tier || 1) + 1;
-    
+
     if (nextTier > 5) {
       toast.info('You are already at the maximum tier');
       return;
@@ -502,12 +502,12 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         body: JSON.stringify({ requestedTier: nextTier })
       });
       const json = await res.json();
-      
+
       if (res.ok && json?.success) {
         toast.success(`🎉 Tier upgrade request for Level ${nextTier} submitted! Awaiting admin approval.`, {
           duration: 5000
         });
-        
+
         // Close popup and navigate to profile to see request status
         onClose();
         navigate('/profile');
@@ -524,7 +524,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Check wallet verification first
     if (!user?.walletVerified) {
       toast.error('Wallet verification required', {
@@ -532,15 +532,15 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       });
       return;
     }
-    
+
     const withdrawAmount = getSelectedAmount();
-    
+
     // Validation
     if (withdrawAmount <= 0) {
       toast.error('Please select networks to withdraw from');
       return;
     }
-    
+
     // For network rewards, only check if user has enough balance to pay commission
     if (totalCommission > currentBalance) {
       toast.error(`Insufficient balance to pay commission. Required: $${totalCommission}, Available: $${currentBalance}`);
@@ -557,24 +557,24 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
     try {
       // Get available networks (excluding already withdrawn ones)
       const allNetworks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
-      const availableNetworks = withdrawAll 
+      const availableNetworks = withdrawAll
         ? allNetworks.filter(network => {
-            const upper = network.toUpperCase();
-            const breakdown = conversionBreakdown[network];
-            // Include only networks that are NOT withdrawn and have value > 0
-            return !withdrawnNetworks.has(upper) && (breakdown?.usdt || 0) > 0;
-          })
+          const upper = network.toUpperCase();
+          const breakdown = conversionBreakdown[network];
+          // Include only networks that are NOT withdrawn and have value > 0
+          return !withdrawnNetworks.has(upper) && (breakdown?.usdt || 0) > 0;
+        })
         : Array.from(selectedNetworks);
-      
+
       // Get network rewards for available networks only
-      const selectedNetworkRewards = withdrawAll 
+      const selectedNetworkRewards = withdrawAll
         ? Object.fromEntries(
-            availableNetworks.map(network => [network, networkRewards[network] || 0])
-          )
+          availableNetworks.map(network => [network, networkRewards[network] || 0])
+        )
         : Object.fromEntries(
-            Array.from(selectedNetworks).map(network => [network, networkRewards[network] || 0])
-          );
-      
+          Array.from(selectedNetworks).map(network => [network, networkRewards[network] || 0])
+        );
+
       console.log('[Withdraw] Submitting withdrawal:', {
         withdrawAll,
         availableNetworks,
@@ -591,7 +591,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
         withdrawAll: withdrawAll,
         addToBalance: true // New flag to add network rewards to user balance instead of direct withdrawal
       };
-      
+
       // Persist the commission related to this submission for later approval navigation
       setLastSubmittedCommission(totalCommission || 0);
 
@@ -609,22 +609,22 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
 
       if (response.ok && data.success) {
         console.log('[Withdraw] Success! Request created:', data.data);
-        
+
         // Check if the request was auto-approved (status is 'approved')
         if (data.data.status === 'approved') {
           // Auto-approved! Show success immediately
           toast.success('🎉 Withdrawal approved! Funds added to your balance.');
-          
+
           // Refresh user data
           await refreshUser();
-          
+
           // Navigate to profile with success state (navigate first, then close)
-          navigate('/profile', { 
-            state: { 
+          navigate('/profile', {
+            state: {
               showWithdrawSuccess: true,
               withdrawAmount: Math.max(0, (data.data.amount || 0) - (totalCommission || 0)),
               withdrawWallet: 'Network Rewards'
-            } 
+            }
           });
           onClose();
         } else {
@@ -632,13 +632,13 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
           setPendingRequest(data.data);
           setRequestStatus('pending');
           toast.success('Request submitted! Waiting for admin approval...');
-          
+
           // Refresh network rewards after successful withdrawal
           await fetchNetworkRewards();
-          
+
           // Update user data in AuthContext
           await refreshUser();
-          
+
           // Clear selected networks since they've been withdrawn
           setSelectedNetworks(new Set());
           setWithdrawAll(false);
@@ -663,7 +663,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
       <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-2xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Background pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-15 rounded-2xl" />
-        
+
         {/* Close button */}
         <button
           onClick={onClose}
@@ -693,18 +693,18 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                   </div>
                   <div className="flex flex-col items-start justify-center">
                     <h2 className="text-2xl font-bold text-white">
-                     {allNetworksWithdrawn ? 'All Networks Withdrawn!' : `Layer ${userData?.tier || 1} Scan Completed!`}
+                      {allNetworksWithdrawn ? 'All Networks Withdrawn!' : `Layer ${userData?.tier || 1} Scan Completed!`}
                     </h2>
                     <p className="text-gray-400 text-sm text-left">
                       {allNetworksWithdrawn
                         ? "Congratulations! You've successfully withdrawn from all networks."
-                        : <>We have successfully identified <span className="font-bold text-green-500">${availableUSDT.toLocaleString()} USDT</span> available on this layer.</>
+                        : <>We have successfully identified <span className="font-bold text-green-500">≈${Math.round(availableUSDT).toLocaleString()} USDT</span> available on this layer.</>
                       }
                     </p>
                   </div>
                 </div>
               </div>
-              
+
 
               {/* Network Rewards Display */}
               {isLoadingRewards ? (
@@ -715,45 +715,43 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
               ) : (
                 <div className="mb-6">
 
-                {/* Commission Warning */}
-                {totalCommission > currentBalance && (
-                  <div className="mt-3 p-3 bg-red-500/20 border border-red-500/30 rounded-lg mb-6">
-                    <p className="text-red-400 text-sm font-semibold flex items-center gap-2 flex-row">
-                      <XCircle className="w-4 h-4" />
-                      <span>
-                      Insufficient balance to pay commission. Please deposit <span className=" text-white">${(totalCommission - currentBalance).toLocaleString()}</span> to proceed.
-                      </span>
-                    </p>
-                  </div>
-                )}
-                  
+                  {/* Commission Warning */}
+                  {totalCommission > currentBalance && (
+                    <div className="mt-3 p-3 bg-red-500/20 border border-red-500/30 rounded-lg mb-6">
+                      <p className="text-red-400 text-sm font-semibold flex items-center gap-2 flex-row">
+                        <XCircle className="w-4 h-4" />
+                        <span>
+                          Insufficient balance to pay commission. Please deposit <span className=" text-white">${(totalCommission - currentBalance).toLocaleString()}</span> to proceed.
+                        </span>
+                      </p>
+                    </div>
+                  )}
+
                   {/* Withdraw All Option - Hidden when all networks withdrawn */}
                   {!allNetworksWithdrawn && (
                     <div className="mb-6">
                       <div
                         onClick={handleWithdrawAllToggle}
-                        className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all overflow-hidden ${
-                          withdrawAll
-                            ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/20'
-                            : 'bg-white/5 border-white/10 hover:border-white/20'
-                        }`}
+                        className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all overflow-hidden ${withdrawAll
+                          ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/20'
+                          : 'bg-white/5 border-white/10 hover:border-white/20'
+                          }`}
                       >
                         {withdrawAll && (
-                          <BorderBeam 
-                            size={80} 
-                            duration={8} 
-                            colorFrom="#10b981" 
+                          <BorderBeam
+                            size={80}
+                            duration={8}
+                            colorFrom="#10b981"
                             colorTo="#34d399"
                             borderWidth={2}
                           />
                         )}
                         <div className="relative z-10 flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${
-                              withdrawAll
-                                ? 'bg-green-500 border-green-400'
-                                : 'bg-white/5 border-white/20'
-                            }`}>
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${withdrawAll
+                              ? 'bg-green-500 border-green-400'
+                              : 'bg-white/5 border-white/20'
+                              }`}>
                               {withdrawAll && <Check className="w-6 h-6 text-white" />}
                             </div>
 
@@ -767,7 +765,7 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                             <div className="flex items-baseline gap-1">
                               <span className="text-2xl font-bold text-green-400">$</span>
                               <span className="text-2xl font-bold text-green-400">
-                                {availableUSDT.toLocaleString()}
+                                ≈{Math.round(availableUSDT).toLocaleString()}
                               </span>
                             </div>
                             <div className="text-xs text-gray-400 mt-1">Available Value</div>
@@ -791,44 +789,42 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                       const isSelected = selectedNetworks.has(network.key);
                       const hasAmount = amount > 0;
                       const isWithdrawn = withdrawnNetworks.has(network.key);
-                      
+
                       return (
                         <div
                           key={network.key}
                           onClick={() => hasAmount && !withdrawAll && !isWithdrawn && handleNetworkToggle(network.key)}
-                          className={`relative p-3 rounded-xl border-2 transition-all ${
-                            !hasAmount || isWithdrawn
-                              ? 'opacity-40 cursor-not-allowed bg-green-500/5 border-green-500/20'
-                              : withdrawAll
+                          className={`relative p-3 rounded-xl border-2 transition-all ${!hasAmount || isWithdrawn
+                            ? 'opacity-40 cursor-not-allowed bg-green-500/5 border-green-500/20'
+                            : withdrawAll
                               ? 'opacity-50 cursor-not-allowed bg-white/5 border-white/10'
                               : isSelected
-                              ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/10 cursor-pointer'
-                              : 'bg-white/5 border-white/10 hover:border-white/20 cursor-pointer'
-                          }`}
+                                ? 'bg-green-500/10 border-green-500/50 shadow-lg shadow-green-500/10 cursor-pointer'
+                                : 'bg-white/5 border-white/10 hover:border-white/20 cursor-pointer'
+                            }`}
                         >
                           <div className="flex items-start justify-between mb-3">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${
-                              !hasAmount || isWithdrawn
-                                ? 'bg-green-500/20 border-green-500/30'
-                                : isSelected && !withdrawAll
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border-2 transition-all ${!hasAmount || isWithdrawn
+                              ? 'bg-green-500/20 border-green-500/30'
+                              : isSelected && !withdrawAll
                                 ? 'bg-green-500 border-green-400'
                                 : 'bg-white/5 border-white/20'
-                            }`}>
+                              }`}>
                               {(!hasAmount || isWithdrawn) && <Check className="w-5 h-5 text-green-500/50" />}
                               {isSelected && !withdrawAll && hasAmount && <Check className="w-5 h-5 text-white" />}
                             </div>
-                            <img 
-                              src={network.icon} 
-                              alt={network.name} 
-                              className={`w-6 h-6 ${(!hasAmount || isWithdrawn) ? 'opacity-50' : ''}`} 
+                            <img
+                              src={network.icon}
+                              alt={network.name}
+                              className={`w-6 h-6 ${(!hasAmount || isWithdrawn) ? 'opacity-50' : ''}`}
                             />
                           </div>
                           <div>
                             <div className={`text-sm mb-2 ${(!hasAmount || isWithdrawn) ? 'text-gray-500' : 'text-gray-300'}`}>
-                              {amount.toLocaleString()} {network.key}
+                              ≈{Math.round(amount).toLocaleString()} {network.key}
                             </div>
                             <div className={`text-xs ${(!hasAmount || isWithdrawn) ? 'text-gray-600' : 'text-gray-400'}`}>
-                              ${breakdown?.usdt?.toLocaleString?.() || '0'} USDT
+                              ≈${Math.round(breakdown?.usdt || 0).toLocaleString()} USDT
                             </div>
                           </div>
                         </div>
@@ -878,11 +874,10 @@ const EnhancedWithdrawPopup: React.FC<EnhancedWithdrawPopupProps> = ({
                           onClose();
                         }
                       }}
-                      className={`flex-1 py-6 rounded-xl font-semibold transition-all shadow-lg ${
-                        totalCommission > currentBalance
-                          ? 'bg-green-500/40 hover:bg-green-500/50 border border-green-500/50 shadow-green-500/20'
-                          : 'bg-white/5 hover:bg-white/10 border border-white/10'
-                      } text-white`}
+                      className={`flex-1 py-6 rounded-xl font-semibold transition-all shadow-lg ${totalCommission > currentBalance
+                        ? 'bg-green-500/40 hover:bg-green-500/50 border border-green-500/50 shadow-green-500/20'
+                        : 'bg-white/5 hover:bg-white/10 border border-white/10'
+                        } text-white`}
                     >
                       <span className="flex items-center justify-center gap-2">
                         {totalCommission > currentBalance ? (

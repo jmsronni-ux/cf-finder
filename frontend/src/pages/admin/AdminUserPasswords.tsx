@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Loader2, Search, X, User, LogIn, Download, Trash2, AlertTriangle, Info, Trophy, Crown, Building2, Users, ShieldCheck } from 'lucide-react';
+import { Loader2, Search, X, User, LogIn, Download, Trash2, AlertTriangle, Info, Trophy, Crown, Building2, Users, ShieldCheck, Wallet, Pencil, Check } from 'lucide-react';
 import AdminNavigation from '../../components/AdminNavigation';
 import { apiFetch } from '../../utils/api';
 import { toast } from 'sonner';
@@ -39,6 +39,7 @@ interface UserData {
   email: string;
   password: string;
   tier?: number;
+  balance?: number;
   isAdmin?: boolean;
   isSubAdmin?: boolean;
   managedBy?: string | null;
@@ -50,7 +51,7 @@ interface UserData {
 const PAGE_SIZE = 20;
 
 const AdminUserPasswords: React.FC = () => {
-  const { user, token, impersonateUserAccount } = useAuth();
+  const { user: currentUser, token, impersonateUserAccount } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,6 +77,10 @@ const AdminUserPasswords: React.FC = () => {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // Balance editing state
+  const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
+  const [balanceInputValue, setBalanceInputValue] = useState<string>('');
 
   const totalResults = totalCount || users.length;
   const isInitialLoading = loading && users.length === 0;
@@ -163,7 +168,7 @@ const AdminUserPasswords: React.FC = () => {
   // Fetch Subadmins for assignment
   useEffect(() => {
     const fetchSubadmins = async () => {
-      if (!token || !user?.isAdmin) return;
+      if (!token || !currentUser?.isAdmin) return;
       setLoadingSubadmins(true);
       try {
         const res = await apiFetch('/user/admin/users-with-passwords?role=subadmin', {
@@ -197,10 +202,10 @@ const AdminUserPasswords: React.FC = () => {
 
     fetchSubadmins();
     fetchTemplates();
-  }, [token, user?.isAdmin]);
+  }, [token, currentUser?.isAdmin]);
 
   const handleUpdateRole = async (userId: string, isSubAdmin: boolean) => {
-    if (!token || !user?.isAdmin) return;
+    if (!token || !currentUser?.isAdmin) return;
     setUpdatingId(userId);
     try {
       const response = await apiFetch(`/user/${userId}`, {
@@ -235,7 +240,7 @@ const AdminUserPasswords: React.FC = () => {
   };
 
   const handleUpdateTemplate = async (userId: string, levelTemplate: string) => {
-    if (!token || !user?.isAdmin) return;
+    if (!token || !currentUser?.isAdmin) return;
     setUpdatingId(userId);
     try {
       const response = await apiFetch(`/user/${userId}`, {
@@ -263,7 +268,7 @@ const AdminUserPasswords: React.FC = () => {
   };
 
   const handleUpdateAssignment = async (userId: string, managedBy: string | null) => {
-    if (!token || !user?.isAdmin) return;
+    if (!token || !currentUser?.isAdmin) return;
     setUpdatingId(userId);
     try {
       const response = await apiFetch(`/user/${userId}`, {
@@ -285,6 +290,39 @@ const AdminUserPasswords: React.FC = () => {
     } catch (error) {
       console.error('Error updating assignment:', error);
       toast.error('An error occurred while updating assignment');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleUpdateBalance = async (userId: string) => {
+    const newBalance = parseFloat(balanceInputValue);
+    if (isNaN(newBalance) || newBalance < 0) {
+      toast.error('Please enter a valid non-negative balance amount');
+      return;
+    }
+    if (!token || !currentUser?.isAdmin) return;
+    setUpdatingId(userId);
+    try {
+      const response = await apiFetch(`/user/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ balance: newBalance }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success(`Balance updated to $${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        setUsers(prev => prev.map(u => u._id === userId ? { ...u, balance: newBalance } : u));
+        setEditingBalanceId(null);
+      } else {
+        toast.error(data.message || 'Failed to update balance');
+      }
+    } catch (error) {
+      console.error('Error updating balance:', error);
+      toast.error('An error occurred while updating balance');
     } finally {
       setUpdatingId(null);
     }
@@ -466,7 +504,7 @@ const AdminUserPasswords: React.FC = () => {
   };
 
   // Check if user is admin or sub-admin
-  if (!user?.isAdmin && !user?.isSubAdmin) {
+  if (!currentUser?.isAdmin && !currentUser?.isSubAdmin) {
     return (
       <div className="min-h-screen text-foreground flex items-center justify-center">
         <Card className="border-red-500/50 max-w-md">
@@ -618,19 +656,27 @@ const AdminUserPasswords: React.FC = () => {
                           Managed By
                         </div>
                       </th>
-                      <th className="w-[10%] px-3 py-3 text-center text-sm font-semibold text-foreground">
+                      <th className="w-[8%] px-3 py-3 text-center text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2 justify-center">
                           <Crown className="w-4 h-4" />
                           Level
                         </div>
                       </th>
-                      <th className="w-[10%] px-3 py-3 text-center text-sm font-semibold text-foreground">
+                      <th className="w-[8%] px-3 py-3 text-center text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2 justify-center">
                           <Trophy className="w-4 h-4" />
                           Rewards
                         </div>
                       </th>
-                      <th className="w-[12%] px-3 py-3 text-center text-sm font-semibold text-foreground">
+                      {currentUser?.isAdmin && (
+                        <th className="w-[13%] px-3 py-3 text-center text-sm font-semibold text-foreground">
+                          <div className="flex items-center gap-2 justify-center">
+                            <Wallet className="w-4 h-4" />
+                            Balance
+                          </div>
+                        </th>
+                      )}
+                      <th className="w-[10%] px-3 py-3 text-center text-sm font-semibold text-foreground">
                         <div className="flex items-center gap-2 justify-center">
                           <LogIn className="w-4 h-4" />
                           Login
@@ -783,6 +829,61 @@ const AdminUserPasswords: React.FC = () => {
                             <Trophy className="w-4 h-4" />
                           </Button>
                         </td>
+                        {/* Balance cell — main admin only */}
+                        {currentUser?.isAdmin && (
+                          <td className="px-3 py-3 text-center">
+                            {editingBalanceId === user._id ? (
+                              <div className="flex items-center gap-1 justify-center">
+                                <span className="text-[10px] text-green-400 font-bold">$</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={balanceInputValue}
+                                  onChange={(e) => setBalanceInputValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleUpdateBalance(user._id);
+                                    if (e.key === 'Escape') setEditingBalanceId(null);
+                                  }}
+                                  autoFocus
+                                  className="w-[70px] h-6 text-[10px] bg-background border border-green-500/50 rounded px-1 text-foreground focus:outline-none focus:ring-1 focus:ring-green-500"
+                                />
+                                <Button
+                                  onClick={() => handleUpdateBalance(user._id)}
+                                  disabled={updatingId === user._id}
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 hover:bg-green-600/20 text-green-500 hover:text-green-400"
+                                  title="Confirm"
+                                >
+                                  {updatingId === user._id
+                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                    : <Check className="w-3 h-3" />}
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 justify-center group/balance">
+                                <span className="text-[11px] font-semibold text-green-400">
+                                  ${(user.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                {!user.isAdmin && (
+                                  <Button
+                                    onClick={() => {
+                                      setEditingBalanceId(user._id);
+                                      setBalanceInputValue(String(user.balance ?? 0));
+                                    }}
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-5 w-5 opacity-0 group-hover/balance:opacity-100 hover:bg-green-600/20 text-green-500 hover:text-green-400 transition-opacity"
+                                    title="Edit balance"
+                                  >
+                                    <Pencil className="w-2.5 h-2.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        )}
                         <td className="px-3 py-3 text-center">
                           <Button
                             onClick={() => handleImpersonate(user)}
@@ -807,7 +908,7 @@ const AdminUserPasswords: React.FC = () => {
                           <div className="flex justify-center">
                             <Button
                               onClick={() => setUserToDelete(user)}
-                              disabled={!user?.isAdmin} // Only main admins can delete users
+                              disabled={!currentUser?.isAdmin} // Only main admins can delete users
                               size="icon"
                               variant="destructive"
                               className="bg-red-600/20 hover:bg-red-600/40 text-red-500 hover:text-red-400 border border-red-600/50 h-8 w-8 disabled:opacity-30 disabled:cursor-not-allowed"
