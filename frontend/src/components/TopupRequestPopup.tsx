@@ -11,13 +11,15 @@ interface TopupRequestPopupProps {
   onClose: () => void;
 }
 
-type CryptoType = 'BTC' | 'ETH' | 'BCY' | 'BETH';
+type CryptoType = 'BTC' | 'ETH' | 'BCY' | 'BETH' | 'USDT';
 
 // Payment status from the backend (detecting = under/over payment, amount under review)
 type PaymentStatus = 'pending' | 'detected' | 'confirming' | 'confirmed' | 'completed' | 'detecting' | 'expired' | 'failed';
 
 // UI states for the popup
-type UIState = 'form' | 'awaiting_payment' | 'payment_detected' | 'confirming' | 'success' | 'error' | 'timeout';
+type UIState = 'form' | 'awaiting_payment' | 'payment_detected' | 'confirming' | 'success' | 'error' | 'timeout' | 'direct_wallet' | 'direct_pending';
+
+type TopupFlow = 'direct' | 'auto';
 
 interface PaymentSession {
   requestId: string;
@@ -44,6 +46,19 @@ const cryptoOptions = [
   { key: 'BETH' as CryptoType, name: 'BETH (Test)', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-purple-500', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/30', confirmations: 1, isTest: true },
 ];
 
+// Direct flow supports BTC, ETH, and USDT (static wallet addresses from global settings)
+const directCryptoOptions = [
+  { key: 'BTC' as CryptoType, name: 'BTC', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30' },
+  { key: 'ETH' as CryptoType, name: 'ETH', icon: '/assets/crypto-logos/ethereum-eth-logo.svg', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30' },
+  { key: 'USDT' as CryptoType, name: 'USDT', icon: '/assets/crypto-logos/tether-usdt-logo.svg', color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30' },
+];
+
+const directWalletKey: Record<string, 'btc' | 'eth' | 'usdt'> = {
+  BTC: 'btc',
+  ETH: 'eth',
+  USDT: 'usdt',
+};
+
 const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }) => {
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +67,11 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
   const [uiState, setUiState] = useState<UIState>('form');
   const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [topupFlow, setTopupFlow] = useState<TopupFlow>('direct');
+  const [globalWallets, setGlobalWallets] = useState<{ btc: string; eth: string; usdt: string }>({ btc: '', eth: '', usdt: '' });
+  const [directRequestId, setDirectRequestId] = useState<string | null>(null);
+  const [directWalletAddress, setDirectWalletAddress] = useState<string>('');
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const { token, user, refreshUser } = useAuth();
   const { ratesMap, loading: ratesLoading } = useConversionRates();
@@ -59,12 +79,13 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
 
   // Filter crypto options based on admin status - only show test cryptos to admins
   const availableCryptoOptions = useMemo(() => {
+    if (topupFlow === 'direct') return directCryptoOptions;
     return cryptoOptions.filter(crypto => !crypto.isTest || user?.isAdmin);
-  }, [user?.isAdmin]);
+  }, [user?.isAdmin, topupFlow]);
 
   // Get selected crypto option to check if it's a test network
   const selectedCryptoOption = availableCryptoOptions.find(c => c.key === selectedCrypto) || availableCryptoOptions[0];
-  const isTestCrypto = selectedCryptoOption?.isTest || false;
+  const isTestCrypto = ('isTest' in selectedCryptoOption && selectedCryptoOption.isTest) || false;
 
   // Ensure selected crypto is valid when available options change
   useEffect(() => {
@@ -73,6 +94,16 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       setSelectedCrypto(availableCryptoOptions[0].key);
     }
   }, [availableCryptoOptions, selectedCrypto]);
+
+  // When switching to direct flow, reset to BTC if current crypto is test or USDT not in auto
+  useEffect(() => {
+    if (topupFlow === 'direct') {
+      const isAvailable = directCryptoOptions.some(c => c.key === selectedCrypto);
+      if (!isAvailable) {
+        setSelectedCrypto('BTC');
+      }
+    }
+  }, [topupFlow]);
 
   // Calculate converted amounts based on input mode
   const { usdAmount, cryptoAmount } = useMemo(() => {
@@ -101,6 +132,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       return { usdAmount: usd, cryptoAmount: crypto };
     }
   }, [amount, inputMode, selectedCrypto, ratesMap, isTestCrypto]);
+
   // Clean up polling on unmount or close
   useEffect(() => {
     return () => {
@@ -109,6 +141,23 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       }
     };
   }, []);
+
+  // Fetch global wallet addresses
+  const fetchGlobalWallets = async () => {
+    try {
+      const response = await apiFetch('/global-settings', { method: 'GET' });
+      const data = await response.json();
+      if (response.ok && data.success && data.data) {
+        setGlobalWallets({
+          btc: data.data.btcAddress || '',
+          eth: data.data.ethAddress || '',
+          usdt: data.data.usdtAddress || '',
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching global wallet settings:', err);
+    }
+  };
 
   // Reset state when popup closes
   useEffect(() => {
@@ -120,6 +169,9 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
         setUiState('form');
         setPaymentSession(null);
         setError(null);
+        setDirectRequestId(null);
+        setDirectWalletAddress('');
+        setIsConfirming(false);
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
@@ -128,6 +180,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     } else {
       // Check for existing pending request when opening
       checkPendingRequest();
+      fetchGlobalWallets();
     }
   }, [isOpen]);
 
@@ -300,7 +353,28 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (usdAmount <= 0 || cryptoAmount <= 0) {
+    if (usdAmount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    if (topupFlow === 'direct') {
+      // Direct flow: show wallet address and QR code
+      const walletKey = directWalletKey[selectedCrypto];
+      const walletAddress = walletKey ? globalWallets[walletKey] : '';
+
+      if (!walletAddress) {
+        toast.error('Wallet address not configured for this cryptocurrency. Please contact support.');
+        return;
+      }
+
+      setDirectWalletAddress(walletAddress);
+      setUiState('direct_wallet');
+      return;
+    }
+
+    // Auto flow
+    if (cryptoAmount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
@@ -358,6 +432,38 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     }
   };
 
+  const handleConfirmDirectTransaction = async () => {
+    setIsConfirming(true);
+    try {
+      const response = await apiFetch('/topup-request/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: usdAmount,
+          cryptocurrency: selectedCrypto,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setDirectRequestId(data.data._id);
+        setUiState('direct_pending');
+        toast.success('Transaction confirmed! Your request has been submitted.');
+      } else {
+        toast.error(data.message || 'Failed to submit transaction confirmation');
+      }
+    } catch (err) {
+      console.error('Error confirming direct transaction:', err);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
   const handleCancelPayment = async () => {
     if (!paymentSession) return;
 
@@ -377,14 +483,15 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
     }
   };
 
-  const copyAddress = () => {
-    if (paymentSession?.paymentAddress) {
-      navigator.clipboard.writeText(paymentSession.paymentAddress);
+  const copyAddress = (address?: string) => {
+    const addr = address || paymentSession?.paymentAddress;
+    if (addr) {
+      navigator.clipboard.writeText(addr);
       toast.success('Wallet address copied!');
     }
   };
 
-  const selectedCryptoInfo = cryptoOptions.find(c => c.key === selectedCrypto)!;
+  const selectedCryptoInfo = (topupFlow === 'direct' ? directCryptoOptions : cryptoOptions).find(c => c.key === selectedCrypto) || cryptoOptions[0];
 
   if (!isOpen) return null;
 
@@ -401,6 +508,10 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
         return renderError();
       case 'timeout':
         return renderTimeout();
+      case 'direct_wallet':
+        return renderDirectWallet();
+      case 'direct_pending':
+        return renderDirectPending();
       default:
         return renderForm();
     }
@@ -423,13 +534,42 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white">Top-Up</h2>
-            <p className="text-gray-400 text-sm">Pay with BTC or ETH</p>
+            <p className="text-gray-400 text-sm">Pay with BTC, ETH or USDT</p>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-          {/* Crypto Selector - Moved up */}
+          {/* Flow Toggle */}
+          <div className="space-y-2">
+            <label className="text-sm text-gray-400 font-medium">Payment Method</label>
+            <div className="flex p-1 bg-white/5 rounded-lg border border-white/10">
+              <button
+                type="button"
+                onClick={() => setTopupFlow('direct')}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  topupFlow === 'direct'
+                    ? 'bg-purple-500/20 border border-purple-500/40 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Direct
+              </button>
+              <button
+                type="button"
+                onClick={() => setTopupFlow('auto')}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  topupFlow === 'auto'
+                    ? 'bg-purple-500/20 border border-purple-500/40 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Auto
+              </button>
+            </div>
+          </div>
+
+          {/* Crypto Selector */}
           <div className="space-y-2">
             <label className="text-sm text-gray-400 font-medium">Select Cryptocurrency</label>
             <div className={`grid ${gridCols} gap-2 p-1 bg-white/5 rounded-lg border border-white/10`}>
@@ -444,13 +584,14 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                 >
-                  {crypto.isTest && (
+                  {'isTest' in crypto && (crypto as any).isTest && (
                     <span className="absolute -top-1 -right-1 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold">TEST</span>
                   )}
                   <img
                     src={crypto.icon}
                     alt={crypto.name}
-                    className={`w-7 h-7 ${selectedCrypto === crypto.key ? '' : 'opacity-70'} ${crypto.isTest ? 'hue-rotate-90' : ''}`}
+                    className={`w-7 h-7 ${selectedCrypto === crypto.key ? '' : 'opacity-70'} ${'isTest' in crypto && (crypto as any).isTest ? 'hue-rotate-90' : ''}`}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <span className="text-xs mt-2">{crypto.name}</span>
                 </button>
@@ -466,7 +607,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
                 {inputMode === 'USD' ? (
                   <DollarSign className="w-5 h-5" />
                 ) : (
-                  <img src={selectedCryptoOption.icon} alt={selectedCrypto} className="w-5 h-5" />
+                  <img src={selectedCryptoOption.icon} alt={selectedCrypto} className="w-5 h-5" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 )}
               </div>
               <input
@@ -558,7 +699,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Depositing...
+                  Processing...
                 </>
               ) : (
                 'Deposit'
@@ -569,6 +710,157 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
       </>
     );
   };
+
+  const renderDirectWallet = () => {
+    const cryptoInfo = directCryptoOptions.find(c => c.key === selectedCrypto) || directCryptoOptions[0];
+
+    return (
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+            <DollarSign className="text-purple-400" size={20} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white">Send Payment</h2>
+            <p className="text-gray-400 text-sm">Scan QR or copy the address below</p>
+          </div>
+        </div>
+
+        {/* QR Code */}
+        <div className="flex justify-center mb-4">
+          <div className="bg-white border border-white/10 rounded-lg p-4">
+            <div className="w-40 h-40 overflow-hidden bg-white">
+              <img
+                src={getQrCodeUrl(directWalletAddress)}
+                alt="Wallet QR Code"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Amount to send */}
+        <div className="space-y-3 mb-4">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Send Exactly</label>
+            <div className="flex h-11">
+              <div className={`flex-1 ${cryptoInfo.bgColor} border ${cryptoInfo.borderColor} rounded-l-lg px-3 flex items-center gap-2`}>
+                <img src={cryptoInfo.icon} alt={cryptoInfo.name} className="w-5 h-5" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <div className="flex items-baseline gap-2">
+                  <span className={`text-lg font-bold ${cryptoInfo.color}`}>
+                    {formatCryptoAmount(cryptoAmount, selectedCrypto)} {selectedCrypto}
+                  </span>
+                  <span className="text-xs text-gray-500">≈ ${usdAmount.toFixed(2)}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${formatCryptoAmount(cryptoAmount, selectedCrypto)}`);
+                  toast.success('Amount copied!');
+                }}
+                className={`${cryptoInfo.bgColor} border ${cryptoInfo.borderColor} border-l-0 px-3 rounded-r-lg flex items-center justify-center text-white hover:opacity-80 transition-opacity`}
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Wallet Address */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">To Address</label>
+            <div className="flex h-11">
+              <input
+                type="text"
+                value={directWalletAddress}
+                readOnly
+                className="flex-1 bg-white/5 text-white px-3 rounded-l-lg border border-r-0 border-white/10 text-sm font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => copyAddress(directWalletAddress)}
+                className="bg-white/5 border border-white/10 px-3 rounded-r-lg flex items-center justify-center text-white hover:bg-purple-500/20 hover:text-purple-500 transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setUiState('form')}
+            disabled={isConfirming}
+            className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all disabled:opacity-50 text-sm"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmDirectTransaction}
+            disabled={isConfirming}
+            className="flex-1 px-4 py-3 bg-green-600/40 hover:bg-green-700 border border-green-600 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+          >
+            {isConfirming ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                Confirm Transaction
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDirectPending = () => (
+    <div className="flex flex-col items-center justify-center py-10 text-center relative z-10">
+      {/* Icon */}
+      <div className="relative mb-6">
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center border border-purple-500/30">
+          <Clock className="text-purple-400 w-12 h-12" />
+        </div>
+        <div className="absolute inset-0 w-24 h-24 rounded-full border border-purple-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+      </div>
+
+      <h2 className="text-2xl font-bold text-white mb-2">Request Submitted</h2>
+      <p className="text-gray-400 mb-2">Your transaction has been confirmed</p>
+      <p className="text-gray-500 text-sm mb-6">An admin will verify and approve your deposit shortly.</p>
+
+      {/* Request info */}
+      <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-6 w-full max-w-sm text-left space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Amount</span>
+          <span className="text-white font-medium">${usdAmount.toFixed(2)} USD</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Crypto</span>
+          <span className="text-white font-medium">{selectedCrypto}</span>
+        </div>
+        {directRequestId && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-400">Request ID</span>
+            <span className="text-white font-mono text-xs">{directRequestId.slice(-8)}</span>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={onClose}
+        className="px-10 w-3/4 py-3 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white rounded-lg font-medium transition-all shadow-lg shadow-purple-500/20"
+      >
+        Done
+      </button>
+    </div>
+  );
 
   const renderPaymentStatus = () => {
     if (!paymentSession) return null;
@@ -684,7 +976,7 @@ const TopupRequestPopup: React.FC<TopupRequestPopupProps> = ({ isOpen, onClose }
               />
               <button
                 type="button"
-                onClick={copyAddress}
+                onClick={() => copyAddress()}
                 className="bg-white/5 border border-white/10 px-3 rounded-r-lg flex items-center justify-center text-white hover:bg-purple-500/20 hover:text-purple-500 transition-colors"
               >
                 <Copy className="w-4 h-4" />

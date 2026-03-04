@@ -45,7 +45,12 @@ if (BOT_TOKEN) {
         });
 
         bot.on('polling_error', (error) => {
-            console.error('Telegram Polling Error:', error.code, error.message);
+            if (error.response && error.response.statusCode === 404) {
+                // Invalid bot token — stop polling silently
+                bot.stopPolling();
+            } else {
+                console.error('Telegram Polling Error:', error.code, error.message);
+            }
         });
 
     } catch (error) {

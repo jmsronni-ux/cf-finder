@@ -104,6 +104,7 @@ interface TopupRequestData {
   notes?: string;
   approvedAmount?: number;
   // Payment gateway fields (detecting = under/over payment, needs manual review)
+  paymentSessionId?: string;
   paymentStatus?: 'pending' | 'detected' | 'confirming' | 'confirmed' | 'completed' | 'detecting' | 'expired' | 'failed';
   confirmations?: number;
   requiredConfirmations?: number;
@@ -1981,29 +1982,86 @@ const AdminAllRequests: React.FC = () => {
                                   </>
                                 )}
 
-                                {/* Topup Actions - Show manual controls for timed-out (0 confirmations) or detecting (under/over payment) */}
+                                {/* Topup Actions */}
                                 {request.type === 'topup' && (() => {
                                   const topupData = request.data as TopupRequestData;
+                                  const isDirectFlow = !topupData.paymentSessionId;
+
+                                  if (isDirectFlow) {
+                                    // Direct top-up: user manually sent crypto to the global wallet.
+                                    // Show approve/reject immediately with no timeout logic.
+                                    return (
+                                      <>
+                                        <div className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg mb-3 border bg-purple-500/10 border-purple-500/30">
+                                          <DollarSign className="w-5 h-5 text-purple-400" />
+                                          <span className="text-sm text-purple-400 font-medium text-center">Direct Top-Up</span>
+                                          <span className="text-xs text-muted-foreground text-center">User sent crypto manually — verify and approve or reject.</span>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                          <label className="text-xs text-muted-foreground">Amount to credit (USD)</label>
+                                          <Input
+                                            type="number"
+                                            placeholder={`Requested: $${topupData.amount.toFixed(2)}`}
+                                            value={customAmounts[topupData._id] ?? topupData.amount.toString()}
+                                            onChange={(e) => setCustomAmounts(prev => ({
+                                              ...prev,
+                                              [topupData._id]: e.target.value
+                                            }))}
+                                            className="bg-background/50 border-border text-foreground"
+                                            min="0"
+                                            step="0.01"
+                                          />
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <Button
+                                            onClick={() => handleTopupApproveWithAmount(topupData._id, topupData.amount)}
+                                            disabled={processingId === topupData._id}
+                                            className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600 flex-1"
+                                          >
+                                            {processingId === topupData._id ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <CheckCircle className="w-4 h-4" />
+                                            )}
+                                            Approve
+                                          </Button>
+                                          <Button
+                                            onClick={() => handleTopupReject(topupData._id)}
+                                            disabled={processingId === topupData._id}
+                                            className="bg-red-600/50 hover:bg-red-700 text-white flex items-center gap-2 border border-red-600 flex-1"
+                                          >
+                                            {processingId === topupData._id ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <XCircle className="w-4 h-4" />
+                                            )}
+                                            Reject
+                                          </Button>
+                                        </div>
+                                      </>
+                                    );
+                                  }
+
+                                  // Auto top-up (payment gateway): use timeout / detecting logic
                                   const confirmations = topupData.confirmations || 0;
                                   const requiredConfirmations = topupData.requiredConfirmations || 1;
-                                  
+
                                   // Calculate timeout based on createdAt + 1 hour
                                   const createdAt = new Date(topupData.createdAt);
-                                  const timeoutAt = new Date(createdAt.getTime() + 60 * 60 * 1000); // 1 hour after creation
+                                  const timeoutAt = new Date(createdAt.getTime() + 60 * 60 * 1000);
                                   const hasTimedOut = new Date() > timeoutAt;
-                                  
-                                  // If transaction has confirmations, it should auto-approve (not show manual controls) unless detecting
+
                                   const hasConfirmations = confirmations > 0;
                                   const hasEnoughConfirmations = confirmations >= requiredConfirmations;
-                                  
+
                                   // Timed out: 1 hour since creation, 0 confirmations, pending/expired
-                                  const isTimedOut = hasTimedOut && !hasConfirmations && 
+                                  const isTimedOut = hasTimedOut && !hasConfirmations &&
                                                      ['pending', 'expired'].includes(topupData.paymentStatus || 'pending');
                                   // Under/over payment: gateway returned 'detecting' - admin must set amount to credit
                                   const isDetecting = topupData.paymentStatus === 'detecting';
-                                  
+
                                   const showManualControls = isTimedOut || isDetecting;
-                                  
+
                                   if (showManualControls) {
                                     return (
                                       <>
@@ -2069,7 +2127,7 @@ const AdminAllRequests: React.FC = () => {
                                     // Still processing - show auto-processing indicator with status
                                     const remainingMs = timeoutAt.getTime() - new Date().getTime();
                                     const remainingMins = Math.max(0, Math.ceil(remainingMs / 60000));
-                                    
+
                                     return (
                                       <div className="flex flex-col items-center justify-center gap-2 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                                         {hasConfirmations ? (
@@ -2088,7 +2146,7 @@ const AdminAllRequests: React.FC = () => {
                                             <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
                                             <span className="text-sm text-blue-400 font-medium text-center">Awaiting Payment</span>
                                             <span className="text-xs text-muted-foreground text-center">
-                                              {remainingMins > 0 
+                                              {remainingMins > 0
                                                 ? `Manual review in ${remainingMins} min${remainingMins !== 1 ? 's' : ''}`
                                                 : 'Will require manual review soon'
                                               }
