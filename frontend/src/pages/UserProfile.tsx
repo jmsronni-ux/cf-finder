@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -32,6 +32,59 @@ interface TierInfo {
   icon: React.ReactNode;
   features?: string[];
 }
+
+const HowItWorksVideo: React.FC = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-2xl border border-border shadow-2xl cursor-pointer mb-12 bg-black/40"
+      onClick={togglePlay}
+    >
+      {/* aspect-video reserves 16:9 space before video metadata loads → prevents CLS */}
+      <div className="aspect-video w-full">
+        <video
+          ref={videoRef}
+          src="/how-it-works.mp4"
+          className={`w-full h-full object-cover rounded-2xl transition-[filter] duration-500 ${isPlaying ? 'blur-none' : 'blur-sm'}`}
+          onEnded={() => setIsPlaying(false)}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+        />
+      </div>
+      {/* Play / Pause overlay */}
+      <div
+        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isPlaying ? 'opacity-0 hover:opacity-100' : 'opacity-100'
+          }`}
+      >
+        <div className="w-24 h-24 rounded-full bg-white/15 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl hover:bg-white/25 transition-colors duration-200">
+          {isPlaying ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" rx="1" />
+              <rect x="14" y="4" width="4" height="16" rx="1" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-white ml-1" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const UserProfile: React.FC = () => {
   const { user, logout, token, refreshUser } = useAuth();
@@ -878,9 +931,11 @@ const UserProfile: React.FC = () => {
             )}
 
             {/* User Transactions */}
-            <MagicBadge title="Transaction History" className="mt-24 mb-6" />
+            <MagicBadge title="How it works" className="mt-24 mb-6" />
 
-            <UserTransactions />
+            {/* How It Works Video */}
+            <HowItWorksVideo />
+
 
           </div>
         </MaxWidthWrapper>

@@ -15,6 +15,7 @@ import AdditionalVerification from "./pages/AdditionalVerification";
 import { SHOW_ADDITIONAL_VERIFICATION_UI } from "./config/featureFlags";
 import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
+import PublicOnlyRoute from "./components/helpers/PublicOnlyRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Toaster } from "sonner";
 import AdminUserPasswords from "./pages/admin/AdminUserPasswords";
@@ -26,8 +27,8 @@ function App() {
       <Toaster position="top-right" richColors />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<SignupPage />} />
+        <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
+        <Route path="/register" element={<PublicOnlyRoute><SignupPage /></PublicOnlyRoute>} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/dashboard" element={
