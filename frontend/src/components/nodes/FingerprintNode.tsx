@@ -120,6 +120,10 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       return 'border-red-500 bg-[#4E1817] text-red-500';
     } else if (status === 'Pending') {
       return 'border-yellow-500 bg-[#483413] glow-yellow text-yellow-500';
+    } else if (status === 'Cold Wallet') {
+      return 'border-blue-500 bg-[#172554] glow-blue text-blue-500';
+    } else if (status === 'Reported') {
+      return 'border-orange-500 bg-[#431407] glow-orange text-orange-500';
     }
     
     return 'border-gray-500 bg-gray-600/40';
@@ -142,6 +146,10 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       return 'border-b-red-500';
     } else if (status === 'Pending') {
       return 'border-b-yellow-500';
+    } else if (status === 'Cold Wallet') {
+      return 'border-b-blue-500';
+    } else if (status === 'Reported') {
+      return 'border-b-orange-500';
     }
     
     return 'border-b-gray-500';

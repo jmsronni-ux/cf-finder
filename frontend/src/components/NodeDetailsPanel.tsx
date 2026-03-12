@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet, KeyRound } from 'lucide-react';
+import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet, KeyRound, Snowflake, AlertTriangle } from 'lucide-react';
 import { PulsatingButton } from './ui/pulsating-button';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
@@ -232,6 +232,22 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
           bgColor: 'bg-gray-500/10',
           borderColor: 'border-gray-500/20'
         }
+      case 'Cold Wallet':
+      case 'cold wallet':
+        return {
+          icon: <Snowflake className="w-5 h-5" />,
+          color: 'text-blue-400',
+          bgColor: 'bg-blue-500/10',
+          borderColor: 'border-blue-500/20'
+        };
+      case 'Reported':
+      case 'reported':
+        return {
+          icon: <AlertTriangle className="w-5 h-5" />,
+          color: 'text-orange-400',
+          bgColor: 'bg-orange-500/10',
+          borderColor: 'border-orange-500/20'
+        };
       default: // Available
         return {
           icon: <KeyRound className="w-5 h-5 text-orange-400" />,
@@ -343,6 +359,8 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                     {nodeStatus === 'Pending' && 'Keys Requested (Pending)'}
                     {nodeStatus === 'Success' && 'Key Verified (Success)'}
                     {nodeStatus === 'Fail' && 'Key Failed (Retry)'}
+                    {nodeStatus === 'Cold Wallet' && 'Cold Wallet'}
+                    {nodeStatus === 'Reported' && 'Reported'}
                   </span>
                 </div>
               )}
