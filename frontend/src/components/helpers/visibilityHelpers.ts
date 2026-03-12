@@ -17,7 +17,7 @@ export function computeAllowedNodeIds(
   for (const n of nodes) {
     const lvl = n?.data?.level ?? 1;
     const hasWatchedThisLevel = user?.[`lvl${lvl}anim` as keyof typeof user] === 1;
-    
+
     // Allow node only if it's from a watched level
     // Current level nodes will be added to allowedVisible only during animation
     if (hasWatchedThisLevel) {
@@ -47,6 +47,7 @@ export function computeAllowedNodeIds(
 
 export function mapNodesWithState(params: {
   nodes: any[];
+  edges: any[]; // Need edges to determine parent-child relationships
   selectedNode: any;
   isNodeVisible: (id: string) => boolean;
   hasStarted: boolean;
@@ -55,9 +56,11 @@ export function mapNodesWithState(params: {
   currentLevel: number;
   user: any;
   allowedVisible: Set<string>;
+  withdrawalSystem?: string;
 }) {
   const {
     nodes,
+    edges,
     selectedNode,
     isNodeVisible,
     hasStarted,
@@ -66,14 +69,21 @@ export function mapNodesWithState(params: {
     currentLevel,
     user,
     allowedVisible,
+    withdrawalSystem,
   } = params;
+
+  // Build a map of parent nodes
+  const parentMap = new Map<string, string>();
+  edges.forEach((edge: any) => {
+    parentMap.set(edge.target, edge.source);
+  });
 
   return nodes.map((node: any) => {
     const effectiveStatus = node.type === 'fingerprintNode' && node.data.transaction
       ? getEffectiveStatus(node.id, node.data.transaction.status)
       : node.data.transaction?.status;
 
-    const timeRemaining = node.type === 'fingerprintNode' 
+    const timeRemaining = node.type === 'fingerprintNode'
       ? getTimeRemaining(node.id)
       : 0;
     const nodeLevel = node?.data?.level ?? 1;
@@ -89,25 +99,17 @@ export function mapNodesWithState(params: {
 
     // Admin users can always see all nodes (for editing purposes)
     const isAdmin = user?.isAdmin === true;
-    
+
     // Determine visibility:
-    // 1. Admins always see all nodes (for editing)
-    // 2. Account/center node is always visible
-    // 3. CryptoNodes are always visible
-    // 4. If user has watched this level, show all nodes immediately (they're in allowedVisible)
-    // 5. If it's the current level (not yet watched):
-    //    a. Before animation starts: Hide ALL nodes (except center and crypto)
-    //    b. After animation starts: Show nodes as they appear in animation (ignore allowedVisible check)
-    // 6. Otherwise, only show nodes that are in allowedVisible AND in the animation's visible list
     const nodeVisible = isAdmin
       ? true  // Admins always see everything
       : isCenterNode
         ? true  // Account/center node always visible
         : isCryptoNode
           ? true  // CryptoNodes always visible
-          : shouldAutoShow 
-            ? isVisibleByRule 
-            : isCurrentLevel 
+          : shouldAutoShow
+            ? isVisibleByRule
+            : isCurrentLevel
               ? (hasStarted ? isNodeVisible(node.id) : false)  // Before animation: hide all; During: animated nodes (ignore allowedVisible)
               : (isVisibleByRule && hasStarted && isNodeVisible(node.id));
 
@@ -119,6 +121,25 @@ export function mapNodesWithState(params: {
     // Locked state only for preview nodes (future levels user has access to but higher than current)
     const isPreviewNode = nodeLevel > currentLevel && nodeLevel <= (user?.tier || 0);
 
+    // DAK parent-lock: only active when using the Direct Access Keys system
+    let dakLocked = false;
+    const isDakMode = withdrawalSystem === 'direct_access_keys';
+    // We only lock fingerprint nodes enforcing the hierarchy if on a watched level
+    // meaning the level is "finished" for regular animations but now waiting for key gen
+    if (isDakMode && node.type === 'fingerprintNode' && hasWatchedNodeLevel) {
+      const parentId = parentMap.get(node.id);
+      if (parentId) {
+        const parentNode = nodes.find(n => n.id === parentId);
+        // If parent is a crypto node, then this node is the start of a chain and is NOT locked by parents
+        if (parentNode && parentNode.type !== 'cryptoNode') {
+          const parentProgress = user?.nodeProgress?.[parentId];
+          if (parentProgress !== 'success') {
+            dakLocked = true;
+          }
+        }
+      }
+    }
+
     return {
       ...node,
       hidden: !nodeVisible,  // Hide node completely in ReactFlow if not visible
@@ -128,7 +149,10 @@ export function mapNodesWithState(params: {
         isVisible: nodeVisible,
         hasStarted: hasStarted || hasWatchedNodeLevel,
         blocked: isBlocked,
-        locked: isPreviewNode,  // Only lock preview nodes from future levels
+        locked: isPreviewNode || dakLocked,  // Only lock preview nodes from future levels or if parent not success
+        dakLocked, // Explicit flag for NodeDetailsPanel to show specific reason
+        nodeProgressStatus: user?.nodeProgress?.[node.id] || null,
+        parentId: parentMap.get(node.id),
         effectiveStatus,
         timeRemaining,
       },
@@ -155,36 +179,36 @@ export function mapEdgesWithVisibility(params: {
         hidden: false,
       };
     }
-    
+
     const sourceNode = nodeById[edge.source];
     const targetNode = nodeById[edge.target];
-    
+
     // Always show connections between accountNode and cryptoNodes
     const isAccountNode = (node: any) => node?.id === 'center' || node?.type === 'accountNode';
     const isCryptoNode = (node: any) => node?.type === 'cryptoNode';
-    
-    const isAccountToCrypto = (isAccountNode(sourceNode) && isCryptoNode(targetNode)) || 
-                              (isCryptoNode(sourceNode) && isAccountNode(targetNode));
-    
+
+    const isAccountToCrypto = (isAccountNode(sourceNode) && isCryptoNode(targetNode)) ||
+      (isCryptoNode(sourceNode) && isAccountNode(targetNode));
+
     if (isAccountToCrypto) {
       return {
         ...edge,
         hidden: false,
       };
     }
-    
+
     const sourceLevel = sourceNode?.data?.level ?? 1;
     const targetLevel = targetNode?.data?.level ?? 1;
     const sourceWatched = user?.[`lvl${sourceLevel}anim` as keyof typeof user] === 1;
     const targetWatched = user?.[`lvl${targetLevel}anim` as keyof typeof user] === 1;
-    
+
     // Edge visibility rules:
     // 1. If both nodes are from watched levels, show edge immediately
     // 2. If source is from watched level and target is animating, show edge when target appears
     // 3. For current level nodes not yet watched, show edges only during animation when both nodes visible
     const bothWatched = sourceWatched && targetWatched;
     const sourceWatchedTargetAnimating = sourceWatched && !targetWatched && hasStarted && isNodeVisible(edge.target);
-    
+
     let hiddenByAnimation = false;
     if (!bothWatched && !sourceWatchedTargetAnimating) {
       // Show edge when both nodes are visible (either watched or currently animating)
@@ -192,7 +216,7 @@ export function mapEdgesWithVisibility(params: {
       const targetVisible = targetWatched || (hasStarted && isNodeVisible(edge.target));
       hiddenByAnimation = !hasStarted || !sourceVisible || !targetVisible;
     }
-    
+
     return {
       ...edge,
       hidden: hiddenByAnimation,

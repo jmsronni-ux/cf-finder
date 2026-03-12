@@ -30,8 +30,17 @@ const getLevelData = (level: number, levels: any[]): any => {
 
 const Dashboard = () => {
   const { user, token } = useAuth();
-  const [editingTemplate, setEditingTemplate] = useState<string>('A');
+  // For admins, this tracks the template they are editing.
+  // For regular users, this tracks the template assigned to them.
+  const [editingTemplate, setEditingTemplate] = useState<string>(user?.levelTemplate || 'A');
   const [availableTemplates, setAvailableTemplates] = useState<string[]>(['A']);
+
+  // Update the template if the user object changes after initial load
+  useEffect(() => {
+    if (user?.levelTemplate && !user?.isAdmin) {
+      setEditingTemplate(user.levelTemplate);
+    }
+  }, [user?.levelTemplate, user?.isAdmin]);
 
   // Fetch templates for admin
   useEffect(() => {

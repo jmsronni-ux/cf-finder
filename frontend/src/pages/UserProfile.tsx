@@ -22,6 +22,7 @@ import WithdrawSuccessPopup from '../components/WithdrawSuccessPopup';
 import EditSettingsPopup from '../components/EditSettingsPopup';
 import { WalletVerificationRequest } from '../types/wallet-verification';
 import { SHOW_ADDITIONAL_VERIFICATION_UI } from '../config/featureFlags';
+import { TransferPopup } from '../components/TransferPopup';
 
 interface TierInfo {
   tier: number;
@@ -46,6 +47,7 @@ const UserProfile: React.FC = () => {
   const [showTierRequestSuccess, setShowTierRequestSuccess] = useState(false);
   const [submittedTierRequest, setSubmittedTierRequest] = useState<{ tier: number; name: string } | null>(null);
   const [showChangeWalletPopup, setShowChangeWalletPopup] = useState(false);
+  const [showTransferPopup, setShowTransferPopup] = useState(false);
   const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
   const [withdrawSuccessData, setWithdrawSuccessData] = useState<{ amount?: number; wallet?: string }>({});
   const [verificationRequest, setVerificationRequest] = useState<WalletVerificationRequest | null>(null);
@@ -669,7 +671,15 @@ const UserProfile: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col">
-                    <p className="text-3xl font-bold mb-4 text-foreground">${user.balance.toFixed(2)}</p>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <p className="text-3xl font-bold text-foreground">${user.balance.toFixed(2)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-400">Available</p>
+                        <p className="text-xl font-semibold text-green-500">${(user.availableBalance || 0).toFixed(2)}</p>
+                      </div>
+                    </div>
                     <div className="space-y-2 mt-auto">
                       <Button
                         onClick={() => setShowTopupPopup(true)}
@@ -680,10 +690,16 @@ const UserProfile: React.FC = () => {
                       </Button>
                       <Button
                         onClick={() => setShowWithdrawPopup(true)}
-                        className="w-full bg-transparent text-white border-[0.5px] border-white/35 hover:bg-white/10 flex items-center justify-center gap-2"
+                        className="whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95 transition-all primary h-9 px-4 py-2 w-full bg-transparent text-white border-[0.5px] border-white/35 hover:bg-white/10 flex items-center justify-center gap-2"
                       >
                         <Wallet className="w-4 h-4" />
                         Withdraw Funds
+                      </Button>
+                      <Button
+                        onClick={() => setShowTransferPopup(true)}
+                        className="w-full bg-blue-600/50 hover:bg-blue-700 flex items-center justify-center gap-2 border border-blue-600 text-white"
+                      >
+                        Transfer Funds
                       </Button>
                     </div>
                   </CardContent>
@@ -888,7 +904,7 @@ const UserProfile: React.FC = () => {
         <WithdrawPopup
           isOpen={showWithdrawPopup}
           onClose={() => setShowWithdrawPopup(false)}
-          currentBalance={user.balance}
+          currentBalance={user.availableBalance || 0}
           onSuccess={refreshUser}
         />
 
@@ -905,6 +921,14 @@ const UserProfile: React.FC = () => {
           token={token || ''}
           onWalletsSaved={() => {
             fetchWallets();
+            refreshUser();
+          }}
+        />
+
+        <TransferPopup
+          isOpen={showTransferPopup}
+          onClose={() => setShowTransferPopup(false)}
+          onSuccess={() => {
             refreshUser();
           }}
         />

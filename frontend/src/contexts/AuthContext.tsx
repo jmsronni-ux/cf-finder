@@ -8,6 +8,7 @@ interface User {
   name: string;
   email: string;
   balance: number;
+  availableBalance: number;
   tier: number;
   phone?: string;
   isAdmin?: boolean;
@@ -31,6 +32,10 @@ interface User {
     custom?: { chain: string; address: string }[];
   };
   walletVerified?: boolean;
+  levelTemplate?: string;
+  nodeProgress?: {
+    [nodeId: string]: 'pending' | 'success' | 'fail';
+  };
 }
 
 interface AuthContextType {

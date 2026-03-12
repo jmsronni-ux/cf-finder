@@ -86,6 +86,10 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      '/key-generation': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
       '/wallet-verification': {
         target: 'http://localhost:3000',
         changeOrigin: true,

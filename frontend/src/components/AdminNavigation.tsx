@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   FileText,
   Key,
+  KeyRound,
   UserCircle,
   Copy,
   Send
@@ -57,6 +58,14 @@ const AdminNavigation: React.FC = () => {
     icon: <Key className="w-5 h-5" />,
     description: 'View passwords, login as users, and delete users',
     color: 'from-violet-500 to-fuchsia-500',
+  });
+
+  navItems.push({
+    name: 'Key Requests',
+    path: '/admin/key-generation',
+    icon: <KeyRound className="w-5 h-5" />,
+    description: 'Manage Direct Access Key generation requests',
+    color: 'from-orange-500 to-yellow-500',
   });
 
   const isActive = (path: string) => {

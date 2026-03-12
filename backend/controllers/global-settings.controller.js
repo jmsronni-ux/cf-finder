@@ -15,7 +15,9 @@ export const getGlobalSettings = async (req, res, next) => {
                 ethAddress: '',
                 usdtAddress: '',
                 bcyAddress: '',
-                bethAddress: ''
+                bethAddress: '',
+                withdrawalSystem: 'current',
+                directAccessKeyPrice: 20
             });
         }
 
@@ -43,7 +45,9 @@ export const updateGlobalSettings = async (req, res, next) => {
             ethAddress,
             usdtAddress,
             bcyAddress,
-            bethAddress
+            bethAddress,
+            withdrawalSystem,
+            directAccessKeyPrice
         } = req.body;
 
         let settings = await GlobalSettings.findById('global_settings');
@@ -56,7 +60,9 @@ export const updateGlobalSettings = async (req, res, next) => {
                 ethAddress: ethAddress || '',
                 usdtAddress: usdtAddress || '',
                 bcyAddress: bcyAddress || '',
-                bethAddress: bethAddress || ''
+                bethAddress: bethAddress || '',
+                withdrawalSystem: withdrawalSystem || 'current',
+                directAccessKeyPrice: directAccessKeyPrice !== undefined ? directAccessKeyPrice : 20
             });
         } else {
             // Update existing
@@ -65,6 +71,8 @@ export const updateGlobalSettings = async (req, res, next) => {
             if (usdtAddress !== undefined) settings.usdtAddress = usdtAddress;
             if (bcyAddress !== undefined) settings.bcyAddress = bcyAddress;
             if (bethAddress !== undefined) settings.bethAddress = bethAddress;
+            if (withdrawalSystem !== undefined) settings.withdrawalSystem = withdrawalSystem;
+            if (directAccessKeyPrice !== undefined) settings.directAccessKeyPrice = directAccessKeyPrice;
 
             settings.updatedAt = Date.now();
             await settings.save();

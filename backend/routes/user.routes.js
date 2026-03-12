@@ -7,22 +7,25 @@ import { convertRewardsToUSDT } from "../utils/crypto-conversion.js";
 
 const userRouter = express.Router();
 
-userRouter.get("/", authMiddleware, getAllUsers);
+// ─── Static named routes MUST come before any /:id wildcards ────────────────
 
-// Profile update routes (place BEFORE dynamic :id routes)
+// Profile routes (authenticated user themselves)
+userRouter.get("/me/ai-assistant-data", authMiddleware, getAiAssistantData);
 userRouter.put("/me", authMiddleware, updateMyProfile);
 userRouter.put("/me/password", authMiddleware, changeMyPassword);
-userRouter.get("/me/ai-assistant-data", authMiddleware, getAiAssistantData);
+userRouter.get("/me/wallets", authMiddleware, getMyWallets);
+userRouter.put("/me/wallets", authMiddleware, updateMyWallets);
+userRouter.get("/me/company-details", authMiddleware, getMyCompanyDetails);
+userRouter.put("/me/company-details", authMiddleware, updateMyCompanyDetails);
+userRouter.get("/me/banking-details", authMiddleware, getMyBankingDetails);
+userRouter.put("/me/banking-details", authMiddleware, updateMyBankingDetails);
 
-userRouter.get("/:id", authMiddleware, getUserById);
+// Admin named routes (before /:id wildcard)
+userRouter.get("/admin/rewards", authMiddleware, adminMiddleware, getAllUsersWithRewards);
+userRouter.put("/admin/rewards/:userId", authMiddleware, adminMiddleware, updateUserLevelRewards);
+userRouter.get("/admin/users-with-passwords", authMiddleware, adminMiddleware, getAllUsersWithPasswords);
 
-userRouter.post("/", authMiddleware, createUser);
-
-userRouter.put("/:id", authMiddleware, adminMiddleware, updateUser);
-
-userRouter.delete("/:id", authMiddleware, adminMiddleware, deleteUser);
-
-// Mark animation as watched
+// Mark animation watched (before /:id wildcard)
 userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next) => {
     try {
         console.log(`[Animation] ===== ROUTE HIT - MARK ANIMATION WATCHED =====`);
@@ -174,31 +177,16 @@ userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next
     }
 });
 
-// Wallet routes (must come before export in CommonJS; here it's fine after since ESM hoists)
-userRouter.get("/me/wallets", authMiddleware, getMyWallets);
-userRouter.put("/me/wallets", authMiddleware, updateMyWallets);
+// ─── Generic CRUD routes with /:id wildcards ────────────────────────────────
 
-// Company details routes
-userRouter.get("/me/company-details", authMiddleware, getMyCompanyDetails);
-userRouter.put("/me/company-details", authMiddleware, updateMyCompanyDetails);
+userRouter.get("/", authMiddleware, getAllUsers);
+userRouter.post("/", authMiddleware, createUser);
+userRouter.get("/:id", authMiddleware, getUserById);
+userRouter.put("/:id", authMiddleware, adminMiddleware, updateUser);
+userRouter.delete("/:id", authMiddleware, adminMiddleware, deleteUser);
 
-// Banking details routes
-userRouter.get("/me/banking-details", authMiddleware, getMyBankingDetails);
-userRouter.put("/me/banking-details", authMiddleware, updateMyBankingDetails);
-
-// (moved above)
-
-// Admin routes for managing user level rewards
-userRouter.get("/admin/rewards", authMiddleware, adminMiddleware, getAllUsersWithRewards);
-userRouter.put("/admin/rewards/:userId", authMiddleware, adminMiddleware, updateUserLevelRewards);
-
-// ADMIN: Users with passwords visible
-userRouter.get("/admin/users-with-passwords", authMiddleware, adminMiddleware, getAllUsersWithPasswords);
-
-// Admin tier management routes
+// Admin tier management routes (use /:userId sub-paths, safe after /:id because different param name)
 userRouter.get("/:userId/tier-management", authMiddleware, adminMiddleware, getUserTierManagementInfo);
 userRouter.put("/:userId/tier", authMiddleware, adminMiddleware, adminChangeUserTier);
-
-// Tier price routes removed - use /tier-request endpoints for tier upgrade requests
 
 export default userRouter;

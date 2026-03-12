@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet } from 'lucide-react';
+import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet, KeyRound } from 'lucide-react';
 import { PulsatingButton } from './ui/pulsating-button';
+import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -15,15 +16,17 @@ interface NodeDetailsPanelProps {
   hasWatchedCurrentLevel?: boolean;
   onStartAnimation?: () => void;
   onWithdrawClick?: () => void;
+  withdrawalSystem?: string;
 }
 
-const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({ 
-  selectedNode, 
+const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
+  selectedNode,
   onClose,
   hasStarted = false,
   hasWatchedCurrentLevel = false,
   onStartAnimation,
-  onWithdrawClick
+  onWithdrawClick,
+  withdrawalSystem = 're_allocate_funds'
 }) => {
   const { user, token, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -64,7 +67,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
       if (!token || !user) {
         return;
       }
-      
+
       try {
         const res = await apiFetch('/tier/my-tier', {
           headers: {
@@ -73,7 +76,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
           }
         });
         const json = await res.json();
-        
+
         if (res.ok && json?.success && json.data.upgradeOptions?.length > 0) {
           const nextTier = json.data.upgradeOptions[0];
           setNextTierInfo({
@@ -88,7 +91,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
         console.error('NodeDetailsPanel: Failed to fetch tier info', e);
       }
     };
-    
+
     fetchNextTierInfo();
   }, [token, user?.tier]);
 
@@ -181,6 +184,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
 
   // Detect if this is the user/center node
   const isUserNode = selectedNode.id === 'center' || selectedNode.type === 'accountNode';
+  const isFingerprintNode = selectedNode.type === 'fingerprintNode';
 
   const hasTransaction = selectedNode.data.transaction;
   const transaction = selectedNode.data.transaction || {};
@@ -193,10 +197,12 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
     { name: 'USDT ERC20', address: wallets.usdtErc20, icon: '₮', color: 'text-green-400' }
   ].filter(wallet => wallet.address && wallet.address.trim() !== '') : [];
 
-  // Get status icon and color
+  // Get status mapping (no longer mapping the generic status immediately to the header, 
+  // we will map it below dynamically based on Node Progress state)
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case 'Success':
+      case 'success':
         return {
           icon: <CheckCircle2 className="w-5 h-5" />,
           color: 'text-green-400',
@@ -204,6 +210,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
           borderColor: 'border-green-500/20'
         };
       case 'Pending':
+      case 'pending':
         return {
           icon: <Clock className="w-5 h-5" />,
           color: 'text-yellow-400',
@@ -211,30 +218,50 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
           borderColor: 'border-yellow-500/20'
         };
       case 'Fail':
+      case 'fail':
         return {
           icon: <XCircle className="w-5 h-5" />,
           color: 'text-red-400',
           bgColor: 'bg-red-500/10',
           borderColor: 'border-red-500/20'
         };
-      default:
+      case 'Locked':
         return {
-          icon: <CheckCircle2 className="w-5 h-5" />,
-          color: 'text-gray-400',
+          icon: <XCircle className="w-5 h-5" />,
+          color: 'text-gray-500',
           bgColor: 'bg-gray-500/10',
           borderColor: 'border-gray-500/20'
+        }
+      default: // Available
+        return {
+          icon: <KeyRound className="w-5 h-5 text-orange-400" />,
+          color: 'text-orange-400',
+          bgColor: 'bg-orange-500/10',
+          borderColor: 'border-orange-500/20'
         };
     }
   };
 
-  const statusDisplay = getStatusDisplay(transaction.status);
+  // Compute the current user-facing status for *this specific node*
+  let nodeStatus = 'Available';
+  if (selectedNode.data.dakLocked) {
+    nodeStatus = 'Locked';
+  } else if (selectedNode.data.nodeProgressStatus === 'pending') {
+    nodeStatus = 'Pending';
+  } else if (selectedNode.data.nodeProgressStatus === 'success') {
+    nodeStatus = 'Success';
+  } else if (selectedNode.data.nodeProgressStatus === 'fail') {
+    nodeStatus = 'Fail';
+  }
+
+  const statusDisplay = getStatusDisplay(nodeStatus);
 
   return (
     <div className="absolute top-20 right-6 z-30 w-full max-w-sm">
       <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 shadow-2xl">
         {/* Background pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-15 rounded-2xl" />
-        
+
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 relative z-10">
           <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
@@ -275,7 +302,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                   <Wallet className="w-4 h-4 text-gray-400" />
                   <h3 className="text-sm font-semibold text-gray-300">Verified Wallets</h3>
                 </div>
-                
+
                 {verifiedWallets.length > 0 ? (
                   <div className="space-y-2">
                     {verifiedWallets.map((wallet, index) => (
@@ -306,11 +333,19 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
           ) : hasTransaction ? (
             /* Transaction Node Content */
             <>
-              {/* Status Badge */}
-              <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${statusDisplay.bgColor} ${statusDisplay.borderColor}`}>
-                <span className={statusDisplay.color}>{statusDisplay.icon}</span>
-                <span className={`font-semibold ${statusDisplay.color}`}>{transaction.status}</span>
-              </div>
+              {/* Status Badge (Dynamic node state) */}
+              {isFingerprintNode && hasWatchedCurrentLevel && (
+                <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${statusDisplay.bgColor} ${statusDisplay.borderColor}`}>
+                  <span className={statusDisplay.color}>{statusDisplay.icon}</span>
+                  <span className={`font-semibold ${statusDisplay.color}`}>
+                    {nodeStatus === 'Locked' && 'Dependency Locked'}
+                    {nodeStatus === 'Available' && 'Waiting for Keys'}
+                    {nodeStatus === 'Pending' && 'Keys Requested (Pending)'}
+                    {nodeStatus === 'Success' && 'Key Verified (Success)'}
+                    {nodeStatus === 'Fail' && 'Key Failed (Retry)'}
+                  </span>
+                </div>
+              )}
 
               {/* Transaction Amount */}
               <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
@@ -379,31 +414,75 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
 
         {/* Action Buttons */}
         <div className="mt-6 relative z-10 space-y-3">
-          <PulsatingButton 
-            pulseColor="#764FCB" 
-            duration="1.5s"
-            variant={
-              pendingTierRequest ? "upgradePending" :
-              hasWatchedCurrentLevel ? "withdraw" : 
-              hasStarted ? "loading" : 
-              "start"
-            }
-            isLoading={isUpgrading}
-            className="w-full h-12"
-            onClick={pendingTierRequest ? undefined : (hasWatchedCurrentLevel ? onWithdrawClick : (hasStarted ? undefined : () => {
-              if (!user?.walletVerified) {
-                toast.error('Please verify your wallet before starting', {
-                  description: 'Go to your profile to request wallet verification'
-                });
-                return;
+          {isFingerprintNode && hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' ? (
+            /* Generate Keys specific block — only visible in Direct Access Keys mode */
+            <>
+              {nodeStatus === 'Locked' && (
+                <Button
+                  disabled
+                  className="w-full bg-gray-600 cursor-not-allowed text-white h-12 text-sm font-semibold"
+                >
+                  Unlock previous nodes first
+                </Button>
+              )}
+              {(nodeStatus === 'Available' || nodeStatus === 'Fail') && (
+                <PulsatingButton
+                  pulseColor="#f97316"
+                  duration="1.5s"
+                  variant={"withdraw"}
+                  className="w-full h-12 bg-orange-600 hover:bg-orange-700"
+                  onClick={onWithdrawClick}
+                >
+                  Generate Access Keys
+                </PulsatingButton>
+              )}
+              {nodeStatus === 'Pending' && (
+                <Button
+                  disabled
+                  className="w-full bg-yellow-600/20 border border-yellow-500/30 cursor-not-allowed text-yellow-400 h-12 text-sm font-semibold"
+                >
+                  Awaiting Admin Review...
+                </Button>
+              )}
+              {nodeStatus === 'Success' && (
+                <Button
+                  disabled
+                  className="w-full bg-green-600/20 border border-green-500/30 cursor-not-allowed text-green-400 h-12 text-sm font-semibold"
+                >
+                  Node Unlocked ✓
+                </Button>
+              )}
+            </>
+          ) : withdrawalSystem === 'direct_access_keys' ? (
+            /* Non-fingerprint node in Direct Access Keys mode — no scan available */
+            null
+          ) : (
+            <PulsatingButton
+              pulseColor="#764FCB"
+              duration="1.5s"
+              variant={
+                pendingTierRequest ? "upgradePending" :
+                  hasStarted ? "loading" :
+                    "start"
               }
-              onStartAnimation?.();
-            }))}
-            disabled={pendingTierRequest || (hasStarted && !hasWatchedCurrentLevel) || isUpgrading}
-          >
-            {pendingTierRequest ? 'Upgrade Pending' : (isUpgrading ? 'Upgrading...' : hasWatchedCurrentLevel ? 'Withdraw' : hasStarted ? '' : 'Start scan')}
-          </PulsatingButton>
-          
+              isLoading={isUpgrading}
+              className="w-full h-12"
+              onClick={pendingTierRequest ? undefined : (hasStarted ? undefined : () => {
+                if (!user?.walletVerified) {
+                  toast.error('Please verify your wallet before starting', {
+                    description: 'Go to your profile to request wallet verification'
+                  });
+                  return;
+                }
+                onStartAnimation?.();
+              })}
+              disabled={pendingTierRequest || hasStarted || isUpgrading}
+            >
+              {pendingTierRequest ? 'Upgrade Pending' : (isUpgrading ? 'Upgrading...' : hasStarted ? 'Running...' : 'Start scan')}
+            </PulsatingButton>
+          )}
+
+
           <button
             onClick={onClose}
             className="w-full px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all"
@@ -412,9 +491,9 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
           </button>
         </div>
       </div>
-      
+
       {/* Insufficient Balance Popup */}
-      <InsufficientBalancePopup 
+      <InsufficientBalancePopup
         isOpen={showInsufficientBalancePopup}
         onClose={() => setShowInsufficientBalancePopup(false)}
         requiredAmount={insufficientBalanceInfo.requiredAmount}
