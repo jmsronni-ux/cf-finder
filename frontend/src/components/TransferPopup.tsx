@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { X, ArrowRightLeft, DollarSign, Wallet, AlertCircle, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
+import { X, ArrowRightLeft, DollarSign, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,7 +30,9 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
   };
 
   const handleMax = () => {
-    setAmount(currentSourceBalance.toString());
+    // Floor to 2 decimal places to ensure it never exceeds the source balance
+    const floored = Math.floor(currentSourceBalance * 100) / 100;
+    setAmount(floored.toString());
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,6 +86,11 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
     }
   };
 
+  const fromLabel = direction === 'dashboard_to_available' ? 'Onchain' : 'Available';
+  const toLabel = direction === 'dashboard_to_available' ? 'Available' : 'Onchain';
+  const fromBalance = direction === 'dashboard_to_available' ? user.balance : (user.availableBalance || 0);
+  const toBalance = direction === 'dashboard_to_available' ? (user.availableBalance || 0) : user.balance;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
@@ -101,9 +107,10 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
         </button>
 
         <div className="relative z-10">
+          {/* Header */}
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 aspect-square rounded-lg bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
-              <ArrowRightLeft className="text-blue-400" size={24} />
+            <div className="w-12 h-12 aspect-square rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+              <ArrowRightLeft className="text-purple-400" size={24} />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white">Transfer Funds</h2>
@@ -111,50 +118,40 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Direction Toggle Card */}
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 relative overflow-hidden">
-                <div className="flex justify-between items-center relative z-10">
-                    
-                    {/* Source */}
-                    <div className="flex-1 flex flex-col items-center">
-                        <span className="text-xs text-gray-400 mb-1 uppercase tracking-wider">From</span>
-                        <div className="font-semibold text-white">
-                            {direction === 'dashboard_to_available' ? 'Current Balance' : 'Available Balance'}
-                        </div>
-                        <div className="text-sm text-blue-400 mt-1">
-                            ${direction === 'dashboard_to_available' ? user.balance.toFixed(2) : (user.availableBalance || 0).toFixed(2)}
-                        </div>
-                    </div>
-
-                    {/* Swap Button */}
-                    <button 
-                        type="button" 
-                        onClick={handleSwap}
-                        className="mx-4 p-2 rounded-full bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/30 text-blue-400 transition-all hover:scale-110"
-                    >
-                        <ArrowRightLeft className="w-5 h-5" />
-                    </button>
-
-                    {/* Destination */}
-                    <div className="flex-1 flex flex-col items-center">
-                        <span className="text-xs text-gray-400 mb-1 uppercase tracking-wider">To</span>
-                        <div className="font-semibold text-white">
-                            {direction === 'dashboard_to_available' ? 'Available Balance' : 'Current Balance'}
-                        </div>
-                        <div className="text-sm text-green-400 mt-1">
-                            ${direction === 'dashboard_to_available' ? (user.availableBalance || 0).toFixed(2) : user.balance.toFixed(2)}
-                        </div>
-                    </div>
+              <div className="flex justify-between items-center relative z-10">
+                {/* Source */}
+                <div className="flex-1 flex flex-col items-center">
+                  <span className="text-xs text-gray-400 mb-1 uppercase tracking-wider">From</span>
+                  <div className="font-semibold text-white">{fromLabel}</div>
+                  <div className="text-sm text-purple-400 mt-1">${fromBalance.toFixed(2)}</div>
                 </div>
+
+                {/* Swap Button */}
+                <button 
+                  type="button" 
+                  onClick={handleSwap}
+                  className="mx-4 p-2 rounded-full bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/30 text-purple-400 transition-all hover:scale-110"
+                >
+                  <ArrowRightLeft className="w-5 h-5" />
+                </button>
+
+                {/* Destination */}
+                <div className="flex-1 flex flex-col items-center">
+                  <span className="text-xs text-gray-400 mb-1 uppercase tracking-wider">To</span>
+                  <div className="font-semibold text-white">{toLabel}</div>
+                  <div className="text-sm text-green-400 mt-1">${toBalance.toFixed(2)}</div>
+                </div>
+              </div>
             </div>
 
             {/* Amount Input */}
             <div>
               <div className="flex justify-between mb-2">
                 <label className="text-sm text-gray-400">Amount to transfer</label>
-                <button type="button" onClick={handleMax} className="text-xs text-blue-400 hover:text-blue-300">Max</button>
+                <button type="button" onClick={handleMax} className="text-xs text-purple-400 hover:text-purple-300">Max</button>
               </div>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -168,12 +165,12 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-white/5 text-white pl-10 pr-16 py-3 rounded-lg border border-white/10 focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-lg transition-all"
+                  className="w-full bg-white/5 text-white pl-10 pr-16 py-3 rounded-lg border border-white/10 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 text-lg transition-all"
                   disabled={isSubmitting}
                   required
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <span className="text-sm text-gray-500 font-medium font-mono">USD</span>
+                  <span className="text-sm text-gray-500 font-medium font-mono">USD</span>
                 </div>
               </div>
               {parseFloat(amount) > currentSourceBalance && (
@@ -185,7 +182,7 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-3 mt-8">
+            <div className="flex gap-3 mt-5">
               <button
                 type="button"
                 onClick={onClose}
@@ -197,7 +194,7 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting || parseFloat(amount) > currentSourceBalance || !amount}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600/40 hover:bg-blue-700 border border-blue-600 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-purple-600/40 hover:bg-purple-700 border border-purple-600 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>

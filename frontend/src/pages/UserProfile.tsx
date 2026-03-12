@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon, CheckCircle2, Clock, XCircle, ArrowLeftRight, ArrowDownToLine } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import EnhancedWithdrawPopup from '../components/EnhancedWithdrawPopup';
@@ -48,6 +48,7 @@ const UserProfile: React.FC = () => {
   const [submittedTierRequest, setSubmittedTierRequest] = useState<{ tier: number; name: string } | null>(null);
   const [showChangeWalletPopup, setShowChangeWalletPopup] = useState(false);
   const [showTransferPopup, setShowTransferPopup] = useState(false);
+  const [balanceTab, setBalanceTab] = useState<'available' | 'onchain'>('available');
   const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
   const [withdrawSuccessData, setWithdrawSuccessData] = useState<{ amount?: number; wallet?: string }>({});
   const [verificationRequest, setVerificationRequest] = useState<WalletVerificationRequest | null>(null);
@@ -664,43 +665,68 @@ const UserProfile: React.FC = () => {
               {/* Current Balance */}
               <div className="group h-full">
                 <Card className="h-full flex flex-col border border-border rounded-xl">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
+                  <CardHeader className="pb-4 flex flex-row justify-between items-center">
+                    <CardTitle className="text-white text-xl flex items-center gap-2">
                       <Wallet className="w-5 h-5" />
-                      Current Balance
+                      Balances
                     </CardTitle>
+                    {/* Tab Switcher */}
+                    <div className="flex mt-3 bg-white/5 rounded-lg p-1 gap-2 border border-white/10">
+                      <button
+                        onClick={() => setBalanceTab('available')}
+                        className={`flex-1 text-sm font-medium py-1.5 px-3 rounded-md transition-colors duration-200 ${balanceTab === 'available'
+                          ? 'bg-purple-600/50 border outline-purple-600 outline text-white shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                          }`}
+                      >
+                        Available
+                      </button>
+                      <button
+                        onClick={() => setBalanceTab('onchain')}
+                        className={`flex-1 text-sm font-medium py-1.5 px-3 rounded-md transition-colors duration-200 ${balanceTab === 'onchain'
+                          ? 'bg-purple-600/50 border outline-purple-600 outline text-white shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                          }`}
+                      >
+                        Onchain
+                      </button>
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <p className="text-3xl font-bold text-foreground">${user.balance.toFixed(2)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-400">Available</p>
-                        <p className="text-xl font-semibold text-green-500">${(user.availableBalance || 0).toFixed(2)}</p>
-                      </div>
+                    <div className="mb-4 bg-white/5 border border-border rounded-lg px-4 py-4 flex items-center justify-center">
+                      <p className="text-3xl font-bold text-foreground text-center">
+                        ${balanceTab === 'available'
+                          ? (user.availableBalance || 0).toFixed(2)
+                          : user.balance.toFixed(2)
+                        }
+                      </p>
                     </div>
                     <div className="space-y-2 mt-auto">
+                      {/* Top Up on its own row */}
                       <Button
                         onClick={() => setShowTopupPopup(true)}
                         className="w-full bg-purple-600/50 hover:bg-purple-700 flex items-center justify-center gap-2 border border-purple-600 text-white"
                       >
                         <Plus className="w-4 h-4" />
-                        Request Top-Up
+                        Top Up
                       </Button>
-                      <Button
-                        onClick={() => setShowWithdrawPopup(true)}
-                        className="whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95 transition-all primary h-9 px-4 py-2 w-full bg-transparent text-white border-[0.5px] border-white/35 hover:bg-white/10 flex items-center justify-center gap-2"
-                      >
-                        <Wallet className="w-4 h-4" />
-                        Withdraw Funds
-                      </Button>
-                      <Button
-                        onClick={() => setShowTransferPopup(true)}
-                        className="w-full bg-blue-600/50 hover:bg-blue-700 flex items-center justify-center gap-2 border border-blue-600 text-white"
-                      >
-                        Transfer Funds
-                      </Button>
+                      {/* Withdraw & Transfer in one row */}
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => setShowWithdrawPopup(true)}
+                          className="flex-1 bg-transparent text-white border border-white/25 hover:bg-white/10 flex items-center justify-center gap-2"
+                        >
+                          <ArrowDownToLine className="w-4 h-4" />
+                          Withdraw
+                        </Button>
+                        <Button
+                          onClick={() => setShowTransferPopup(true)}
+                          className="flex-1 bg-transparent hover:bg-white/10 flex items-center justify-center gap-2 border border-white/25 text-white transition-all"
+                        >
+                          <ArrowLeftRight className="w-4 h-4" />
+                          Transfer
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
