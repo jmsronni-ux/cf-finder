@@ -10,7 +10,7 @@ let cronJob = null;
  */
 async function updateConversionRates() {
   try {
-    console.log('[Conversion Rate Cron] Starting scheduled rate update...');
+
     
     // Check current rates and auto mode status
     const rates = await ConversionRate.find({});
@@ -19,7 +19,7 @@ async function updateConversionRates() {
     // If no rates exist, we'll create them with auto mode enabled
     // If rates exist but auto mode is disabled, skip update
     if (!isAuto && rates.length > 0) {
-      console.log('[Conversion Rate Cron] Auto mode is disabled, skipping update');
+
       return;
     }
 
@@ -33,7 +33,7 @@ async function updateConversionRates() {
 
     // If no rates exist, initialize them with auto mode enabled
     if (rates.length === 0) {
-      console.log('[Conversion Rate Cron] No rates found, initializing with real-time rates and auto mode enabled');
+
     }
 
     // Update each rate in the database (create if doesn't exist)
@@ -70,8 +70,7 @@ async function updateConversionRates() {
     // Clear cache since we updated DB
     clearConversionRatesCache();
 
-    console.log(`[Conversion Rate Cron] Successfully updated ${results.length} conversion rates:`, 
-      results.map(r => `${r.network}: $${r.rateToUSD}`).join(', '));
+
   } catch (error) {
     console.error('[Conversion Rate Cron] Error updating conversion rates:', error);
   }

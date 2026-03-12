@@ -39,12 +39,7 @@ const __dirname = path.dirname(__filename);
 
 var app = express();
 
-// Debug environment variables
-console.log('Environment check:');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
-console.log('MONGO_URI exists:', !!process.env.MONGO_URI);
-console.log('PORT:', process.env.PORT);
+
 
 connectDB();
 
@@ -77,28 +72,20 @@ const productionOrigins = FRONTEND_URL
 
 const allowedOrigins = [...localhostOrigins, ...productionOrigins];
 
-console.log('CORS Configuration:');
-console.log('NODE_ENV:', NODE_ENV);
-console.log('FRONTEND_URL:', FRONTEND_URL);
-console.log('Allowed Origins:', allowedOrigins);
+
 
 app.use(cors({
   origin: (origin, callback) => {
-    console.log('CORS Request from origin:', origin);
-
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log('No origin, allowing request');
       return callback(null, true);
     }
 
     // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
-      console.log('✅ Origin allowed:', origin);
       callback(null, true);
     } else {
-      console.log('❌ Origin blocked:', origin);
-      console.log('Allowed origins:', allowedOrigins);
+      console.error('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },

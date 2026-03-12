@@ -51,7 +51,7 @@ export async function fetchRealTimeRates() {
       }
     });
 
-    console.log('[Crypto Conversion] Fetched real-time rates:', rates);
+
     return rates;
   } catch (error) {
     console.error('[Crypto Conversion] Error fetching real-time rates:', error);
@@ -73,7 +73,7 @@ async function fetchConversionRates() {
     const rates = await ConversionRate.find({});
 
     if (rates.length === 0) {
-      console.log('[Crypto Conversion] No rates in database, using defaults');
+
       CACHED_RATES = { ...DEFAULT_CONVERSION_RATES };
     } else {
       // Convert array to object
@@ -81,7 +81,7 @@ async function fetchConversionRates() {
       rates.forEach(rate => {
         CACHED_RATES[rate.network] = rate.rateToUSD;
       });
-      console.log('[Crypto Conversion] Loaded rates from database:', CACHED_RATES);
+
     }
 
     CACHE_TIMESTAMP = Date.now();
@@ -198,7 +198,7 @@ export const getConversionRates = async () => {
 export const clearConversionRatesCache = () => {
   CACHED_RATES = null;
   CACHE_TIMESTAMP = null;
-  console.log('[Crypto Conversion] Cache cleared');
+
 };
 
 export { fetchConversionRates };

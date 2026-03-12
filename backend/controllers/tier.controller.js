@@ -6,17 +6,12 @@ import { TIER_CONFIG, getTierInfo, getTierBenefits, getUpgradeOptions, getUpgrad
 // Get user's current tier information
 export const getUserTier = async (req, res, next) => {
     try {
-        console.log('getUserTier called, req.user:', req.user);
-        console.log('req.params:', req.params);
         const userId = req.user?._id || req.user?.userId || req.params.userId;
-        console.log('Looking for user with ID:', userId);
 
         const user = await User.findById(userId).select('-password');
         if (!user) {
-            console.log('User not found for ID:', userId);
             throw new ApiError(404, "User not found");
         }
-        console.log('User found:', user);
 
         const tierInfo = getTierInfo(user.tier);
         const upgradeOptions = getUpgradeOptionsForUser(user);
