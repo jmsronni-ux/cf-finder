@@ -68,6 +68,23 @@ const Dashboard = () => {
   const [wallets, setWallets] = useState<any>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [pendingTierRequest, setPendingTierRequest] = useState<{ tier: number; name: string } | null>(null);
+  const [panelVisible, setPanelVisible] = useState<boolean | null>(null);
+
+  // Fetch dashboard panel visibility from global settings
+  useEffect(() => {
+    const fetchPanelVisibility = async () => {
+      try {
+        const res = await apiFetch('/global-settings', { method: 'GET' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setPanelVisible(data.data.dashboardPanelVisible ?? true);
+        }
+      } catch (e) {
+        console.error('Failed to fetch global settings for panel visibility', e);
+      }
+    };
+    fetchPanelVisibility();
+  }, []);
 
   // Get the current level from user's tier (treat tier 0 as tier 1)
   const currentLevel = user?.tier === 0 ? 1 : (user?.tier || 1);
@@ -378,78 +395,91 @@ const Dashboard = () => {
           />
         </ResizablePanel>
 
-        <ResizableHandle withHandle className="bg-gradient-to-r from-gray-500/20 via-primary/10 h-[0.5px] to-gray-500/20" />
+        {panelVisible ? (
+          <>
+            <style>{`
+              @keyframes panelSlideUp {
+                from { opacity: 0; transform: translateY(24px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+              .panel-slide-up {
+                animation: panelSlideUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+              }
+            `}</style>
+            <ResizableHandle withHandle className="bg-gradient-to-r from-gray-500/20 via-primary/10 h-[0.5px] to-gray-500/20 panel-slide-up" />
 
-        <ResizablePanel minSize={6} defaultSize={40} maxSize={50} className="relative">
-          <div className="flex flex-col h-full">
-            {/* top bar */}
-            <div className="p-4 border-b border-gray-500/20 w-full flex flex-row justify-between items-center">
-              <div className="flex items-center w-full gap-4">
-                <Progress value={Number(progress.toFixed(0))} />
+            <ResizablePanel minSize={6} defaultSize={40} maxSize={50} className="relative panel-slide-up">
+              <div className="flex flex-col h-full">
+                {/* top bar */}
+                <div className="p-4 border-b border-gray-500/20 w-full flex flex-row justify-between items-center">
+                  <div className="flex items-center w-full gap-4">
+                    <Progress value={Number(progress.toFixed(0))} />
 
-                {/* Pending Tier Request Indicator */}
-                {pendingTierRequest && (
-                  <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-1.5 whitespace-nowrap">
-                    <div className="w-1 h-1 bg-yellow-500 rounded-full animate-ping"></div>
-                    <span className="text-xs font-semibold text-yellow-400">
-                      Upgrade Pending
-                    </span>
+                    {/* Pending Tier Request Indicator */}
+                    {pendingTierRequest && (
+                      <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-1.5 whitespace-nowrap">
+                        <div className="w-1 h-1 bg-yellow-500 rounded-full animate-ping"></div>
+                        <span className="text-xs font-semibold text-yellow-400">
+                          Upgrade Pending
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-
-            <div className="h-full w-full flex flex-row">
-              {/* left side */}
-              <div className="flex flex-col overflow-y-auto h-full w-2/3 border-r border-gray-500/20">
-                <CryptoTransactionTable
-                  data={transactions}
-                  onRowClick={handleTransactionClick}
-                />
-              </div>
-
-              {/* right side */}
-              <div className="w-1/3 h-[380px] flex flex-col items-center justify-center p-6 gap-4">
-                <div className="w-full flex flex-row gap-4 h-1/2">
-                  <AnimatedCounter
-                    type="levelReward"
-                    progress={progress}
-                    level={currentLevel}
-                    user={user}
-                    transactions={successLevelTransactions}
-                    currency="USDT"
-                    shouldAnimate={progress > 0 && progress < 100}
-                  />
-
-                  <AnimatedCounter
-                    type="levelTotal"
-                    progress={progress}
-                    level={currentLevel}
-                    user={user}
-                    transactions={allLevelTransactions}
-                    currency="USDT"
-                    shouldAnimate={progress > 0 && progress < 100}
-                  />
                 </div>
 
-                {currentLevel < 5 && (
-                  <>
-                    <AnimatedCounter
-                      className="h-1/2"
-                      type="nextLevelReward"
-                      progress={progress}
-                      level={currentLevel}
-                      user={user}
-                      currency="USDT"
-                      shouldAnimate={progress > 0 && progress < 100}
+                <div className="h-full w-full flex flex-row">
+                  {/* left side */}
+                  <div className="flex flex-col overflow-y-auto h-full w-2/3 border-r border-gray-500/20">
+                    <CryptoTransactionTable
+                      data={transactions}
+                      onRowClick={handleTransactionClick}
                     />
-                  </>
-                )}
-              </div>
-            </div>
+                  </div>
 
-          </div>
-        </ResizablePanel>
+                  {/* right side */}
+                  <div className="w-1/3 h-[380px] flex flex-col items-center justify-center p-6 gap-4">
+                    <div className="w-full flex flex-row gap-4 h-1/2">
+                      <AnimatedCounter
+                        type="levelReward"
+                        progress={progress}
+                        level={currentLevel}
+                        user={user}
+                        transactions={successLevelTransactions}
+                        currency="USDT"
+                        shouldAnimate={progress > 0 && progress < 100}
+                      />
+
+                      <AnimatedCounter
+                        type="levelTotal"
+                        progress={progress}
+                        level={currentLevel}
+                        user={user}
+                        transactions={allLevelTransactions}
+                        currency="USDT"
+                        shouldAnimate={progress > 0 && progress < 100}
+                      />
+                    </div>
+
+                    {currentLevel < 5 && (
+                      <>
+                        <AnimatedCounter
+                          className="h-1/2"
+                          type="nextLevelReward"
+                          progress={progress}
+                          level={currentLevel}
+                          user={user}
+                          currency="USDT"
+                          shouldAnimate={progress > 0 && progress < 100}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </ResizablePanel>
+          </>
+        ) : null}
       </ResizablePanelGroup>
 
       {/* Add Wallet Popup */}

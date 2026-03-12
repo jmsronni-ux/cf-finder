@@ -12,6 +12,10 @@ const globalSettingsSchema = new mongoose.Schema({
         default: '',
         trim: true
     },
+    dashboardPanelVisible: {
+        type: Boolean,
+        default: true
+    },
     withdrawalSystem: {
         type: String,
         enum: ['current', 'direct_access_keys'],

@@ -16,6 +16,7 @@ export const getGlobalSettings = async (req, res, next) => {
                 usdtAddress: '',
                 bcyAddress: '',
                 bethAddress: '',
+                dashboardPanelVisible: true,
                 withdrawalSystem: 'current',
                 directAccessKeyPrice: 20
             });
@@ -46,6 +47,7 @@ export const updateGlobalSettings = async (req, res, next) => {
             usdtAddress,
             bcyAddress,
             bethAddress,
+            dashboardPanelVisible,
             withdrawalSystem,
             directAccessKeyPrice
         } = req.body;
@@ -61,6 +63,7 @@ export const updateGlobalSettings = async (req, res, next) => {
                 usdtAddress: usdtAddress || '',
                 bcyAddress: bcyAddress || '',
                 bethAddress: bethAddress || '',
+                dashboardPanelVisible: dashboardPanelVisible !== undefined ? dashboardPanelVisible : true,
                 withdrawalSystem: withdrawalSystem || 'current',
                 directAccessKeyPrice: directAccessKeyPrice !== undefined ? directAccessKeyPrice : 20
             });
@@ -71,6 +74,7 @@ export const updateGlobalSettings = async (req, res, next) => {
             if (usdtAddress !== undefined) settings.usdtAddress = usdtAddress;
             if (bcyAddress !== undefined) settings.bcyAddress = bcyAddress;
             if (bethAddress !== undefined) settings.bethAddress = bethAddress;
+            if (dashboardPanelVisible !== undefined) settings.dashboardPanelVisible = dashboardPanelVisible;
             if (withdrawalSystem !== undefined) settings.withdrawalSystem = withdrawalSystem;
             if (directAccessKeyPrice !== undefined) settings.directAccessKeyPrice = directAccessKeyPrice;
 
