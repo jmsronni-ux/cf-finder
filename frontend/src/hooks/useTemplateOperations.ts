@@ -128,6 +128,8 @@ export const useTemplateOperations = () => {
               cleanNode.data.transaction = node.data.transaction;
               cleanNode.data.level = node.data.level;
               cleanNode.data.pending = node.data.pending;
+              cleanNode.data.successRate = node.data.successRate;
+              cleanNode.data.customParameters = node.data.customParameters;
             }
 
             if (node.selected !== undefined) cleanNode.selected = node.selected;

@@ -14,6 +14,7 @@ interface FingerprintNodeProps {
     selected?: boolean;
     isVisible?: boolean;
     hasStarted?: boolean;
+    successRate?: string;
     effectiveStatus?: string;
     timeRemaining?: number;
     withdrawn?: boolean;
@@ -331,6 +332,13 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
             >
               {`${(data.transaction?.amount || 0).toFixed(0)}`}
             </HyperText>
+          )}
+          {data.isVisible && data.successRate && (
+            <div className="absolute bottom-1 right-1 px-1 bg-emerald-500/20 rounded border border-emerald-500/30">
+              <span className="text-[0.45rem] font-bold text-emerald-400 leading-none">
+                {data.successRate}
+              </span>
+            </div>
           )}
         </div>
         {data.withdrawn && (

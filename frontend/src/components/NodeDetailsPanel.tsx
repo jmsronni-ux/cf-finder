@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet, KeyRound, Snowflake, AlertTriangle, X, Minus, Plus, Loader2, Info } from 'lucide-react';
+import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet, KeyRound, Snowflake, AlertTriangle, X, Minus, Plus, Loader2, Info, Settings } from 'lucide-react';
 import { PulsatingButton } from './ui/pulsating-button';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
@@ -322,6 +322,18 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                         <div className="text-[11px] font-mono text-neutral-400 break-all mt-1 leading-relaxed">{transaction.transaction}</div>
                       </div>
                     )}
+                    {selectedNode.data.successRate && (
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Success Rate</span>
+                        <span className="text-emerald-400 font-medium">{selectedNode.data.successRate}</span>
+                      </div>
+                    )}
+                    {(selectedNode.data.customParameters || []).map((param: any, index: number) => (
+                      <div key={index} className="flex justify-between">
+                        <span className="text-neutral-500">{param.title || 'Param'}</span>
+                        <span className="text-neutral-300">{param.value}</span>
+                      </div>
+                    ))}
                     {isFingerprintNode && hasWatchedCurrentLevel && (
                       <div className="flex justify-between items-center pt-1">
                         <span className="text-neutral-500">Status</span>
@@ -562,6 +574,40 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Success Rate */}
+              {selectedNode.data.successRate && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
+                  <div className="relative">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 text-emerald-400">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div className="pl-8 flex flex-row justify-between items-center">
+                      <div className="text-xs text-gray-400">Success Rate</div>
+                      <div className="text-lg font-bold text-emerald-400 font-mono">
+                        {selectedNode.data.successRate}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Parameters (Old Design) */}
+              {(selectedNode.data.customParameters || []).map((param: any, index: number) => (
+                <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <div className="relative">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Settings className="w-5 h-5" />
+                    </div>
+                    <div className="pl-8 flex flex-row justify-between items-center">
+                      <div className="text-xs text-gray-400">{param.title || 'Param'}</div>
+                      <div className="text-lg font-bold text-white font-mono">
+                        {param.value}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
 
               {/* Transaction Date */}
               {transaction.date && (

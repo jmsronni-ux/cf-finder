@@ -118,6 +118,84 @@ const DataVisual: React.FC<DataVisualProps> = ({
                   />
                 </div>
               </div>
+              {/* Success Rate (Legacy) */}
+              <div>
+                <label className="block text-[10px] text-gray-500 mb-1 ml-0.5 uppercase tracking-wider">Success Rate</label>
+                <div className="relative">
+                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500"><Clock size={12} /></div>
+                  <input
+                    type="text"
+                    placeholder="e.g. 98%"
+                    value={selectedNode.data.successRate || ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { successRate: e.target.value })}
+                    className="w-full bg-white/5 text-white pl-8 pr-2 py-2 rounded-lg border border-white/10 text-xs font-mono hover:border-white/20 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Custom Parameters */}
+              <div className="col-span-2 space-y-2 pt-1">
+                <div className="flex items-center justify-between ml-0.5">
+                  <label className="block text-[10px] text-gray-500 uppercase tracking-wider">Custom Parameters</label>
+                  <button
+                    onClick={() => {
+                      const currentParams = selectedNode.data.customParameters || [];
+                      onUpdateNodeData(selectedNode.id, {
+                        customParameters: [...currentParams, { title: '', value: '' }]
+                      });
+                    }}
+                    className="flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 font-bold transition-all"
+                  >
+                    <Plus size={10} /> Add
+                  </button>
+                </div>
+
+                {(selectedNode.data.customParameters || []).map((param: any, index: number) => (
+                  <div key={index} className="grid grid-cols-12 gap-1.5 items-center">
+                    <div className="col-span-5">
+                      <input
+                        type="text"
+                        placeholder="Title"
+                        value={param.title}
+                        onChange={(e) => {
+                          const newParams = [...(selectedNode.data.customParameters || [])];
+                          newParams[index] = { ...newParams[index], title: e.target.value };
+                          onUpdateNodeData(selectedNode.id, { customParameters: newParams });
+                        }}
+                        className="w-full bg-white/5 text-white px-2 py-1.5 rounded-lg border border-white/10 text-[10px] font-mono hover:border-white/20 focus:border-purple-500/50 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <div className="col-span-6">
+                      <input
+                        type="text"
+                        placeholder="Value"
+                        value={param.value}
+                        onChange={(e) => {
+                          const newParams = [...(selectedNode.data.customParameters || [])];
+                          newParams[index] = { ...newParams[index], value: e.target.value };
+                          onUpdateNodeData(selectedNode.id, { customParameters: newParams });
+                        }}
+                        className="w-full bg-white/5 text-white px-2 py-1.5 rounded-lg border border-white/10 text-[10px] font-mono hover:border-white/20 focus:border-purple-500/50 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <button
+                        onClick={() => {
+                          const newParams = (selectedNode.data.customParameters || []).filter((_: any, i: number) => i !== index);
+                          onUpdateNodeData(selectedNode.id, { customParameters: newParams });
+                        }}
+                        className="text-gray-500 hover:text-red-400 transition-colors flex justify-center"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {(selectedNode.data.customParameters || []).length === 0 && (
+                  <p className="text-[10px] text-gray-600 italic ml-0.5">No custom parameters added</p>
+                )}
+              </div>
             </div>
           )}
 

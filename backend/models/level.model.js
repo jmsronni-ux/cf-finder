@@ -30,7 +30,12 @@ const nodeSchema = new mongoose.Schema({
       status: String
     },
     pending: Number,
-    level: Number
+    level: Number,
+    successRate: String,
+    customParameters: [{
+      title: String,
+      value: String
+    }]
   },
   position: {
     x: Number,
