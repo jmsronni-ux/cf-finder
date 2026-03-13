@@ -5,6 +5,13 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 import { toast } from 'sonner';
 import {
   CheckCircle,
@@ -13,12 +20,24 @@ import {
   Loader2,
   KeyRound,
   DollarSign,
-  User
+  User,
+  Timer,
+  CalendarClock,
+  Ban
 } from 'lucide-react';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
 import AdminNavigation from '../../components/AdminNavigation';
 import { apiFetch } from '../../utils/api';
+
+interface ScheduledActionInfo {
+  _id: string;
+  actionType: 'approve' | 'reject';
+  nodeStatusOutcome: 'success' | 'fail';
+  approvedAmount: number | null;
+  executeAt: string;
+  scheduledBy: string;
+}
 
 interface KeyGenRequest {
   _id: string;
@@ -40,6 +59,38 @@ interface KeyGenRequest {
   adminComment: string;
   createdAt: string;
   processedAt: string | null;
+  scheduledAction?: ScheduledActionInfo;
+}
+
+const DELAY_OPTIONS = [
+  { value: 'now', label: 'Now' },
+  { value: '30m', label: '30 min' },
+  { value: '1h', label: '1 hour' },
+  { value: '6h', label: '6 hours' },
+  { value: '24h', label: '24 hours' },
+  { value: 'custom', label: 'Custom' },
+];
+
+function getExecuteAt(delayValue: string, customDate?: string): Date | null {
+  const now = new Date();
+  switch (delayValue) {
+    case 'now': return null;
+    case '30m': return new Date(now.getTime() + 30 * 60 * 1000);
+    case '1h': return new Date(now.getTime() + 60 * 60 * 1000);
+    case '6h': return new Date(now.getTime() + 6 * 60 * 60 * 1000);
+    case '24h': return new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    case 'custom': return customDate ? new Date(customDate) : null;
+    default: return null;
+  }
+}
+
+function formatCountdown(executeAt: string): string {
+  const diff = new Date(executeAt).getTime() - Date.now();
+  if (diff <= 0) return 'Executing soon...';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
 
 const AdminKeyGenerationRequests: React.FC = () => {
@@ -51,6 +102,8 @@ const AdminKeyGenerationRequests: React.FC = () => {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [approvalAmounts, setApprovalAmounts] = useState<Record<string, string>>({});
   const [adminComments, setAdminComments] = useState<Record<string, string>>({});
+  const [delaySelections, setDelaySelections] = useState<Record<string, string>>({});
+  const [customDates, setCustomDates] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -85,13 +138,39 @@ const AdminKeyGenerationRequests: React.FC = () => {
     fetchRequests();
   }, [fetchRequests]);
 
-  const handleApprove = async (id: string, outcome: 'success' | 'fail' = 'success') => {
+  // Update countdown timer every minute
+  useEffect(() => {
+    const hasScheduled = requests.some(r => r.scheduledAction);
+    if (!hasScheduled) return;
+
+    const interval = setInterval(() => {
+      setRequests(prev => [...prev]); // Force re-render to update countdowns
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [requests]);
+
+  const handleAction = async (id: string, actionType: 'approve', outcome: 'success' | 'fail') => {
     const amount = parseFloat(approvalAmounts[id] || '0');
     if (isNaN(amount) || amount < 0) {
       toast.error('Enter a valid approval amount');
       return;
     }
 
+    const delay = delaySelections[id] || 'now';
+
+    if (delay !== 'now') {
+      // Schedule the action
+      const executeAt = getExecuteAt(delay, customDates[id]);
+      if (!executeAt || executeAt <= new Date()) {
+        toast.error('Please select a valid future date/time');
+        return;
+      }
+      await handleSchedule(id, actionType, outcome, amount, executeAt);
+      return;
+    }
+
+    // Immediate execution
     setProcessingId(id);
     try {
       const res = await apiFetch(`/key-generation/admin/${id}/approve`, {
@@ -121,6 +200,19 @@ const AdminKeyGenerationRequests: React.FC = () => {
   };
 
   const handleReject = async (id: string) => {
+    const delay = delaySelections[id] || 'now';
+
+    if (delay !== 'now') {
+      const executeAt = getExecuteAt(delay, customDates[id]);
+      if (!executeAt || executeAt <= new Date()) {
+        toast.error('Please select a valid future date/time');
+        return;
+      }
+      await handleSchedule(id, 'reject', 'fail', 0, executeAt);
+      return;
+    }
+
+    // Immediate execution
     setProcessingId(id);
     try {
       const res = await apiFetch(`/key-generation/admin/${id}/reject`, {
@@ -140,6 +232,69 @@ const AdminKeyGenerationRequests: React.FC = () => {
       }
     } catch (e) {
       toast.error('Rejection failed');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleSchedule = async (
+    requestId: string,
+    actionType: 'approve' | 'reject',
+    outcome: 'success' | 'fail',
+    amount: number,
+    executeAt: Date
+  ) => {
+    setProcessingId(requestId);
+    try {
+      const res = await apiFetch(`/key-generation/admin/${requestId}/schedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          actionType,
+          nodeStatusOutcome: outcome,
+          approvedAmount: amount,
+          adminComment: adminComments[requestId] || '',
+          executeAt: executeAt.toISOString()
+        })
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        toast.success(`${actionType === 'approve' ? 'Approval' : 'Rejection'} scheduled for ${executeAt.toLocaleString()}`);
+        // Reset delay selection
+        setDelaySelections(prev => ({ ...prev, [requestId]: 'now' }));
+        setCustomDates(prev => ({ ...prev, [requestId]: '' }));
+        fetchRequests();
+      } else {
+        toast.error(json?.message || 'Scheduling failed');
+      }
+    } catch (e) {
+      toast.error('Scheduling failed');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleCancelScheduled = async (scheduledActionId: string) => {
+    setProcessingId(scheduledActionId);
+    try {
+      const res = await apiFetch(`/key-generation/admin/scheduled/${scheduledActionId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        toast.success('Scheduled action cancelled');
+        fetchRequests();
+      } else {
+        toast.error(json?.message || 'Cancel failed');
+      }
+    } catch (e) {
+      toast.error('Cancel failed');
     } finally {
       setProcessingId(null);
     }
@@ -273,6 +428,39 @@ const AdminKeyGenerationRequests: React.FC = () => {
                             </div>
                           )}
 
+                          {/* Scheduled Action Badge */}
+                          {request.scheduledAction && (
+                            <div className="mt-2 bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <CalendarClock className="w-4 h-4 text-purple-400" />
+                                <div>
+                                  <p className="text-purple-300 text-sm font-semibold">
+                                    Scheduled: {request.scheduledAction.actionType === 'approve' ? `Approve (${request.scheduledAction.nodeStatusOutcome})` : 'Reject'}
+                                    {request.scheduledAction.actionType === 'approve' && request.scheduledAction.approvedAmount !== null && (
+                                      <span className="text-purple-400 ml-1">— ${request.scheduledAction.approvedAmount}</span>
+                                    )}
+                                  </p>
+                                  <p className="text-purple-400/70 text-xs">
+                                    Fires in {formatCountdown(request.scheduledAction.executeAt)} · {new Date(request.scheduledAction.executeAt).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                onClick={() => handleCancelScheduled(request.scheduledAction!._id)}
+                                disabled={processingId === request.scheduledAction._id}
+                                variant="outline"
+                                size="sm"
+                                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 text-xs shrink-0"
+                              >
+                                {processingId === request.scheduledAction._id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <><Ban className="w-3 h-3 mr-1" /> Cancel</>
+                                )}
+                              </Button>
+                            </div>
+                          )}
+
                           <p className="text-xs text-gray-500 mt-2">
                             {new Date(request.createdAt).toLocaleString()}
                           </p>
@@ -303,27 +491,69 @@ const AdminKeyGenerationRequests: React.FC = () => {
                                 className="bg-white/5 border-white/10 text-white"
                               />
                             </div>
+
+                            {/* Delay Selector */}
+                            <div>
+                              <label className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                                <Timer className="w-3 h-3" /> Delay
+                              </label>
+                              <Select
+                                value={delaySelections[request._id] || 'now'}
+                                onValueChange={(val) => setDelaySelections(prev => ({ ...prev, [request._id]: val }))}
+                              >
+                                <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {DELAY_OPTIONS.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Custom Date Picker */}
+                            {(delaySelections[request._id] === 'custom') && (
+                              <div>
+                                <label className="text-xs text-gray-400 mb-1 block">Execute At</label>
+                                <Input
+                                  type="datetime-local"
+                                  value={customDates[request._id] || ''}
+                                  onChange={(e) => setCustomDates(prev => ({ ...prev, [request._id]: e.target.value }))}
+                                  className="bg-white/5 border-white/10 text-white text-xs"
+                                />
+                              </div>
+                            )}
+
                             <div className="flex gap-2">
                               <Button
-                                onClick={() => handleApprove(request._id, 'success')}
+                                onClick={() => handleAction(request._id, 'approve', 'success')}
                                 disabled={processingId === request._id}
                                 className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs px-2"
                               >
                                 {processingId === request._id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
-                                  <><CheckCircle className="w-3 h-3 mr-1" /> Approve (Success)</>
+                                  <>
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    {(delaySelections[request._id] && delaySelections[request._id] !== 'now') ? 'Schedule' : ''} Approve (Success)
+                                  </>
                                 )}
                               </Button>
                               <Button
-                                onClick={() => handleApprove(request._id, 'fail')}
+                                onClick={() => handleAction(request._id, 'approve', 'fail')}
                                 disabled={processingId === request._id}
                                 className="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-xs px-2"
                               >
                                 {processingId === request._id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
-                                  <><XCircle className="w-3 h-3 mr-1" /> Approve (Fail)</>
+                                  <>
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    {(delaySelections[request._id] && delaySelections[request._id] !== 'now') ? 'Schedule' : ''} Approve (Fail)
+                                  </>
                                 )}
                               </Button>
                             </div>
@@ -333,7 +563,8 @@ const AdminKeyGenerationRequests: React.FC = () => {
                               variant="outline"
                               className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs h-8"
                             >
-                              <XCircle className="w-3 h-3 mr-1" /> Reject Request
+                              <XCircle className="w-3 h-3 mr-1" />
+                              {(delaySelections[request._id] && delaySelections[request._id] !== 'now') ? 'Schedule ' : ''}Reject Request
                             </Button>
                           </div>
                         )}
