@@ -770,7 +770,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                       "start"
           }
           isLoading={isUpgrading}
-          className="absolute top-6 right-24 w-fit min-w-[10rem]"
+          className="absolute top-5 right-[3.75rem] w-fit min-w-[10rem] mr-4"
           onClick={
             pendingTierRequest
               ? undefined
