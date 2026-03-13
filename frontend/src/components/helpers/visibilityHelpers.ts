@@ -57,6 +57,7 @@ export function mapNodesWithState(params: {
   user: any;
   allowedVisible: Set<string>;
   withdrawalSystem?: string;
+  nodeScheduledActions?: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>;
 }) {
   const {
     nodes,
@@ -70,6 +71,7 @@ export function mapNodesWithState(params: {
     user,
     allowedVisible,
     withdrawalSystem,
+    nodeScheduledActions,
   } = params;
 
   // Build a map of parent nodes
@@ -140,9 +142,12 @@ export function mapNodesWithState(params: {
       }
     }
 
+    // Inject scheduled action timing for progress bars
+    const scheduledInfo = nodeScheduledActions?.[node.id];
+
     return {
       ...node,
-      hidden: !nodeVisible,  // Hide node completely in ReactFlow if not visible
+      hidden: !nodeVisible,
       data: {
         ...node.data,
         withdrawalSystem,
@@ -151,12 +156,14 @@ export function mapNodesWithState(params: {
         isVisible: nodeVisible,
         hasStarted: hasStarted || hasWatchedNodeLevel,
         blocked: isBlocked,
-        locked: isPreviewNode || dakLocked,  // Only lock preview nodes from future levels or if parent not success
-        dakLocked, // Explicit flag for NodeDetailsPanel to show specific reason
+        locked: isPreviewNode || dakLocked,
+        dakLocked,
         nodeProgressStatus: user?.nodeProgress?.[node.id] || null,
         parentId: parentMap.get(node.id),
         effectiveStatus,
         timeRemaining,
+        scheduledExecuteAt: scheduledInfo?.executeAt || null,
+        scheduledCreatedAt: scheduledInfo?.createdAt || null,
       },
     };
   });

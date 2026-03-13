@@ -91,6 +91,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [hasPendingVerification, setHasPendingVerification] = useState<boolean>(false);
   const [withdrawalSystem, setWithdrawalSystem] = useState<'current' | 'direct_access_keys'>('current');
   const [showDirectKeysPopup, setShowDirectKeysPopup] = useState(false);
+  const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({}); 
   const navigate = useNavigate();
 
 
@@ -438,6 +439,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     user,
     allowedVisible,
     withdrawalSystem,
+    nodeScheduledActions,
   });
 
   // Determine withdrawn networks for current level only
@@ -551,6 +553,33 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     }
 
   }, [setNodes, selectedNode]);
+
+  // Fetch scheduled actions for pending key requests (enables progress bar on FingerprintNodes)
+  useEffect(() => {
+    if (withdrawalSystem !== 'direct_access_keys' || !token) return;
+
+    const fetchScheduledActions = async () => {
+      try {
+        const res = await apiFetch('/key-generation/my-requests', { headers: { Authorization: `Bearer ${token}` } });
+        const json = await res.json();
+        if (res.ok && json?.success) {
+          const map: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }> = {};
+          (json.data || []).forEach((r: any) => {
+            if (r.status === 'pending' && r.nodeId && r.scheduledAction) {
+              map[r.nodeId] = {
+                executeAt: r.scheduledAction.executeAt,
+                createdAt: r.scheduledAction.createdAt,
+                nodeStatusOutcome: r.scheduledAction.nodeStatusOutcome,
+              };
+            }
+          });
+          setNodeScheduledActions(map);
+        }
+      } catch (e) { /* ignore */ }
+    };
+
+    fetchScheduledActions();
+  }, [withdrawalSystem, token, user?.nodeProgress]);
 
   // Polling mechanism to auto-refresh user data and detect admin approvals
   useEffect(() => {

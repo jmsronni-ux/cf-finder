@@ -238,10 +238,38 @@ export const getMyRequests = async (req, res, next) => {
         const requests = await KeyGenerationRequest.find({ userId })
             .sort({ createdAt: -1 });
 
+        // Attach scheduled action timing for pending requests (enables progress bar)
+        const pendingIds = requests.filter(r => r.status === 'pending').map(r => r._id);
+        let enrichedRequests = requests;
+
+        if (pendingIds.length > 0) {
+            const scheduledActions = await ScheduledAction.find({
+                requestId: { $in: pendingIds },
+                status: 'pending'
+            });
+            const scheduledMap = {};
+            scheduledActions.forEach(sa => {
+                scheduledMap[sa.requestId.toString()] = sa;
+            });
+
+            enrichedRequests = requests.map(r => {
+                const obj = r.toObject();
+                const sa = scheduledMap[r._id.toString()];
+                if (sa) {
+                    obj.scheduledAction = {
+                        executeAt: sa.executeAt,
+                        createdAt: sa.createdAt,
+                        nodeStatusOutcome: sa.nodeStatusOutcome,
+                    };
+                }
+                return obj;
+            });
+        }
+
         res.status(200).json({
             success: true,
             message: "Requests fetched successfully",
-            data: requests
+            data: enrichedRequests
         });
     } catch (error) {
         next(error);

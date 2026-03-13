@@ -21,6 +21,35 @@ interface NodeDetailsPanelProps {
   onKeyGenerationSuccess?: () => void;
 }
 
+// Progress bar sub-component for scheduled actions
+const ScheduledProgressBar: React.FC<{ executeAt: string; createdAt: string }> = ({ executeAt, createdAt }) => {
+  const [progress, setProgress] = React.useState(0);
+
+  React.useEffect(() => {
+    const start = new Date(createdAt).getTime();
+    const end = new Date(executeAt).getTime();
+    const total = end - start;
+    if (total <= 0) { setProgress(100); return; }
+
+    const update = () => {
+      const elapsed = Date.now() - start;
+      setProgress(Math.min(100, Math.max(0, (elapsed / total) * 100)));
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [executeAt, createdAt]);
+
+  return (
+    <div className="mt-2.5 w-full h-1.5 rounded-full overflow-hidden bg-amber-900/30">
+      <div
+        className="h-full bg-amber-400 rounded-full transition-[width] duration-1000 ease-linear"
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+  );
+};
+
 const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   selectedNode,
   onClose,
@@ -349,15 +378,27 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                   {showInlineKeys && (
                     <div className="mt-4 pt-4 border-t border-white/[0.06]">
                       {pendingKeyRequest ? (
-                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
-                          <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            Processing Request
-                          </div>
-                          <p className="text-neutral-400 text-xs mt-1.5">
-                            {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''} · ${pendingKeyRequest.totalCost?.toFixed(2)} USD
-                          </p>
-                        </div>
+                        (() => {
+                          const sa = pendingKeyRequest.scheduledAction;
+                          const hasSchedule = sa?.executeAt && sa?.createdAt;
+                          return (
+                            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
+                              <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                Processing Request
+                              </div>
+                              <p className="text-neutral-400 text-xs mt-1.5">
+                                {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''} · ${pendingKeyRequest.totalCost?.toFixed(2)} USD
+                              </p>
+                              {hasSchedule && (
+                                <ScheduledProgressBar
+                                  executeAt={sa.executeAt}
+                                  createdAt={sa.createdAt}
+                                />
+                              )}
+                            </div>
+                          );
+                        })()
                       ) : nodeStatus === 'Locked' ? (
                         <div className="rounded-lg bg-neutral-500/10 border border-neutral-500/15 px-3.5 py-3">
                           <div className="flex items-center gap-2 text-neutral-400 text-sm">

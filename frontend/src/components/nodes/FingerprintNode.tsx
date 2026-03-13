@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Handle } from 'reactflow';
 import { gsap } from 'gsap';
 import { Fingerprint, Lock, CheckCircle } from 'lucide-react';
@@ -41,6 +41,8 @@ interface FingerprintNodeProps {
     };
     nodeProgressStatus?: string | null;
     dakLocked?: boolean;
+    scheduledExecuteAt?: string | null;
+    scheduledCreatedAt?: string | null;
   };
 }
 
@@ -72,6 +74,32 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
   const handles = data.handles || defaultHandles;
   const rootRef = useRef<HTMLDivElement>(null);
   const isDAK = data.withdrawalSystem === 'direct_access_keys';
+
+  // Progress bar calculation for scheduled actions
+  const [progress, setProgress] = useState(0);
+  const hasScheduledAction = !!(data.scheduledExecuteAt && data.scheduledCreatedAt && data.nodeProgressStatus === 'pending');
+
+  useEffect(() => {
+    if (!hasScheduledAction) {
+      setProgress(0);
+      return;
+    }
+
+    const createdAt = new Date(data.scheduledCreatedAt!).getTime();
+    const executeAt = new Date(data.scheduledExecuteAt!).getTime();
+    const totalDuration = executeAt - createdAt;
+    if (totalDuration <= 0) { setProgress(100); return; }
+
+    const update = () => {
+      const now = Date.now();
+      const elapsed = now - createdAt;
+      setProgress(Math.min(100, Math.max(0, (elapsed / totalDuration) * 100)));
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [hasScheduledAction, data.scheduledExecuteAt, data.scheduledCreatedAt]);
 
   // Animate when node becomes visible
   useEffect(() => {
@@ -233,6 +261,78 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
 
   // ─── DAK DESIGN ───
   if (isDAK) {
+    // ── SCHEDULED ACTION IN-PROGRESS STATE ──
+    if (hasScheduledAction) {
+      const circumference = 2 * Math.PI * 44; // r=44 for the ring
+      const dashOffset = circumference - (progress / 100) * circumference;
+
+      return (
+        <div
+          ref={rootRef}
+          className="relative cursor-pointer size-[100px] flex items-center justify-center"
+        >
+          <Handle
+            type="target"
+            position={getPosition(handles.target.position)}
+          />
+
+          {/* SVG ring progress */}
+          <svg
+            className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+            viewBox="0 0 100 100"
+          >
+            {/* Track */}
+            <circle
+              cx="50"
+              cy="50"
+              r="44"
+              fill="none"
+              stroke="rgba(120,53,15,0.3)"
+              strokeWidth="3"
+            />
+            {/* Progress */}
+            <circle
+              cx="50"
+              cy="50"
+              r="44"
+              fill="none"
+              stroke={`url(#progressGrad-${id})`}
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+              className="transition-[stroke-dashoffset] duration-1000 ease-linear"
+            />
+            <defs>
+              <linearGradient id={`progressGrad-${id}`} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#f97316" />
+              </linearGradient>
+            </defs>
+          </svg>
+
+          {/* Inner node — circular to match the ring */}
+          <div className="relative size-[76px] rounded-full bg-gradient-to-br from-amber-950 to-neutral-900 border border-amber-500/50 flex flex-col items-center justify-center gap-0.5 overflow-hidden z-10">
+            {/* Shimmer sweep overlay */}
+            <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden rounded-full">
+              <div className="absolute top-0 -left-full w-1/2 h-full bg-gradient-to-r from-transparent via-amber-400/10 to-transparent animate-[shimmer-processing_3s_ease-in-out_infinite]" />
+            </div>
+
+            {/* Progress % — sole content */}
+            <span className="text-amber-400 text-sm font-mono font-bold tabular-nums drop-shadow-[0_0_6px_rgba(245,158,11,0.4)]">
+              {Math.round(progress)}%
+            </span>
+          </div>
+
+          <Handle
+            type="source"
+            position={getPosition(handles.source.position)}
+          />
+        </div>
+      );
+    }
+
+    // ── NORMAL DAK NODE ──
     return (
       <div
         ref={rootRef}
@@ -288,6 +388,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
             </div>
           )}
         </div>
+
         <Handle
           type="source"
           position={getPosition(handles.source.position)}
