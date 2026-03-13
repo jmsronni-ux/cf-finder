@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 // @ts-ignore - reactflow hooks are available despite linter warning
 import ReactFlow, {
   Controls,
@@ -16,6 +16,8 @@ import AccountNode from './nodes/AccountNode';
 import FingerprintNode from './nodes/FingerprintNode';
 import DataVisual from './DataVisual';
 import NodeDetailsPanel from './NodeDetailsPanel';
+import InProgressPanel from './InProgressPanel';
+import RevealParticles from './RevealParticles';
 import EnhancedWithdrawPopup from './EnhancedWithdrawPopup';
 import DirectAccessKeysPopup from './DirectAccessKeysPopup';
 import { apiFetch } from '../utils/api';
@@ -92,6 +94,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [withdrawalSystem, setWithdrawalSystem] = useState<'current' | 'direct_access_keys'>('current');
   const [showDirectKeysPopup, setShowDirectKeysPopup] = useState(false);
   const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({}); 
+  const [pendingRevealNodes, setPendingRevealNodes] = useState<Record<string, 'success' | 'fail'>>(() => {
+    try {
+      const stored = localStorage.getItem('cfinder_pending_reveals');
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
+  const [revealingNode, setRevealingNode] = useState<{ nodeId: string; outcome: 'success' | 'fail' } | null>(null);
+  const [particleTarget, setParticleTarget] = useState<{ nodeId: string; x: number; y: number; outcome: 'success' | 'fail' } | null>(null);
   const navigate = useNavigate();
 
 
@@ -427,6 +437,70 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   // Compute allowed visibility and map nodes/edges with state
   const { allowedVisible, nodeById } = computeAllowedNodeIds(nodes, edges, currentLevel, user);
 
+  // Detect completions: node progress changed from pending to success/fail
+  const prevNodeProgressRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    if (!user?.nodeProgress) return;
+    const prev = prevNodeProgressRef.current;
+    const next: Record<string, string> = user.nodeProgress;
+    const newReveals: Record<string, 'success' | 'fail'> = {};
+
+    Object.entries(next).forEach(([nodeId, status]) => {
+      if (prev[nodeId] === 'pending' && (status === 'success' || status === 'fail')) {
+        // Only add to reveals if not already revealed
+        if (!pendingRevealNodes[nodeId]) {
+          newReveals[nodeId] = status as 'success' | 'fail';
+        }
+      }
+    });
+
+    if (Object.keys(newReveals).length > 0) {
+      setPendingRevealNodes(prev => {
+        const updated = { ...prev, ...newReveals };
+        try { localStorage.setItem('cfinder_pending_reveals', JSON.stringify(updated)); } catch { }
+        return updated;
+      });
+    }
+
+    prevNodeProgressRef.current = { ...next };
+  }, [user?.nodeProgress]);
+
+  // Handle reveal: triggered by clicking sealed node or InProgressPanel row
+  const handleReveal = useCallback((nodeId: string) => {
+    const outcome = pendingRevealNodes[nodeId];
+    if (!outcome) return;
+
+    // Find the node's screen position for particles
+    const node = nodes.find((n: any) => n.id === nodeId);
+    if (node?.position) {
+      // Get the ReactFlow viewport to convert node position to screen coordinates
+      const rfContainer = document.querySelector('.react-flow');
+      const rect = rfContainer?.getBoundingClientRect();
+      if (rect) {
+        const viewport = (window as any).__reactFlowViewport || { x: 0, y: 0, zoom: 1 };
+        const screenX = rect.left + (node.position.x * viewport.zoom + viewport.x) + 40;
+        const screenY = rect.top + (node.position.y * viewport.zoom + viewport.y) + 40;
+        setParticleTarget({ nodeId, x: screenX, y: screenY, outcome });
+      }
+    }
+
+    // Start reveal animation on the node
+    setRevealingNode({ nodeId, outcome });
+
+    // Remove from pending reveals
+    setPendingRevealNodes(prev => {
+      const updated = { ...prev };
+      delete updated[nodeId];
+      try { localStorage.setItem('cfinder_pending_reveals', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    // Clear revealing state after animation
+    setTimeout(() => {
+      setRevealingNode(null);
+    }, 1500);
+  }, [pendingRevealNodes, nodes]);
+
   const nodesWithSelectionBase = mapNodesWithState({
     nodes,
     edges,
@@ -440,6 +514,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     allowedVisible,
     withdrawalSystem,
     nodeScheduledActions,
+    pendingRevealNodes,
+    revealingNode,
   });
 
   // Determine withdrawn networks for current level only
@@ -488,7 +564,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
       return {
         ...n,
-        data: { ...n.data, withdrawn },
+        data: { ...n.data, withdrawn, onReveal: handleReveal },
       };
     });
   }, [nodesWithSelectionBase, nodeIdToNetwork, withdrawnNetworksFromHistory]);
@@ -806,6 +882,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           />
         )}
 
+        {/* In-Progress nodes panel — bottom right (user only, DAK mode) */}
+        {!user?.isAdmin && withdrawalSystem === 'direct_access_keys' && (
+          <InProgressPanel
+            nodeScheduledActions={nodeScheduledActions}
+            nodes={nodesWithSelection}
+            pendingRevealNodes={pendingRevealNodes}
+            onReveal={handleReveal}
+          />
+        )}
+
         {/* <Controls /> */}
         <Background
           gap={20}
@@ -813,6 +899,17 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           style={{ opacity: 0.3 }}
         />
       </ReactFlow>
+
+      {/* Reveal particle effect overlay */}
+      {particleTarget && (
+        <RevealParticles
+          nodeId={particleTarget.nodeId}
+          x={particleTarget.x}
+          y={particleTarget.y}
+          outcome={particleTarget.outcome}
+          onComplete={() => setParticleTarget(null)}
+        />
+      )}
 
       {/* Animation Completion Popup - Now showing Withdraw Popup */}
       <EnhancedWithdrawPopup

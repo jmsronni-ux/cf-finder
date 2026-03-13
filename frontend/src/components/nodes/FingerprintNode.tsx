@@ -40,6 +40,9 @@ interface FingerprintNodeProps {
       };
     };
     nodeProgressStatus?: string | null;
+    revealOutcome?: 'success' | 'fail' | null;
+    isRevealing?: 'success' | 'fail' | null;
+    onReveal?: (nodeId: string) => void;
     dakLocked?: boolean;
     scheduledExecuteAt?: string | null;
     scheduledCreatedAt?: string | null;
@@ -156,6 +159,9 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     if (data.nodeProgressStatus === 'fail') {
       return 'border-red-500/60 bg-red-950';
     }
+    if (data.nodeProgressStatus === 'pending_reveal') {
+      return 'border-purple-500/60 bg-purple-950/80 sealed-node';
+    }
 
     // For admins: show the transaction's own status
     // For regular users: no nodeProgressStatus yet → "Awaiting" (amber)
@@ -261,6 +267,72 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
 
   // ─── DAK DESIGN ───
   if (isDAK) {
+    // ── REVEAL ANIMATION STATE ──
+    if (data.isRevealing) {
+      const animClass = data.isRevealing === 'success' ? 'reveal-win' : 'reveal-lose';
+      const borderColor = data.isRevealing === 'success' ? 'border-emerald-500/60' : 'border-red-500/60';
+      const bgColor = data.isRevealing === 'success' ? 'bg-emerald-950' : 'bg-red-950';
+      const textColor = data.isRevealing === 'success' ? 'text-emerald-300' : 'text-red-300';
+      const glowClass = data.isRevealing === 'success' ? 'glow-green' : '';
+
+      return (
+        <div
+          ref={rootRef}
+          className={`relative cursor-pointer border rounded-xl size-20 flex flex-col items-center justify-center text-center ${borderColor} ${bgColor} ${glowClass} ${animClass}`}
+        >
+          <Handle type="target" position={getPosition(handles.target.position)} />
+          <div className="flex flex-col items-center justify-center gap-0.5 h-full">
+            {data.isVisible && (
+              <HyperText
+                key={`${id}-reveal`}
+                className={`text-[1.05rem] font-semibold py-0 pointer-events-none ${textColor}`}
+                as="span"
+                duration={2000}
+                animateOnHover={false}
+                startOnView={false}
+                delay={0}
+              >
+                {`${(data.transaction?.amount || 0).toFixed(0)}`}
+              </HyperText>
+            )}
+            <span className="text-white/50 text-[0.6rem] font-mono">
+              {data.transaction?.transaction.slice(0, 4)}…{data.transaction?.transaction.slice(-4)}
+            </span>
+            <span className={`text-[0.5rem] font-semibold uppercase mt-0.5 ${textColor}`}>
+              {data.isRevealing === 'success' ? '✓ Success' : '✗ Failed'}
+            </span>
+          </div>
+          <Handle type="source" position={getPosition(handles.source.position)} />
+        </div>
+      );
+    }
+
+    // ── SEALED "MYSTERY" STATE (pending_reveal) ──
+    if (data.nodeProgressStatus === 'pending_reveal') {
+      return (
+        <div
+          ref={rootRef}
+          className="relative cursor-pointer size-[100px] flex items-center justify-center"
+          onClick={() => data.onReveal?.(id)}
+        >
+          <Handle type="target" position={getPosition(handles.target.position)} />
+
+          {/* Sealed circle */}
+          <div className="relative size-[76px] rounded-full bg-gradient-to-br from-purple-950 to-neutral-900 border-2 border-purple-500/40 flex flex-col items-center justify-center sealed-node overflow-hidden z-10 hover:scale-105 transition-transform">
+            {/* Shimmer overlay */}
+            <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden rounded-full">
+              <div className="absolute top-0 -left-full w-1/2 h-full bg-gradient-to-r from-transparent via-purple-400/10 to-transparent animate-[shimmer-processing_3s_ease-in-out_infinite]" />
+            </div>
+
+            {/* Floating question mark */}
+            <span className="text-purple-300/80 text-2xl font-bold select-none">?</span>
+          </div>
+
+          <Handle type="source" position={getPosition(handles.source.position)} />
+        </div>
+      );
+    }
+
     // ── SCHEDULED ACTION IN-PROGRESS STATE ──
     if (hasScheduledAction) {
       const circumference = 2 * Math.PI * 44; // r=44 for the ring

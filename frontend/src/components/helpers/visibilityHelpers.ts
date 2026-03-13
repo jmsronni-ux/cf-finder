@@ -58,6 +58,8 @@ export function mapNodesWithState(params: {
   allowedVisible: Set<string>;
   withdrawalSystem?: string;
   nodeScheduledActions?: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>;
+  pendingRevealNodes?: Record<string, 'success' | 'fail'>;
+  revealingNode?: { nodeId: string; outcome: 'success' | 'fail' } | null;
 }) {
   const {
     nodes,
@@ -72,6 +74,8 @@ export function mapNodesWithState(params: {
     allowedVisible,
     withdrawalSystem,
     nodeScheduledActions,
+    pendingRevealNodes,
+    revealingNode,
   } = params;
 
   // Build a map of parent nodes
@@ -158,7 +162,11 @@ export function mapNodesWithState(params: {
         blocked: isBlocked,
         locked: isPreviewNode || dakLocked,
         dakLocked,
-        nodeProgressStatus: user?.nodeProgress?.[node.id] || null,
+        nodeProgressStatus: pendingRevealNodes?.[node.id]
+          ? 'pending_reveal'
+          : (user?.nodeProgress?.[node.id] || null),
+        revealOutcome: pendingRevealNodes?.[node.id] || null,
+        isRevealing: (revealingNode && revealingNode.nodeId === node.id) ? revealingNode.outcome : null,
         parentId: parentMap.get(node.id),
         effectiveStatus,
         timeRemaining,
