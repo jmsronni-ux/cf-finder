@@ -182,7 +182,7 @@ export const createLevel = async (req, res, next) => {
   }
 };
 
-// Update level (Admin only)
+// Update level (Admin only) - upserts if level doesn't exist yet (needed for new templates)
 export const updateLevel = async (req, res, next) => {
   try {
     const { levelId } = req.params;
@@ -197,26 +197,39 @@ export const updateLevel = async (req, res, next) => {
     // Remove level from updateData to prevent changing the level number
     delete updateData.level;
 
+    // For template A, always use explicit 'A' as templateName when upserting
     const query = activeTemplate === 'A'
       ? { level: levelNumber, $or: [{ templateName: 'A' }, { templateName: { $exists: false } }] }
       : { level: levelNumber, templateName: activeTemplate };
 
-    const updatedLevel = await Level.findOneAndUpdate(
-      query,
-      {
+    // Use upsert so that saving levels to a brand-new template creates the records
+    // (without upsert, PUT returns 404 if the template has no levels yet)
+    const upsertDoc = {
+      $set: {
         ...updateData,
         'metadata.updatedAt': new Date()
       },
-      { new: true, runValidators: true }
-    );
+      $setOnInsert: {
+        level: levelNumber,
+        templateName: activeTemplate,
+        'metadata.createdAt': new Date(),
+        'metadata.version': '1.0.0'
+      }
+    };
 
-    if (!updatedLevel) {
-      throw new ApiError(404, `Level ${levelNumber} not found`);
-    }
+    // For template A we can't use $or in the upsert filter (Mongo limitation),
+    // so normalise to a simple filter when upserting
+    const upsertFilter = { level: levelNumber, templateName: activeTemplate };
+
+    const updatedLevel = await Level.findOneAndUpdate(
+      upsertFilter,
+      upsertDoc,
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+    );
 
     res.status(200).json({
       success: true,
-      message: `Level ${levelNumber} updated successfully`,
+      message: `Level ${levelNumber} saved successfully`,
       data: { level: updatedLevel }
     });
   } catch (error) {
