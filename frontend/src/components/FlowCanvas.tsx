@@ -771,7 +771,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           background: '#0f0f0f',
         }}
       >
-        <Levels currentLevel={currentLevel} maxLevel={5} />
+        <Levels currentLevel={currentLevel} maxLevel={5} completedLevels={completedLevels} />
         <AccountSettings />
         <PulsatingButton
           pulseColor="#764FCB"
