@@ -42,7 +42,8 @@ export const getUserTier = async (req, res, next) => {
                     lvl2reward: user.lvl2reward,
                     lvl3reward: user.lvl3reward,
                     lvl4reward: user.lvl4reward,
-                    lvl5reward: user.lvl5reward
+                    lvl5reward: user.lvl5reward,
+                    levelTemplate: user.levelTemplate
                 },
                 currentTier: {
                     tier: user.tier,

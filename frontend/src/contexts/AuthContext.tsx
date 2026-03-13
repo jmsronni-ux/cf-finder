@@ -31,6 +31,7 @@ interface User {
     custom?: { chain: string; address: string }[];
   };
   walletVerified?: boolean;
+  levelTemplate?: string;
 }
 
 interface AuthContextType {

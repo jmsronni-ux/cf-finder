@@ -17,7 +17,6 @@ import FingerprintNode from './nodes/FingerprintNode';
 import DataVisual from './DataVisual';
 import NodeDetailsPanel from './NodeDetailsPanel';
 import EnhancedWithdrawPopup from './EnhancedWithdrawPopup';
-import DirectAccessKeysPopup from './DirectAccessKeysPopup';
 import { apiFetch } from '../utils/api';
 import { useLevelData } from '../hooks/useLevelData';
 import { useNetworkRewards } from '../hooks/useNetworkRewards';
@@ -90,7 +89,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [completionPopupShown, setCompletionPopupShown] = useState<boolean>(false);
   const [hasPendingVerification, setHasPendingVerification] = useState<boolean>(false);
   const [withdrawalSystem, setWithdrawalSystem] = useState<'current' | 'direct_access_keys'>('current');
-  const [showDirectKeysPopup, setShowDirectKeysPopup] = useState(false);
   const navigate = useNavigate();
 
 
@@ -512,14 +510,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Dim edges that belong to withdrawn networks
   const edgesWithVisibility = useMemo(() => {
-    const withdrawnNodeIds = new Set(
-      nodesWithSelection.filter((n: any) => n.data?.withdrawn).map((n: any) => n.id)
-    );
-    return edgesWithVisibilityBase.map((e: any) => {
-      const dim = withdrawnNodeIds.has(e.source) || withdrawnNodeIds.has(e.target);
-      return dim ? { ...e, style: { ...(e.style || {}), opacity: 0.35 } } : e;
-    });
-  }, [edgesWithVisibilityBase, nodesWithSelection]);
+    return edgesWithVisibilityBase;
+  }, [edgesWithVisibilityBase]);
 
   const updateNodeData = useCallback((nodeId: string, newData: any) => {
     // Update the nodes state
@@ -551,26 +543,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     }
 
   }, [setNodes, selectedNode]);
-
-  // Polling mechanism to auto-refresh user data and detect admin approvals
-  useEffect(() => {
-    if (withdrawalSystem !== 'direct_access_keys' || !user?.nodeProgress) return;
-
-    // Check if any fingerprint node for current level is still pending
-    const hasPendingNodes = nodes.some((n: any) =>
-      n.type === 'fingerprintNode' &&
-      n.data?.transaction &&
-      (n.data?.level ?? 1) === currentLevel &&
-      user.nodeProgress?.[n.id] === 'pending'
-    );
-
-    if (hasPendingNodes) {
-      const intervalId = setInterval(() => {
-        refreshUser();
-      }, 5000); // Poll every 5 seconds while we are waiting for an admin approval
-      return () => clearInterval(intervalId);
-    }
-  }, [nodes, currentLevel, user?.nodeProgress, withdrawalSystem, refreshUser]);
 
   const handleAddChildNode = useCallback((parentNodeId: string) => {
     const parentNode = nodes.find((n: any) => n.id === parentNodeId);
@@ -631,18 +603,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   // Check if selected node can be deleted (is a leaf)
   const canDeleteSelectedNode = selectedNode ? canDeleteNode(selectedNode.id, edges) : false;
 
-  const isLevelCompletedWithKeys = useMemo(() => {
-    if (!hasWatchedCurrentLevel || withdrawalSystem !== 'direct_access_keys') return false;
-    // Only count fingerprint nodes that have an actual transaction attached to them
-    const fingerprintNodes = nodes.filter((n: any) =>
-      n.type === 'fingerprintNode' &&
-      n.data?.transaction &&
-      (n.data?.level ?? 1) === currentLevel
-    );
-    if (fingerprintNodes.length === 0) return false;
-    return fingerprintNodes.every((n: any) => user?.nodeProgress?.[n.id] === 'success');
-  }, [nodes, currentLevel, user?.nodeProgress, hasWatchedCurrentLevel, withdrawalSystem]);
-
   return (
     <div className="w-full h-full">
       <ReactFlow
@@ -673,8 +633,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           duration="1.5s"
           variant={
             pendingTierRequest ? "upgradePending" :
-              hasWatchedCurrentLevel ?
-                (withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys ? "verificationPending" : "withdraw") :
+              hasWatchedCurrentLevel ? "withdraw" :
                 (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
                   (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
                     hasStarted ? "loading" :
@@ -686,15 +645,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             pendingTierRequest
               ? undefined
               : hasWatchedCurrentLevel
-                ? () => {
-                  if (withdrawalSystem === 'direct_access_keys') {
-                    if (isLevelCompletedWithKeys && currentLevel < 5) {
-                      handleUpgradeClick();
-                    }
-                  } else {
-                    setShowCompletionPopup(!showCompletionPopup);
-                  }
-                }
+                ? () => setShowCompletionPopup(!showCompletionPopup)
                 : (!user?.isAdmin && hasPendingVerification)
                   ? undefined
                   : (!user?.isAdmin && !user?.walletVerified)
@@ -713,9 +664,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             pendingTierRequest ||
             (!user?.isAdmin && hasPendingVerification) ||
             (hasStarted && !hasWatchedCurrentLevel) ||
-            isUpgrading ||
-            (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys) ||
-            (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && currentLevel >= 5)
+            isUpgrading
           }
         >
           {pendingTierRequest
@@ -723,9 +672,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             : isUpgrading
               ? 'Upgrading...'
               : hasWatchedCurrentLevel
-                ? withdrawalSystem === 'direct_access_keys'
-                  ? (isLevelCompletedWithKeys ? (currentLevel >= 5 ? 'Max Level Reached' : `Upgrade to Level ${currentLevel + 1}`) : 'Complete Node Keys to Upgrade')
-                  : 'Re-Allocate Funds'
+                ? 'Re-Allocate Funds'
                 : (!user?.isAdmin && hasPendingVerification)
                   ? 'Verification Pending'
                   : (!user?.isAdmin && !user?.walletVerified)
@@ -753,7 +700,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             onClose={() => setSelectedNode(null)}
             hasStarted={hasStarted}
             hasWatchedCurrentLevel={hasWatchedCurrentLevel || !hasPaidForCurrentLevel}
-            withdrawalSystem={withdrawalSystem}
             onStartAnimation={() => {
               if (!hasPaidForCurrentLevel) {
                 handleUpgradeClick();
@@ -764,11 +710,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
               }
             }}
             onWithdrawClick={() => {
-              if (withdrawalSystem === 'direct_access_keys') {
-                setShowDirectKeysPopup(true);
-              } else {
-                setShowCompletionPopup(!showCompletionPopup);
-              }
+              setShowCompletionPopup(!showCompletionPopup);
             }}
           />
         )}
@@ -798,19 +740,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             }
           } catch { }
           toast.success('Withdrawal request submitted successfully!');
-        }}
-      />
-
-      {/* Direct Access Keys Popup */}
-      <DirectAccessKeysPopup
-        isOpen={showDirectKeysPopup}
-        onClose={() => setShowDirectKeysPopup(false)}
-        level={currentLevel}
-        nodeId={selectedNode?.id}
-        nodeAmount={selectedNode?.data?.transaction?.amount}
-        onSuccess={async () => {
-          await refreshUser();
-          setShowDirectKeysPopup(false);
         }}
       />
 
