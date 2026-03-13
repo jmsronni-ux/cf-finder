@@ -754,6 +754,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             hasStarted={hasStarted}
             hasWatchedCurrentLevel={hasWatchedCurrentLevel || !hasPaidForCurrentLevel}
             withdrawalSystem={withdrawalSystem}
+            level={currentLevel}
             onStartAnimation={() => {
               if (!hasPaidForCurrentLevel) {
                 handleUpgradeClick();
@@ -769,6 +770,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
               } else {
                 setShowCompletionPopup(!showCompletionPopup);
               }
+            }}
+            onKeyGenerationSuccess={async () => {
+              await refreshUser();
             }}
           />
         )}
