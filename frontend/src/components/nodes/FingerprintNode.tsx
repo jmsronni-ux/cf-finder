@@ -20,6 +20,8 @@ interface FingerprintNodeProps {
     level?: number;
     network?: string;
     user?: any;
+    withdrawalSystem?: string;
+    isAdmin?: boolean;
     transaction?: {
       id: string;
       date: string;
@@ -36,6 +38,8 @@ interface FingerprintNodeProps {
         position: string;
       };
     };
+    nodeProgressStatus?: string | null;
+    dakLocked?: boolean;
   };
 }
 
@@ -66,11 +70,12 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
 
   const handles = data.handles || defaultHandles;
   const rootRef = useRef<HTMLDivElement>(null);
+  const isDAK = data.withdrawalSystem === 'direct_access_keys';
 
   // Animate when node becomes visible
   useEffect(() => {
     if (!rootRef.current) return;
-    
+
     // If node is locked (current level but not unlocked yet), show it immediately without animation
     if (data.locked) {
       gsap.set(rootRef.current, {
@@ -79,7 +84,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       });
       return;
     }
-    
+
     if (data.hasStarted && !data.isVisible) {
       // Hide initially
       gsap.set(rootRef.current, {
@@ -97,7 +102,52 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     }
   }, [data.isVisible, data.hasStarted, data.locked]);
 
-  // Determine styling and glow animation based on effective status (pending or actual)
+  // ─── DAK STATUS STYLING (visible fills + glow) ───
+  const getDakStatusStyling = () => {
+    if (data.withdrawn) {
+      return 'border-neutral-600/50 bg-neutral-800 opacity-40';
+    }
+    if (data.blocked) {
+      return 'border-neutral-600 bg-neutral-800 opacity-70';
+    }
+    if (data.locked) {
+      return 'border-neutral-600 bg-neutral-800 opacity-60';
+    }
+    if (data.selected) {
+      return 'border-amber-400/60 bg-amber-950 ring-2 ring-amber-400/30';
+    }
+
+    // Explicit DAK progress statuses always take priority
+    if (data.nodeProgressStatus === 'pending') {
+      return 'border-amber-500/60 bg-amber-950 glow-yellow';
+    }
+    if (data.nodeProgressStatus === 'success') {
+      return 'border-emerald-500/60 bg-emerald-950 glow-green';
+    }
+    if (data.nodeProgressStatus === 'fail') {
+      return 'border-red-500/60 bg-red-950';
+    }
+
+    // For admins: show the transaction's own status
+    // For regular users: no nodeProgressStatus yet → "Awaiting" (amber)
+    if (data.isAdmin) {
+      const status = data.effectiveStatus || data.transaction?.status;
+      if (status === 'Success') return 'border-emerald-500/60 bg-emerald-950 glow-green';
+      if (status === 'Fail') return 'border-red-500/60 bg-red-950';
+      if (status === 'Pending') return 'border-amber-500/60 bg-amber-950 glow-yellow';
+      if (status === 'Cold Wallet') return 'border-sky-500/60 bg-sky-950 glow-blue';
+      if (status === 'Reported') return 'border-orange-500/60 bg-orange-950 glow-orange';
+    }
+
+    // Regular user: awaiting key generation (amber)
+    if (data.nodeProgressStatus === null && !data.dakLocked) {
+      return 'border-amber-500/60 bg-amber-950 glow-yellow';
+    }
+
+    return 'border-neutral-600/50 bg-neutral-800';
+  };
+
+  // ─── OLD DESIGN STATUS STYLING ───
   const getStatusStyling = () => {
     if (data.withdrawn) {
       return 'border-gray-500/60 bg-gray-600/30 opacity-40';
@@ -111,9 +161,22 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     if (data.selected) {
       return 'border-blue-400 bg-blue-600/30 glow-blue';
     }
-    
+
     const status = data.effectiveStatus || data.transaction?.status;
-    
+
+    if (data.nodeProgressStatus === null && !data.dakLocked) {
+      return 'border-yellow-500 bg-[#483413] glow-yellow text-yellow-500';
+    }
+    if (data.nodeProgressStatus === 'pending') {
+      return 'border-yellow-500 bg-[#483413] glow-yellow text-yellow-500';
+    }
+    if (data.nodeProgressStatus === 'success') {
+      return 'border-green-500 bg-[#1F582F] glow-green text-green-500';
+    }
+    if (data.nodeProgressStatus === 'fail') {
+      return 'border-red-500 bg-[#4E1817] text-red-500';
+    }
+
     if (status === 'Success') {
       return 'border-green-500 bg-[#1F582F] glow-green text-green-500';
     } else if (status === 'Fail') {
@@ -125,11 +188,10 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     } else if (status === 'Reported') {
       return 'border-orange-500 bg-[#431407] glow-orange text-orange-500';
     }
-    
+
     return 'border-gray-500 bg-gray-600/40';
   };
 
-  // Get inner border color based on status
   const getInnerBorderClass = () => {
     if (data.blocked) {
       return 'border-b-gray-500';
@@ -137,9 +199,22 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     if (data.selected) {
       return 'border-b-blue-400';
     }
-    
+
     const status = data.effectiveStatus || data.transaction?.status;
-    
+
+    if (data.nodeProgressStatus === null && !data.dakLocked) {
+      return 'border-b-yellow-500';
+    }
+    if (data.nodeProgressStatus === 'pending') {
+      return 'border-b-yellow-500';
+    }
+    if (data.nodeProgressStatus === 'success') {
+      return 'border-b-green-500';
+    }
+    if (data.nodeProgressStatus === 'fail') {
+      return 'border-b-red-500';
+    }
+
     if (status === 'Success') {
       return 'border-b-green-500';
     } else if (status === 'Fail') {
@@ -151,9 +226,10 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     } else if (status === 'Reported') {
       return 'border-b-orange-500';
     }
-    
+
     return 'border-b-gray-500';
   };
+
 
   return (
     <div
@@ -166,24 +242,24 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       />
       <div className="flex flex-col items-center gap-1 h-full">
 
-        {data.blocked && 
+        {data.blocked &&
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-black/85 rounded-lg flex items-center justify-center">
             <Lock />
           </div>
         }
-        {data.locked && 
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-black/50 rounded-lg flex items-center justify-center">
-          <Lock className="opacity-70" size={20} />
-        </div>
+        {data.locked &&
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-black/50 rounded-lg flex items-center justify-center">
+            <Lock className="opacity-70" size={20} />
+          </div>
         }
-        
+
         <div className={`bg-black/50 w-full rounded-t-lg h-2/3 flex items-center justify-center border-b ${getInnerBorderClass()}`}>
           {data.isVisible && (
-            <HyperText 
+            <HyperText
               key={`${id}-${data.isVisible}`}
-              className="text-[1.05rem] font-bold py-0 pointer-events-none" 
-              as="span" 
-              duration={2000} 
+              className="text-[1.05rem] font-bold py-0 pointer-events-none"
+              as="span"
+              duration={2000}
               animateOnHover={false}
               startOnView={false}
               delay={400}

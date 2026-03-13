@@ -145,6 +145,8 @@ export function mapNodesWithState(params: {
       hidden: !nodeVisible,  // Hide node completely in ReactFlow if not visible
       data: {
         ...node.data,
+        withdrawalSystem,
+        isAdmin,
         selected: selectedNode?.id === node.id,
         isVisible: nodeVisible,
         hasStarted: hasStarted || hasWatchedNodeLevel,

@@ -241,7 +241,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
 
   // New design status config
   const statusConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-    'Success': { icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: 'text-emerald-400', label: 'Verified' },
+    'Success': { icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: 'text-emerald-400', label: 'Success' },
     'Pending': { icon: <Clock className="w-3.5 h-3.5" />, color: 'text-amber-400', label: 'Pending' },
     'Fail': { icon: <XCircle className="w-3.5 h-3.5" />, color: 'text-red-400', label: 'Failed' },
     'Locked': { icon: <XCircle className="w-3.5 h-3.5" />, color: 'text-neutral-500', label: 'Locked' },
@@ -357,7 +357,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                         <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-3">
                           <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            Node Unlocked ✓
+                            Successful Recovery
                           </div>
                         </div>
                       ) : nodeStatus === 'Pending' ? (
