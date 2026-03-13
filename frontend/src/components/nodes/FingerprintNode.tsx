@@ -114,7 +114,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       return 'border-neutral-600 bg-neutral-800 opacity-60';
     }
     if (data.selected) {
-      return 'border-amber-400/60 bg-amber-950 ring-2 ring-amber-400/30';
+      return 'border-neutral-400/60 bg-neutral-800 ring-2 ring-neutral-400/30';
     }
 
     // Explicit DAK progress statuses always take priority
@@ -230,7 +230,72 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     return 'border-b-gray-500';
   };
 
+  // ─── DAK DESIGN ───
+  if (isDAK) {
+    return (
+      <div
+        ref={rootRef}
+        className={`relative cursor-pointer border rounded-xl size-20 flex flex-col items-center justify-center text-center transition-all duration-200 ${getDakStatusStyling()}`}
+      >
+        <Handle
+          type="target"
+          position={getPosition(handles.target.position)}
+        />
+        <div className="flex flex-col items-center justify-center gap-0.5 h-full">
+          {/* Lock overlays — corner badge so amount stays visible */}
+          {data.blocked && (
+            <>
+              <div className="absolute inset-0 bg-black/60 rounded-xl z-10" />
+              <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center z-20">
+                <Lock className="text-neutral-400" size={12} />
+              </div>
+            </>
+          )}
+          {data.locked && !data.blocked && (
+            <>
+              <div className="absolute inset-0 bg-black/40 rounded-xl z-10" />
+              <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center z-20">
+                <Lock className="text-neutral-500" size={12} />
+              </div>
+            </>
+          )}
 
+          {/* Amount — animated HyperText */}
+          {data.isVisible && (
+            <HyperText
+              key={`${id}-${data.isVisible}`}
+              className="text-[1.05rem] font-semibold py-0 pointer-events-none text-white"
+              as="span"
+              duration={2000}
+              animateOnHover={false}
+              startOnView={false}
+              delay={400}
+            >
+              {`${(data.transaction?.amount || 0).toFixed(0)}`}
+            </HyperText>
+          )}
+
+          {/* Hash — truncated mono */}
+          <span className="text-white/50 text-[0.6rem] font-mono">
+            {data.transaction?.transaction.slice(0, 4)}…{data.transaction?.transaction.slice(-4)}
+          </span>
+
+          {/* Withdrawn mark */}
+          {data.withdrawn && (
+            <div className="absolute -top-1.5 -right-1.5">
+              <CheckCircle className="text-emerald-400" size={15} />
+            </div>
+          )}
+        </div>
+        <Handle
+          type="source"
+          position={getPosition(handles.source.position)}
+        />
+      </div>
+    );
+  }
+
+  // ─── OLD DESIGN ───
   return (
     <div
       ref={rootRef}

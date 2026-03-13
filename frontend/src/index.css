@@ -160,84 +160,174 @@ html, body {
   }
 }
 
-/* Glowing animations for node status colors */
+/* ═══ NODE GLOW ANIMATIONS ═══ */
+
+/* ── GREEN (Success) ── steady warm glow + shimmer sweep */
 @keyframes glow-green {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(34, 197, 94, 0.4), 0 0 10px rgba(34, 197, 94, 0.3), 0 0 15px rgba(34, 197, 94, 0.2), 0 0 20px rgba(34, 197, 94, 0.1);
+    box-shadow:
+      0 0 8px rgba(34,197,94,0.35),
+      0 0 20px rgba(34,197,94,0.15),
+      inset 0 0 12px rgba(34,197,94,0.06);
   }
   50% {
-    box-shadow: 0 0 10px rgba(34, 197, 94, 0.6), 0 0 20px rgba(34, 197, 94, 0.5), 0 0 30px rgba(34, 197, 94, 0.4), 0 0 40px rgba(34, 197, 94, 0.2);
+    box-shadow:
+      0 0 12px rgba(34,197,94,0.5),
+      0 0 28px rgba(34,197,94,0.25),
+      inset 0 0 18px rgba(34,197,94,0.1);
   }
 }
+@keyframes shimmer-green {
+  0%   { left: -100%; }
+  100% { left: 200%; }
+}
+.glow-green {
+  animation: glow-green 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+.glow-green::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(34,197,94,0.08), transparent);
+  animation: shimmer-green 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
 
+/* ── RED (Fail) ── heartbeat double-flash */
 @keyframes glow-red {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(239, 68, 68, 0.4), 0 0 10px rgba(239, 68, 68, 0.3), 0 0 15px rgba(239, 68, 68, 0.2), 0 0 20px rgba(239, 68, 68, 0.1);
+    box-shadow: 0 0 6px rgba(239,68,68,0.3), 0 0 12px rgba(239,68,68,0.1);
   }
-  50% {
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6), 0 0 20px rgba(239, 68, 68, 0.5), 0 0 30px rgba(239, 68, 68, 0.4), 0 0 40px rgba(239, 68, 68, 0.2);
+  14% {
+    box-shadow: 0 0 14px rgba(239,68,68,0.7), 0 0 30px rgba(239,68,68,0.35), 0 0 50px rgba(239,68,68,0.15);
+  }
+  28% {
+    box-shadow: 0 0 6px rgba(239,68,68,0.3), 0 0 12px rgba(239,68,68,0.1);
+  }
+  42% {
+    box-shadow: 0 0 18px rgba(239,68,68,0.8), 0 0 36px rgba(239,68,68,0.4), 0 0 60px rgba(239,68,68,0.2);
+  }
+  56% {
+    box-shadow: 0 0 6px rgba(239,68,68,0.3), 0 0 12px rgba(239,68,68,0.1);
   }
 }
+.glow-red {
+  animation: glow-red 2.4s ease-in-out infinite;
+}
 
+/* ── YELLOW (Awaiting / Pending) ── aggressive pulse + fast rotating border accent */
 @keyframes glow-yellow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(234, 179, 8, 0.4), 0 0 10px rgba(234, 179, 8, 0.3), 0 0 15px rgba(234, 179, 8, 0.2), 0 0 20px rgba(234, 179, 8, 0.1);
+    box-shadow:
+      0 0 8px rgba(234,179,8,0.4),
+      0 0 18px rgba(234,179,8,0.2);
   }
   50% {
-    box-shadow: 0 0 10px rgba(234, 179, 8, 0.6), 0 0 20px rgba(234, 179, 8, 0.5), 0 0 30px rgba(234, 179, 8, 0.4), 0 0 40px rgba(234, 179, 8, 0.2);
+    box-shadow:
+      0 0 20px rgba(234,179,8,0.7),
+      0 0 40px rgba(234,179,8,0.35),
+      0 0 60px rgba(234,179,8,0.15);
   }
 }
+@keyframes border-rotate {
+  0%   { --border-angle: 0deg; }
+  100% { --border-angle: 360deg; }
+}
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.glow-yellow {
+  animation: glow-yellow 1.6s ease-in-out infinite, border-rotate 2s linear infinite;
+  position: relative;
+  overflow: hidden;
+}
+.glow-yellow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--border-angle), transparent 40%, rgba(234,179,8,0.7) 70%, rgba(250,204,21,0.9) 80%, rgba(234,179,8,0.7) 90%, transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+}
 
+/* ── BLUE (Cold Wallet) ── slow crystallize shimmer sweep */
 @keyframes glow-blue {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(59, 130, 246, 0.4), 0 0 10px rgba(59, 130, 246, 0.3), 0 0 15px rgba(59, 130, 246, 0.2), 0 0 20px rgba(59, 130, 246, 0.1);
+    box-shadow:
+      0 0 8px rgba(59,130,246,0.3),
+      0 0 16px rgba(59,130,246,0.12);
   }
   50% {
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.6), 0 0 20px rgba(59, 130, 246, 0.5), 0 0 30px rgba(59, 130, 246, 0.4), 0 0 40px rgba(59, 130, 246, 0.2);
+    box-shadow:
+      0 0 12px rgba(59,130,246,0.45),
+      0 0 24px rgba(59,130,246,0.2),
+      inset 0 0 10px rgba(59,130,246,0.06);
   }
 }
+@keyframes shimmer-blue {
+  0%   { left: -100%; }
+  100% { left: 200%; }
+}
+.glow-blue {
+  animation: glow-blue 4s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+.glow-blue::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(59,130,246,0.1), rgba(147,197,253,0.06), transparent);
+  animation: shimmer-blue 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
 
+/* ── ORANGE (Reported) ── expanding ring signal */
 @keyframes glow-orange {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(249, 115, 22, 0.4), 0 0 10px rgba(249, 115, 22, 0.3), 0 0 15px rgba(249, 115, 22, 0.2);
+    box-shadow: 0 0 6px rgba(249,115,22,0.35), 0 0 12px rgba(249,115,22,0.12);
+    outline: 2px solid transparent;
+    outline-offset: 0px;
   }
   50% {
-    box-shadow: 0 0 10px rgba(249, 115, 22, 0.6), 0 0 20px rgba(249, 115, 22, 0.5), 0 0 30px rgba(249, 115, 22, 0.4);
+    box-shadow: 0 0 14px rgba(249,115,22,0.55), 0 0 28px rgba(249,115,22,0.2);
+    outline: 2px solid rgba(249,115,22,0.25);
+    outline-offset: 4px;
   }
 }
+.glow-orange {
+  animation: glow-orange 2.2s ease-in-out infinite;
+}
 
+/* ── PURPLE ── enhanced breathing with inset glow */
 @keyframes glow-purple {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(168, 85, 247, 0.4), 0 0 10px rgba(168, 85, 247, 0.3), 0 0 15px rgba(168, 85, 247, 0.2);
+    box-shadow:
+      0 0 8px rgba(168,85,247,0.35),
+      0 0 16px rgba(168,85,247,0.15),
+      inset 0 0 10px rgba(168,85,247,0.06);
   }
   50% {
-    box-shadow: 0 0 10px rgba(168, 85, 247, 0.6), 0 0 20px rgba(168, 85, 247, 0.5), 0 0 30px rgba(168, 85, 247, 0.4);
+    box-shadow:
+      0 0 14px rgba(168,85,247,0.55),
+      0 0 30px rgba(168,85,247,0.25),
+      inset 0 0 16px rgba(168,85,247,0.1);
   }
 }
-
-/* Utility classes for applying glow animations */
-.glow-green {
-  animation: glow-green 2s ease-in-out infinite;
-}
-
-.glow-red {
-  animation: glow-red 2s ease-in-out infinite;
-}
-
-.glow-yellow {
-  animation: glow-yellow 2s ease-in-out infinite;
-}
-
-.glow-blue {
-  animation: glow-blue 2s ease-in-out infinite;
-}
-
-.glow-orange {
-  animation: glow-orange 2s ease-in-out infinite;
-}
-
 .glow-purple {
-  animation: glow-purple 2s ease-in-out infinite;
+  animation: glow-purple 2.8s ease-in-out infinite;
 }
 
 #\:r1\: > div > div > div.react-flow__panel.react-flow__attribution.bottom.right {

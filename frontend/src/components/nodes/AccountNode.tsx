@@ -9,6 +9,7 @@ interface AccountNodeProps {
     selected?: boolean;
     isVisible?: boolean;
     hasStarted?: boolean;
+    withdrawalSystem?: string;
     handles?: {
       target: {
         position: string;
@@ -39,6 +40,7 @@ const AccountNode: React.FC<AccountNodeProps> = ({ data }) => {
 
   const handles = data.handles!;
   const rootRef = useRef<HTMLDivElement>(null);
+  const isDAK = data.withdrawalSystem === 'direct_access_keys';
 
   // Animate when node becomes visible
   useEffect(() => {
@@ -61,6 +63,43 @@ const AccountNode: React.FC<AccountNodeProps> = ({ data }) => {
     }
   }, [data.isVisible, data.hasStarted]);
 
+  // ─── DAK DESIGN ───
+  if (isDAK) {
+    return (
+      <div
+        ref={rootRef}
+        className={`cursor-pointer rounded-full size-20 p-4 flex flex-col items-center justify-center text-center shadow-lg relative transition-all duration-200
+          bg-neutral-900 border-2 ${data.selected ? 'border-amber-400/60 ring-2 ring-amber-400/25' : 'border-neutral-600/50'}
+        `}
+      >
+        {/* Central target handle */}
+        <Handle
+          type="target"
+          position={getPosition(handles.target.position)}
+        />
+        
+        <div className="flex flex-col items-center gap-2">
+          <img 
+            src={data.logo} 
+            alt={data.label}
+            className="size-12 object-contain"
+          />
+        </div>
+
+        {/* Individual source handles from JSON data */}
+        {handles.sources.map((source) => (
+          <Handle
+            key={source.id}
+            id={source.id}
+            type="source"
+            position={getPosition(source.position)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // ─── OLD DESIGN ───
   return (
     <div
       ref={rootRef}
