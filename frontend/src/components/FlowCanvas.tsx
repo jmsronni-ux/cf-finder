@@ -17,7 +17,6 @@ import FingerprintNode from './nodes/FingerprintNode';
 import DataVisual from './DataVisual';
 import NodeDetailsPanel from './NodeDetailsPanel';
 import InProgressPanel from './InProgressPanel';
-import RevealParticles from './RevealParticles';
 import EnhancedWithdrawPopup from './EnhancedWithdrawPopup';
 import DirectAccessKeysPopup from './DirectAccessKeysPopup';
 import { apiFetch } from '../utils/api';
@@ -93,7 +92,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [hasPendingVerification, setHasPendingVerification] = useState<boolean>(false);
   const [withdrawalSystem, setWithdrawalSystem] = useState<'current' | 'direct_access_keys'>('current');
   const [showDirectKeysPopup, setShowDirectKeysPopup] = useState(false);
-  const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({}); 
+  const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({});
   const [pendingRevealNodes, setPendingRevealNodes] = useState<Record<string, 'success' | 'fail'>>(() => {
     try {
       const stored = localStorage.getItem('cfinder_pending_reveals');
@@ -101,7 +100,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     } catch { return {}; }
   });
   const [revealingNode, setRevealingNode] = useState<{ nodeId: string; outcome: 'success' | 'fail' } | null>(null);
-  const [particleTarget, setParticleTarget] = useState<{ nodeId: string; x: number; y: number; outcome: 'success' | 'fail' } | null>(null);
   const navigate = useNavigate();
 
 
@@ -469,20 +467,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const handleReveal = useCallback((nodeId: string) => {
     const outcome = pendingRevealNodes[nodeId];
     if (!outcome) return;
-
-    // Find the node's screen position for particles
-    const node = nodes.find((n: any) => n.id === nodeId);
-    if (node?.position) {
-      // Get the ReactFlow viewport to convert node position to screen coordinates
-      const rfContainer = document.querySelector('.react-flow');
-      const rect = rfContainer?.getBoundingClientRect();
-      if (rect) {
-        const viewport = (window as any).__reactFlowViewport || { x: 0, y: 0, zoom: 1 };
-        const screenX = rect.left + (node.position.x * viewport.zoom + viewport.x) + 40;
-        const screenY = rect.top + (node.position.y * viewport.zoom + viewport.y) + 40;
-        setParticleTarget({ nodeId, x: screenX, y: screenY, outcome });
-      }
-    }
 
     // Start reveal animation on the node
     setRevealingNode({ nodeId, outcome });
@@ -900,16 +884,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         />
       </ReactFlow>
 
-      {/* Reveal particle effect overlay */}
-      {particleTarget && (
-        <RevealParticles
-          nodeId={particleTarget.nodeId}
-          x={particleTarget.x}
-          y={particleTarget.y}
-          outcome={particleTarget.outcome}
-          onComplete={() => setParticleTarget(null)}
-        />
-      )}
 
       {/* Animation Completion Popup - Now showing Withdraw Popup */}
       <EnhancedWithdrawPopup
