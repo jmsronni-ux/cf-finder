@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Clock, XCircle, KeyRound, Snowflake, AlertTriangle, X, Minus, Plus, Loader2, Info, DollarSign } from 'lucide-react';
+import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet, KeyRound, Snowflake, AlertTriangle, X, Minus, Plus, Loader2, Info } from 'lucide-react';
 import { PulsatingButton } from './ui/pulsating-button';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
@@ -53,6 +53,8 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const totalKeyCost = keysCount * pricePerKey;
   const availableBalance = user?.availableBalance || 0;
   const hasSufficientBalance = availableBalance >= totalKeyCost;
+
+  const isDAK = withdrawalSystem === 'direct_access_keys';
 
   // Fetch pending tier requests
   useEffect(() => {
@@ -187,6 +189,15 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const hasTransaction = selectedNode.data.transaction;
   const transaction = selectedNode.data.transaction || {};
 
+  // Wallets for old design
+  const verifiedWalletsOld = wallets ? [
+    { name: 'Bitcoin (BTC)', address: wallets.btc, icon: '₿', color: 'text-orange-400' },
+    { name: 'Ethereum (ETH)', address: wallets.eth, icon: 'Ξ', color: 'text-blue-400' },
+    { name: 'Tron (TRON)', address: wallets.tron, icon: 'T', color: 'text-red-400' },
+    { name: 'USDT ERC20', address: wallets.usdtErc20, icon: '₮', color: 'text-green-400' }
+  ].filter(wallet => wallet.address && wallet.address.trim() !== '') : [];
+
+  // Wallets for new design
   const verifiedWallets = wallets ? [
     { name: 'BTC', address: wallets.btc, icon: '₿' },
     { name: 'ETH', address: wallets.eth, icon: 'Ξ' },
@@ -201,6 +212,34 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   else if (selectedNode.data.nodeProgressStatus === 'success') nodeStatus = 'Success';
   else if (selectedNode.data.nodeProgressStatus === 'fail') nodeStatus = 'Fail';
 
+  // Old design status display
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'Success':
+      case 'success':
+        return { icon: <CheckCircle2 className="w-5 h-5" />, color: 'text-green-400', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/20' };
+      case 'Pending':
+      case 'pending':
+        return { icon: <Clock className="w-5 h-5" />, color: 'text-yellow-400', bgColor: 'bg-yellow-500/10', borderColor: 'border-yellow-500/20' };
+      case 'Fail':
+      case 'fail':
+        return { icon: <XCircle className="w-5 h-5" />, color: 'text-red-400', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/20' };
+      case 'Locked':
+        return { icon: <XCircle className="w-5 h-5" />, color: 'text-gray-500', bgColor: 'bg-gray-500/10', borderColor: 'border-gray-500/20' };
+      case 'Cold Wallet':
+      case 'cold wallet':
+        return { icon: <Snowflake className="w-5 h-5" />, color: 'text-blue-400', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/20' };
+      case 'Reported':
+      case 'reported':
+        return { icon: <AlertTriangle className="w-5 h-5" />, color: 'text-orange-400', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/20' };
+      default:
+        return { icon: <KeyRound className="w-5 h-5" />, color: 'text-purple-400', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/20' };
+    }
+  };
+
+  const statusDisplay = getStatusDisplay(nodeStatus);
+
+  // New design status config
   const statusConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
     'Success': { icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: 'text-emerald-400', label: 'Verified' },
     'Pending': { icon: <Clock className="w-3.5 h-3.5" />, color: 'text-amber-400', label: 'Pending' },
@@ -212,229 +251,400 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   };
   const status = statusConfig[nodeStatus] || statusConfig['Available'];
 
-  const showInlineKeys = isFingerprintNode && hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys';
+  const showInlineKeys = isFingerprintNode && hasWatchedCurrentLevel && isDAK;
 
-  return (
-    <div className="absolute top-20 right-6 z-30 w-full max-w-[340px]">
-      <div className="bg-[#0c0c0c] border border-white/[0.07] rounded-xl shadow-2xl">
-        <div className="p-5">
+  // ─── NEW DESIGN (Direct Access Keys) ───
+  if (isDAK) {
+    return (
+      <div className="absolute top-20 right-6 z-30 w-full max-w-[340px]">
+        <div className="bg-[#0c0c0c] border border-white/[0.07] rounded-xl shadow-2xl">
+          <div className="p-5">
 
-          {/* Header row */}
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[13px] font-medium text-neutral-400 uppercase tracking-wide">
-              {isUserNode ? 'Account' : 'Node Details'}
-            </h2>
-            <button onClick={onClose} className="text-neutral-600 hover:text-white transition-colors -mr-1">
-              <X className="w-4 h-4" />
-            </button>
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[13px] font-medium text-neutral-400 uppercase tracking-wide">
+                {isUserNode ? 'Account' : 'Node Details'}
+              </h2>
+              <button onClick={onClose} className="text-neutral-600 hover:text-white transition-colors -mr-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="max-h-[calc(100vh-14rem)] overflow-y-auto">
+              {isUserNode ? (
+                <>
+                  {/* User info — simple */}
+                  <div className="mb-4">
+                    <div className="text-white text-lg font-semibold">{user?.name || 'User'}</div>
+                    <div className="text-neutral-500 text-xs mt-0.5">Tier {user?.tier || 1}</div>
+                  </div>
+
+                  {/* Wallets — flat list */}
+                  {verifiedWallets.length > 0 ? (
+                    <div className="space-y-3">
+                      {verifiedWallets.map((w, i) => (
+                        <div key={i}>
+                          <div className="text-neutral-500 text-[11px] mb-1">{w.icon} {w.name}</div>
+                          <div className="text-[11px] font-mono text-neutral-300 break-all leading-relaxed">{w.address}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-neutral-600 text-xs">No wallets added</p>
+                  )}
+                </>
+              ) : hasTransaction ? (
+                <>
+                  {/* Amount — prominent */}
+                  <div className="mb-4">
+                    <div className="text-2xl font-semibold text-white font-mono tabular-nums tracking-tight">
+                      ${transaction.amount ? Number(transaction.amount).toLocaleString() : '0'}
+                    </div>
+                    {transaction.currency && ratesMap[transaction.currency] && (
+                      <div className="text-[11px] text-neutral-500 font-mono mt-0.5">
+                        ≈ {(Number(transaction.amount) / ratesMap[transaction.currency]).toFixed(8)} {transaction.currency}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Meta — simple key-value rows */}
+                  <div className="space-y-2 text-xs">
+                    {transaction.date && (
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Date</span>
+                        <span className="text-neutral-300">{new Date(transaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                    )}
+                    {transaction.transaction && (
+                      <div>
+                        <span className="text-neutral-500">Hash</span>
+                        <div className="text-[11px] font-mono text-neutral-400 break-all mt-1 leading-relaxed">{transaction.transaction}</div>
+                      </div>
+                    )}
+                    {isFingerprintNode && hasWatchedCurrentLevel && (
+                      <div className="flex justify-between items-center pt-1">
+                        <span className="text-neutral-500">Status</span>
+                        <span className={`flex items-center gap-1.5 ${status.color}`}>
+                          {status.icon}
+                          {status.label}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Inline Access Keys */}
+                  {showInlineKeys && (
+                    <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                      {pendingKeyRequest ? (
+                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
+                          <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Processing Request
+                          </div>
+                          <p className="text-neutral-400 text-xs mt-1.5">
+                            {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''} · ${pendingKeyRequest.totalCost?.toFixed(2)} USD
+                          </p>
+                        </div>
+                      ) : nodeStatus === 'Locked' ? (
+                        <div className="rounded-lg bg-neutral-500/10 border border-neutral-500/15 px-3.5 py-3">
+                          <div className="flex items-center gap-2 text-neutral-400 text-sm">
+                            <XCircle className="w-3.5 h-3.5" />
+                            Unlock previous nodes first
+                          </div>
+                        </div>
+                      ) : nodeStatus === 'Success' ? (
+                        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-3">
+                          <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Node Unlocked ✓
+                          </div>
+                        </div>
+                      ) : nodeStatus === 'Pending' ? (
+                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
+                          <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Awaiting Admin Review
+                          </div>
+                        </div>
+                      ) : (
+                        /* Key generation */
+                        <div className="space-y-3">
+                          {/* Quantity + cost in one row */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setKeysCount(Math.max(1, keysCount - 1))}
+                                disabled={keysCount <= 1}
+                                className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center disabled:opacity-20 transition-all"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="text-lg font-semibold text-white w-8 text-center tabular-nums">{keysCount}</span>
+                              <button
+                                onClick={() => setKeysCount(keysCount + 1)}
+                                className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                              <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : pricePerKey}</span>
+                            </div>
+                            <span className="text-amber-400 font-semibold text-sm tabular-nums">${totalKeyCost.toFixed(2)}</span>
+                          </div>
+
+                          {/* Balance line */}
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-neutral-600">Available balance</span>
+                            <span className={hasSufficientBalance ? 'text-neutral-400' : 'text-red-400'}>${availableBalance.toFixed(2)}</span>
+                          </div>
+
+                          {/* CTA */}
+                          {hasSufficientBalance ? (
+                            <button
+                              onClick={handleGenerateKeys}
+                              disabled={keyLoading || loadingPrice}
+                              className="w-full h-10 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-all disabled:opacity-40 disabled:hover:bg-amber-600 flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20"
+                            >
+                              {keyLoading ? (
+                                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</>
+                              ) : (
+                                <><KeyRound className="w-3.5 h-3.5" /> Generate Keys</>
+                              )}
+                            </button>
+                          ) : (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1.5 text-red-400 text-xs">
+                                <AlertTriangle className="w-3 h-3" />
+                                Insufficient balance
+                              </div>
+                              <button
+                                onClick={() => { onClose(); window.location.href = '/profile'; }}
+                                className="w-full h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                              >
+                                <DollarSign className="w-3 h-3" /> Top Up Balance
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Info tooltip */}
+                          <div className="relative">
+                            <button
+                              onMouseEnter={() => setShowKeyTooltip(true)}
+                              onMouseLeave={() => setShowKeyTooltip(false)}
+                              className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors flex items-center gap-1"
+                            >
+                              <Info className="w-2.5 h-2.5" /> What are Access Keys?
+                            </button>
+                            {showKeyTooltip && (
+                              <div className="absolute bottom-full left-0 mb-1 bg-[#141414] border border-white/10 rounded-lg p-2.5 text-[11px] text-neutral-400 max-w-[280px] z-50 shadow-xl leading-relaxed">
+                                Access Keys attempt to reconstruct the transaction path for this node. More keys = higher success probability.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-neutral-600 text-xs">No transaction data</p>
+              )}
+            </div>
           </div>
+        </div>
 
-          {/* Content */}
-          <div className="max-h-[calc(100vh-14rem)] overflow-y-auto">
+        <InsufficientBalancePopup
+          isOpen={showInsufficientBalancePopup}
+          onClose={() => setShowInsufficientBalancePopup(false)}
+          requiredAmount={insufficientBalanceInfo.requiredAmount}
+          currentBalance={user?.balance || 0}
+          tierName={insufficientBalanceInfo.tierName}
+        />
+      </div>
+    );
+  }
+
+  // ─── OLD DESIGN (Re-allocate Funds) ───
+  return (
+    <div className="absolute top-20 right-6 z-30 w-full max-w-sm">
+      <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 shadow-2xl">
+        {/* Background pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-15 rounded-2xl" />
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6 relative z-10">
+          <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
             {isUserNode ? (
-              <>
-                {/* User info — simple */}
-                <div className="mb-4">
-                  <div className="text-white text-lg font-semibold">{user?.name || 'User'}</div>
-                  <div className="text-neutral-500 text-xs mt-0.5">Tier {user?.tier || 1}</div>
+              <User className="text-purple-400" size={24} />
+            ) : (
+              <FileText className="text-purple-400" size={24} />
+            )}
+          </div>
+          <h2 className="text-xl font-bold text-white">
+            {isUserNode ? 'Account Details' : 'Transaction Details'}
+          </h2>
+        </div>
+
+        {/* Content */}
+        <div className="space-y-4 relative z-10 max-h-[calc(100vh-16rem)] overflow-y-auto">
+          {isUserNode ? (
+            /* User Node Content */
+            <>
+              {/* Username */}
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+                <div className="relative">
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 text-purple-400">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div className="pl-8">
+                    <div className="text-xs text-gray-400 mb-1">Username</div>
+                    <div className="text-lg font-bold text-white">
+                      {user?.name || 'User'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Verified Wallets */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Wallet className="w-4 h-4 text-gray-400" />
+                  <h3 className="text-sm font-semibold text-gray-300">Verified Wallets</h3>
                 </div>
 
-                {/* Wallets — flat list */}
-                {verifiedWallets.length > 0 ? (
-                  <div className="space-y-3">
-                    {verifiedWallets.map((w, i) => (
-                      <div key={i}>
-                        <div className="text-neutral-500 text-[11px] mb-1">{w.icon} {w.name}</div>
-                        <div className="text-[11px] font-mono text-neutral-300 break-all leading-relaxed">{w.address}</div>
+                {verifiedWalletsOld.length > 0 ? (
+                  <div className="space-y-2">
+                    {verifiedWalletsOld.map((wallet, index) => (
+                      <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <div className="flex items-start gap-3">
+                          <div className={`text-xl font-bold ${wallet.color} mt-0.5`}>
+                            {wallet.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs text-gray-400 mb-1">{wallet.name}</div>
+                            <div className="text-xs font-mono text-white break-all">
+                              {wallet.address}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-neutral-600 text-xs">No wallets added</p>
-                )}
-              </>
-            ) : hasTransaction ? (
-              <>
-                {/* Amount — prominent */}
-                <div className="mb-4">
-                  <div className="text-2xl font-semibold text-white font-mono tabular-nums tracking-tight">
-                    ${transaction.amount ? Number(transaction.amount).toLocaleString() : '0'}
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                    <p className="text-gray-400 text-sm text-center">
+                      No wallets added yet
+                    </p>
                   </div>
-                  {transaction.currency && ratesMap[transaction.currency] && (
-                    <div className="text-[11px] text-neutral-500 font-mono mt-0.5">
-                      ≈ {(Number(transaction.amount) / ratesMap[transaction.currency]).toFixed(8)} {transaction.currency}
+                )}
+              </div>
+            </>
+          ) : hasTransaction ? (
+            /* Transaction Node Content */
+            <>
+
+
+              {/* Transaction Amount */}
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+                <div className="relative">
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 text-purple-400">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                  <div className="pl-8 flex flex-row justify-between items-center">
+                    <div className="text-xl font-bold text-white font-mono">
+                      {transaction.amount ? Number(transaction.amount).toFixed(0) : '0'} USD
                     </div>
-                  )}
-                </div>
-
-                {/* Meta — simple key-value rows */}
-                <div className="space-y-2 text-xs">
-                  {transaction.date && (
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Date</span>
-                      <span className="text-neutral-300">{new Date(transaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    </div>
-                  )}
-                  {transaction.transaction && (
-                    <div>
-                      <span className="text-neutral-500">Hash</span>
-                      <div className="text-[11px] font-mono text-neutral-400 break-all mt-1 leading-relaxed">{transaction.transaction}</div>
-                    </div>
-                  )}
-                  {isFingerprintNode && hasWatchedCurrentLevel && (
-                    <div className="flex justify-between items-center pt-1">
-                      <span className="text-neutral-500">Status</span>
-                      <span className={`flex items-center gap-1.5 ${status.color}`}>
-                        {status.icon}
-                        {status.label}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Inline Access Keys */}
-                {showInlineKeys && (
-                  <div className="mt-4 pt-4 border-t border-white/[0.06]">
-                    {pendingKeyRequest ? (
-                      <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
-                        <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          Processing Request
-                        </div>
-                        <p className="text-neutral-400 text-xs mt-1.5">
-                          {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''} · ${pendingKeyRequest.totalCost?.toFixed(2)} USD
-                        </p>
-                      </div>
-                    ) : nodeStatus === 'Locked' ? (
-                      <div className="rounded-lg bg-neutral-500/10 border border-neutral-500/15 px-3.5 py-3">
-                        <div className="flex items-center gap-2 text-neutral-400 text-sm">
-                          <XCircle className="w-3.5 h-3.5" />
-                          Unlock previous nodes first
-                        </div>
-                      </div>
-                    ) : nodeStatus === 'Success' ? (
-                      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-3">
-                        <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Node Unlocked ✓
-                        </div>
-                      </div>
-                    ) : nodeStatus === 'Pending' ? (
-                      <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
-                        <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          Awaiting Admin Review
-                        </div>
-                      </div>
-                    ) : (
-                      /* Key generation */
-                      <div className="space-y-3">
-                        {/* Quantity + cost in one row */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setKeysCount(Math.max(1, keysCount - 1))}
-                              disabled={keysCount <= 1}
-                              className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center disabled:opacity-20 transition-all"
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="text-lg font-semibold text-white w-8 text-center tabular-nums">{keysCount}</span>
-                            <button
-                              onClick={() => setKeysCount(keysCount + 1)}
-                              className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
-                            <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : pricePerKey}</span>
-                          </div>
-                          <span className="text-amber-400 font-semibold text-sm tabular-nums">${totalKeyCost.toFixed(2)}</span>
-                        </div>
-
-                        {/* Balance line */}
-                        <div className="flex justify-between text-[11px]">
-                          <span className="text-neutral-600">Available balance</span>
-                          <span className={hasSufficientBalance ? 'text-neutral-400' : 'text-red-400'}>${availableBalance.toFixed(2)}</span>
-                        </div>
-
-                        {/* CTA */}
-                        {hasSufficientBalance ? (
-                          <button
-                            onClick={handleGenerateKeys}
-                            disabled={keyLoading || loadingPrice}
-                            className="w-full h-10 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-all disabled:opacity-40 disabled:hover:bg-amber-600 flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20"
-                          >
-                            {keyLoading ? (
-                              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</>
-                            ) : (
-                              <><KeyRound className="w-3.5 h-3.5" /> Generate Keys</>
-                            )}
-                          </button>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-1.5 text-red-400 text-xs">
-                              <AlertTriangle className="w-3 h-3" />
-                              Insufficient balance
-                            </div>
-                            <button
-                              onClick={() => { onClose(); window.location.href = '/profile'; }}
-                              className="w-full h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5"
-                            >
-                              <DollarSign className="w-3 h-3" /> Top Up Balance
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Info tooltip */}
-                        <div className="relative">
-                          <button
-                            onMouseEnter={() => setShowKeyTooltip(true)}
-                            onMouseLeave={() => setShowKeyTooltip(false)}
-                            className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors flex items-center gap-1"
-                          >
-                            <Info className="w-2.5 h-2.5" /> What are Access Keys?
-                          </button>
-                          {showKeyTooltip && (
-                            <div className="absolute bottom-full left-0 mb-1 bg-[#141414] border border-white/10 rounded-lg p-2.5 text-[11px] text-neutral-400 max-w-[280px] z-50 shadow-xl leading-relaxed">
-                              Access Keys attempt to reconstruct the transaction path for this node. More keys = higher success probability.
-                            </div>
-                          )}
-                        </div>
+                    {transaction.currency && ratesMap[transaction.currency] && (
+                      <div className="text-xs text-gray-400 font-mono">
+                        ≈ {(Number(transaction.amount) / ratesMap[transaction.currency]).toFixed(8)} {transaction.currency}
                       </div>
                     )}
                   </div>
-                )}
-              </>
-            ) : (
-              <p className="text-neutral-600 text-xs">No transaction data</p>
-            )}
-          </div>
+                </div>
+              </div>
 
-          {/* Bottom actions */}
-          {!showInlineKeys && withdrawalSystem !== 'direct_access_keys' && (
-            <div className="mt-4 pt-4 border-t border-white/[0.06]">
-              <PulsatingButton
-                pulseColor="#764FCB"
-                duration="1.5s"
-                variant={pendingTierRequest ? "upgradePending" : hasStarted ? "loading" : "start"}
-                isLoading={isUpgrading}
-                className="w-full h-9"
-                onClick={pendingTierRequest ? undefined : (hasStarted ? undefined : () => {
-                  if (!user?.walletVerified) {
-                    toast.error('Please verify your wallet before starting', { description: 'Go to your profile to request wallet verification' });
-                    return;
-                  }
-                  onStartAnimation?.();
-                })}
-                disabled={pendingTierRequest || hasStarted || isUpgrading}
-              >
-                {pendingTierRequest ? 'Upgrade Pending' : (isUpgrading ? 'Upgrading...' : hasStarted ? 'Running...' : 'Start scan')}
-              </PulsatingButton>
+              {/* Transaction Date */}
+              {transaction.date && (
+                <div>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div className="w-full bg-white/5 text-white pl-10 pr-5 py-3 rounded-lg border border-white/10">
+                      <div className="text-sm font-medium">
+                        {new Date(transaction.date).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Transaction Hash */}
+              {transaction.transaction && (
+                <div>
+                  <div className="relative">
+                    <div className="absolute left-3 top-3 text-gray-400">
+                      <Hash className="w-5 h-5" />
+                    </div>
+                    <div className="w-full bg-white/5 text-white pl-10 pr-5 py-3 rounded-lg border border-white/10">
+                      <div className="text-xs font-mono break-all">
+                        {transaction.transaction}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            /* No Transaction Data */
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+              <p className="text-purple-300 text-sm text-center">
+                No transaction details available for this node.
+              </p>
             </div>
           )}
         </div>
+
+        {/* Action Buttons */}
+        <div className="mt-6 relative z-10 space-y-3">
+          <PulsatingButton
+            pulseColor="#764FCB"
+            duration="1.5s"
+            variant={
+              pendingTierRequest ? "upgradePending" :
+                hasStarted ? "loading" :
+                  "start"
+            }
+            isLoading={isUpgrading}
+            className="w-full h-12"
+            onClick={pendingTierRequest ? undefined : (hasStarted ? undefined : () => {
+              if (!user?.walletVerified) {
+                toast.error('Please verify your wallet before starting', {
+                  description: 'Go to your profile to request wallet verification'
+                });
+                return;
+              }
+              onStartAnimation?.();
+            })}
+            disabled={pendingTierRequest || hasStarted || isUpgrading}
+          >
+            {pendingTierRequest ? 'Upgrade Pending' : (isUpgrading ? 'Upgrading...' : hasStarted ? 'Running...' : 'Start scan')}
+          </PulsatingButton>
+
+          <button
+            onClick={onClose}
+            className="w-full px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all"
+          >
+            Close
+          </button>
+        </div>
       </div>
 
+      {/* Insufficient Balance Popup */}
       <InsufficientBalancePopup
         isOpen={showInsufficientBalancePopup}
         onClose={() => setShowInsufficientBalancePopup(false)}
