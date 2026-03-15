@@ -30,9 +30,15 @@ const getLevelData = (level: number, levels: any[]): any => {
 
 const Dashboard = () => {
   const { user, token } = useAuth();
-  // For admins, this tracks the template they are editing.
+  // For admins, this tracks the template they are editing (persisted in localStorage).
   // For regular users, this tracks the template assigned to them.
-  const [editingTemplate, setEditingTemplate] = useState<string>(user?.levelTemplate || 'A');
+  const [editingTemplate, setEditingTemplate] = useState<string>(() => {
+    if (user?.isAdmin) {
+      const saved = localStorage.getItem('admin_editing_template');
+      if (saved) return saved;
+    }
+    return user?.levelTemplate || 'A';
+  });
   const [availableTemplates, setAvailableTemplates] = useState<string[]>(['A']);
 
   // Update the template if the user object changes after initial load
@@ -41,6 +47,13 @@ const Dashboard = () => {
       setEditingTemplate(user.levelTemplate);
     }
   }, [user?.levelTemplate, user?.isAdmin]);
+
+  // Persist admin's template selection to localStorage
+  useEffect(() => {
+    if (user?.isAdmin) {
+      localStorage.setItem('admin_editing_template', editingTemplate);
+    }
+  }, [editingTemplate, user?.isAdmin]);
 
   // Fetch templates for admin
   useEffect(() => {
