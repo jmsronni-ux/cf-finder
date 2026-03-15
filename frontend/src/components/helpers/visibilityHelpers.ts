@@ -86,6 +86,8 @@ export function mapNodesWithState(params: {
     const stack = [groupId];
     let totalAmount = 0;
     let childCount = 0;
+    let totalChildCount = 0;
+    let completedChildCount = 0;
     const childNodeIds: string[] = [];
     const nodeAmounts: Record<string, number> = {};
 
@@ -100,8 +102,11 @@ export function mapNodesWithState(params: {
           const targetNode = nodes.find(n => n.id === edge.target);
           if (targetNode) {
             if (targetNode.type === 'fingerprintNode') {
+              totalChildCount++;
               const isSuccess = user?.nodeProgress?.[targetNode.id] === 'success';
-              if (!isSuccess) {
+              if (isSuccess) {
+                completedChildCount++;
+              } else {
                 const amount = targetNode.data?.transaction?.amount || 0;
                 totalAmount += amount;
                 childCount++;
@@ -115,7 +120,7 @@ export function mapNodesWithState(params: {
       });
     }
 
-    return { totalAmount, childCount, childNodeIds, nodeAmounts };
+    return { totalAmount, childCount, totalChildCount, completedChildCount, childNodeIds, nodeAmounts };
   };
 
   // Build a map of parent nodes
@@ -218,6 +223,8 @@ export function mapNodesWithState(params: {
         // Group data
         aggregatedAmount: groupAgg?.totalAmount,
         childCount: groupAgg?.childCount,
+        totalChildCount: groupAgg?.totalChildCount,
+        completedChildCount: groupAgg?.completedChildCount,
         childNodeIds: groupAgg?.childNodeIds,
         nodeAmounts: groupAgg?.nodeAmounts,
         approvedAmount: nodeApprovedAmounts?.[node.id] ?? null,

@@ -141,8 +141,8 @@ export function createGroupNode(parentNode: any, timestamp: number = Date.now())
     source: parentNodeId,
     target: newNodeId,
     style: {
-      stroke: '#a855f7', // Purple color for groups
-      strokeWidth: 2
+      stroke: '#6b7280',
+      strokeWidth: 1.5
     },
     animated: true
   };
