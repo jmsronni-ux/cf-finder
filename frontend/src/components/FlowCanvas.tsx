@@ -16,6 +16,8 @@ import AccountNode from './nodes/AccountNode';
 import FingerprintNode from './nodes/FingerprintNode';
 import FingerprintGroupNode from './nodes/FingerprintGroupNode';
 import DataVisual from './DataVisual';
+import { ConfigurableEdge } from './edges/CustomEdges';
+import EdgeDesignPanel from './EdgeDesignPanel';
 import NodeDetailsPanel from './NodeDetailsPanel';
 import InProgressPanel from './InProgressPanel';
 import EnhancedWithdrawPopup from './EnhancedWithdrawPopup';
@@ -54,6 +56,10 @@ const nodeTypes = {
   fingerprintGroupNode: FingerprintGroupNode,
 };
 
+const edgeTypes = {
+  configurable: ConfigurableEdge,
+};
+
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId, editingTemplate = 'A', onCanvasUpdate }) => {
   const { levels, loading: levelsLoading, setTemplateName } = useLevelData(editingTemplate);
 
@@ -78,6 +84,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     }
   }, [nodes, edges, onCanvasUpdate]);
   const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [selectedEdge, setSelectedEdge] = useState<any>(null);
   const [levelData, setLevelData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<Set<number>>(new Set());
@@ -393,7 +400,33 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     // Get the latest node data from the current nodes state
     const latestNode = nodes.find((n: any) => n.id === node.id) || node;
     setSelectedNode(latestNode);
+    setSelectedEdge(null); // Clear edge selection when a node is clicked
   }, [nodes]);
+
+  // Handle edge click (admin only) — select edge for design editing
+  const onEdgeClick = useCallback((event: React.MouseEvent, edge: any) => {
+    if (!user?.isAdmin) return;
+    setSelectedEdge(edge);
+    setSelectedNode(null); // Clear node selection when an edge is clicked
+  }, [user?.isAdmin]);
+
+  // Update edge properties (for admin edge design panel)
+  const updateEdgeData = useCallback((edgeId: string, updates: any) => {
+    setEdges((eds: any[]) =>
+      eds.map((edge: any) =>
+        edge.id === edgeId
+          ? { ...edge, ...updates }
+          : edge
+      )
+    );
+    // Update the selected edge state to reflect changes
+    setSelectedEdge((prev: any) => {
+      if (prev && prev.id === edgeId) {
+        return { ...prev, ...updates };
+      }
+      return prev;
+    });
+  }, [setEdges]);
 
   // Handle upgrade button click - now creates a tier request instead of direct upgrade
   const handleUpgradeClick = async () => {
@@ -776,7 +809,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         defaultViewport={{ x: 0, y: 60, zoom: 0.7 }}
         minZoom={0.05}
         maxZoom={2}
@@ -899,6 +934,15 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             onKeyGenerationSuccess={async () => {
               await refreshUser();
             }}
+          />
+        )}
+
+        {/* Edge Design Panel — Admin only */}
+        {user?.isAdmin && selectedEdge && (
+          <EdgeDesignPanel
+            selectedEdge={selectedEdge}
+            onUpdateEdge={updateEdgeData}
+            onClose={() => setSelectedEdge(null)}
           />
         )}
 
