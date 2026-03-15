@@ -439,9 +439,14 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                         </div>
                       ) : nodeStatus === 'Success' ? (
                         <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-3">
-                          <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Successful Recovery
+                          <div className="flex items-center justify-between text-emerald-400 text-sm font-medium">
+                            <span className="flex items-center gap-2">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Successful Recovery
+                            </span>
+                            {selectedNode.data.approvedAmount != null && selectedNode.data.approvedAmount > 0 && (
+                              <span className="font-semibold">${Number(selectedNode.data.approvedAmount).toLocaleString()}</span>
+                            )}
                           </div>
                         </div>
                       ) : nodeStatus === 'Pending' ? (

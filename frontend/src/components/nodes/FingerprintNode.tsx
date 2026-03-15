@@ -44,6 +44,7 @@ interface FingerprintNodeProps {
     isRevealing?: 'success' | 'fail' | null;
     onReveal?: (nodeId: string) => void;
     dakLocked?: boolean;
+    approvedAmount?: number | null;
     scheduledExecuteAt?: string | null;
     scheduledCreatedAt?: string | null;
   };
@@ -292,7 +293,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
                 startOnView={false}
                 delay={0}
               >
-                {`${(data.transaction?.amount || 0).toFixed(0)}`}
+                {`${(data.approvedAmount ?? data.transaction?.amount ?? 0).toFixed(0)}`}
               </HyperText>
             )}
             <span className="text-white/50 text-[0.6rem] font-mono">
@@ -444,7 +445,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
               startOnView={false}
               delay={400}
             >
-              {`${(data.transaction?.amount || 0).toFixed(0)}`}
+              {`${(data.approvedAmount ?? data.transaction?.amount ?? 0).toFixed(0)}`}
             </HyperText>
           )}
 
@@ -503,7 +504,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
               startOnView={false}
               delay={400}
             >
-              {`${(data.transaction?.amount || 0).toFixed(0)}`}
+              {`${(data.approvedAmount ?? data.transaction?.amount ?? 0).toFixed(0)}`}
             </HyperText>
           )}
           {data.isVisible && data.successRate && (

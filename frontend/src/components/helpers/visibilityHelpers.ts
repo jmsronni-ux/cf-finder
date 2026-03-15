@@ -58,6 +58,7 @@ export function mapNodesWithState(params: {
   allowedVisible: Set<string>;
   withdrawalSystem?: string;
   nodeScheduledActions?: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>;
+  nodeApprovedAmounts?: Record<string, number>;
   pendingRevealNodes?: Record<string, 'success' | 'fail'>;
   revealingNode?: { nodeId: string; outcome: 'success' | 'fail' } | null;
 }) {
@@ -74,6 +75,7 @@ export function mapNodesWithState(params: {
     allowedVisible,
     withdrawalSystem,
     nodeScheduledActions,
+    nodeApprovedAmounts,
     pendingRevealNodes,
     revealingNode,
   } = params;
@@ -218,6 +220,7 @@ export function mapNodesWithState(params: {
         childCount: groupAgg?.childCount,
         childNodeIds: groupAgg?.childNodeIds,
         nodeAmounts: groupAgg?.nodeAmounts,
+        approvedAmount: nodeApprovedAmounts?.[node.id] ?? null,
       },
     };
   });

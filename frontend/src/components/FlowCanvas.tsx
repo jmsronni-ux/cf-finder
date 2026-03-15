@@ -95,6 +95,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [withdrawalSystem, setWithdrawalSystem] = useState<'current' | 'direct_access_keys'>('current');
   const [showDirectKeysPopup, setShowDirectKeysPopup] = useState(false);
   const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({});
+  const [nodeApprovedAmounts, setNodeApprovedAmounts] = useState<Record<string, number>>({});
   const [pendingRevealNodes, setPendingRevealNodes] = useState<Record<string, 'success' | 'fail'>>(() => {
     try {
       const stored = localStorage.getItem('cfinder_pending_reveals');
@@ -500,6 +501,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     allowedVisible,
     withdrawalSystem,
     nodeScheduledActions,
+    nodeApprovedAmounts,
     pendingRevealNodes,
     revealingNode,
   });
@@ -626,6 +628,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         const json = await res.json();
         if (res.ok && json?.success) {
           const map: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }> = {};
+          const amountsMap: Record<string, number> = {};
           (json.data || []).forEach((r: any) => {
             if (r.status === 'pending' && r.nodeId && r.scheduledAction) {
               map[r.nodeId] = {
@@ -634,8 +637,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                 nodeStatusOutcome: r.scheduledAction.nodeStatusOutcome,
               };
             }
+            // Track approved amounts for approved requests
+            if (r.nodeId && r.status === 'approved' && r.approvedAmount != null && r.approvedAmount > 0) {
+              amountsMap[r.nodeId] = r.approvedAmount;
+            }
           });
           setNodeScheduledActions(map);
+          setNodeApprovedAmounts(amountsMap);
         }
       } catch (e) { /* ignore */ }
     };
