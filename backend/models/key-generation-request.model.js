@@ -10,6 +10,10 @@ const keyGenerationRequestSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    groupNodeId: {
+        type: String,
+        default: null
+    },
     nodeAmount: {
         type: Number,
         default: 0

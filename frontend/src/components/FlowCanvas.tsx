@@ -14,6 +14,7 @@ import AccountSettings from './AccountSettings';
 import CryptoNode from './nodes/CryptoNode';
 import AccountNode from './nodes/AccountNode';
 import FingerprintNode from './nodes/FingerprintNode';
+import FingerprintGroupNode from './nodes/FingerprintGroupNode';
 import DataVisual from './DataVisual';
 import NodeDetailsPanel from './NodeDetailsPanel';
 import InProgressPanel from './InProgressPanel';
@@ -28,7 +29,7 @@ import { useNodeAnimation } from '../hooks/useNodeAnimation';
 import { usePendingStatus } from '../hooks/usePendingStatus';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { createChildNode, canDeleteNode, validateNodeDeletion } from './helpers/nodeOperations';
+import { createChildNode, createGroupNode, canDeleteNode, validateNodeDeletion } from './helpers/nodeOperations';
 import { computeAllowedNodeIds, mapNodesWithState, mapEdgesWithVisibility } from './helpers/visibilityHelpers';
 import { CheckCircle } from 'lucide-react';
 
@@ -50,6 +51,7 @@ const nodeTypes = {
   cryptoNode: CryptoNode,
   accountNode: AccountNode,
   fingerprintNode: FingerprintNode,
+  fingerprintGroupNode: FingerprintGroupNode,
 };
 
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId, editingTemplate = 'A', onCanvasUpdate }) => {
@@ -645,10 +647,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   useEffect(() => {
     if (withdrawalSystem !== 'direct_access_keys' || !user?.nodeProgress) return;
 
-    // Check if any fingerprint node for current level is still pending
+    // Check if any fingerprint node or group node for current level is still pending
     const hasPendingNodes = nodes.some((n: any) =>
-      n.type === 'fingerprintNode' &&
-      n.data?.transaction &&
+      (n.type === 'fingerprintNode' || n.type === 'fingerprintGroupNode') &&
       (n.data?.level ?? 1) === currentLevel &&
       user.nodeProgress?.[n.id] === 'pending'
     );
@@ -663,8 +664,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   const handleAddChildNode = useCallback((parentNodeId: string) => {
     const parentNode = nodes.find((n: any) => n.id === parentNodeId);
-    // Allow admins to create child nodes from both cryptoNode and fingerprintNode
-    if (!parentNode || (parentNode.type !== 'fingerprintNode' && parentNode.type !== 'cryptoNode')) {
+    // Allow admins to create child nodes from cryptoNode, fingerprintNode, and fingerprintGroupNode
+    if (!parentNode || (parentNode.type !== 'fingerprintNode' && parentNode.type !== 'cryptoNode' && parentNode.type !== 'fingerprintGroupNode')) {
       toast.error('Cannot add child to this node type');
       return;
     }
@@ -689,6 +690,32 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     }));
 
     toast.success(`Added child transaction node to ${parentNode.data.label}`);
+  }, [nodes, setNodes, setEdges, setLevelData, user]);
+
+  const handleAddGroupNode = useCallback((parentNodeId: string) => {
+    const parentNode = nodes.find((n: any) => n.id === parentNodeId);
+    if (!parentNode || (parentNode.type !== 'cryptoNode' && parentNode.type !== 'fingerprintNode')) {
+      toast.error('Groups can only be added to crypto or fingerprint nodes');
+      return;
+    }
+
+    if (!user?.isAdmin) {
+      toast.error('Admin access required');
+      return;
+    }
+
+    const { newNode, newEdge } = createGroupNode(parentNode);
+
+    setNodes((nds: any[]) => [...nds, newNode]);
+    setEdges((eds: any[]) => [...eds, newEdge]);
+
+    setLevelData((prevData: any) => ({
+      ...prevData,
+      nodes: [...prevData.nodes, newNode],
+      edges: [...(prevData.edges || []), newEdge]
+    }));
+
+    toast.success(`Added group node to ${parentNode.data.label}`);
   }, [nodes, setNodes, setEdges, setLevelData, user]);
 
   const handleDeleteNode = useCallback((nodeId: string) => {
@@ -832,6 +859,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             onUpdateNodeData={updateNodeData}
             onClose={() => setSelectedNode(null)}
             onAddChildNode={handleAddChildNode}
+            onAddGroupNode={handleAddGroupNode}
             onDeleteNode={handleDeleteNode}
             canDelete={canDeleteSelectedNode}
             isAdmin={true}

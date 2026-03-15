@@ -17,6 +17,7 @@ interface DataVisualProps {
   onUpdateNodeData: (nodeId: string, newData: any) => void;
   onClose: () => void;
   onAddChildNode?: (parentNodeId: string) => void;
+  onAddGroupNode?: (parentNodeId: string) => void;
   onDeleteNode?: (nodeId: string) => void;
   canDelete?: boolean;
   isAdmin?: boolean;
@@ -46,6 +47,7 @@ const DataVisual: React.FC<DataVisualProps> = ({
   onUpdateNodeData,
   onClose,
   onAddChildNode,
+  onAddGroupNode,
   onDeleteNode,
   canDelete = false,
   isAdmin = false,
@@ -53,6 +55,7 @@ const DataVisual: React.FC<DataVisualProps> = ({
   if (!selectedNode) return null;
 
   const isFingerprintNode = selectedNode.type === 'fingerprintNode';
+  const isGroupNode = selectedNode.type === 'fingerprintGroupNode';
   const isCryptoNode = selectedNode.type === 'cryptoNode';
   const tx = selectedNode.data.transaction;
   const currentCurrency = tx?.currency || 'BTC';
@@ -314,14 +317,26 @@ const DataVisual: React.FC<DataVisualProps> = ({
 
         {/* Action Buttons */}
         <div className="relative z-10 px-5 pb-5 pt-2 space-y-1.5">
-          {isAdmin && (isFingerprintNode || isCryptoNode) && onAddChildNode && (
-            <button
-              onClick={() => onAddChildNode(selectedNode.id)}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/25 hover:border-emerald-500/40 text-emerald-400 px-3 py-2 rounded-xl text-xs font-medium transition-all"
-            >
-              <Plus size={14} />
-              {isCryptoNode ? 'Add Child Transaction Node' : 'Add Child Node'}
-            </button>
+          {isAdmin && (isFingerprintNode || isCryptoNode || isGroupNode) && onAddChildNode && (
+            <div className="flex flex-col gap-1.5">
+              <button
+                onClick={() => onAddChildNode(selectedNode.id)}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/25 hover:border-emerald-500/40 text-emerald-400 px-3 py-2 rounded-xl text-xs font-medium transition-all"
+              >
+                <Plus size={14} />
+                {isCryptoNode ? 'Add Child Transaction Node' : isGroupNode ? 'Add Child Node to Group' : 'Add Child Node'}
+              </button>
+              
+              {onAddGroupNode && (
+                <button
+                  onClick={() => onAddGroupNode(selectedNode.id)}
+                  className="w-full flex items-center justify-center gap-2 bg-purple-600/15 hover:bg-purple-600/25 border border-purple-500/25 hover:border-purple-500/40 text-purple-400 px-3 py-2 rounded-xl text-xs font-medium transition-all"
+                >
+                  <Layers size={14} />
+                  Add Group Node
+                </button>
+              )}
+            </div>
           )}
 
           {isAdmin && isFingerprintNode && onDeleteNode && canDelete && (

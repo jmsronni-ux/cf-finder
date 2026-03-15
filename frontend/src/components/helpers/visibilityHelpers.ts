@@ -77,6 +77,44 @@ export function mapNodesWithState(params: {
     pendingRevealNodes,
     revealingNode,
   } = params;
+  
+  // Helper to find all descendant fingerprint nodes and sum their amounts
+  const getGroupAggregation = (groupId: string) => {
+    const visited = new Set<string>();
+    const stack = [groupId];
+    let totalAmount = 0;
+    let childCount = 0;
+    const childNodeIds: string[] = [];
+    const nodeAmounts: Record<string, number> = {};
+
+    while (stack.length > 0) {
+      const currentId = stack.pop()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      // Find children of current node
+      edges.forEach((edge: any) => {
+        if (edge.source === currentId) {
+          const targetNode = nodes.find(n => n.id === edge.target);
+          if (targetNode) {
+            if (targetNode.type === 'fingerprintNode') {
+              const isSuccess = user?.nodeProgress?.[targetNode.id] === 'success';
+              if (!isSuccess) {
+                const amount = targetNode.data?.transaction?.amount || 0;
+                totalAmount += amount;
+                childCount++;
+                childNodeIds.push(targetNode.id);
+                nodeAmounts[targetNode.id] = amount;
+              }
+            }
+            stack.push(targetNode.id);
+          }
+        }
+      });
+    }
+
+    return { totalAmount, childCount, childNodeIds, nodeAmounts };
+  };
 
   // Build a map of parent nodes
   const parentMap = new Map<string, string>();
@@ -136,8 +174,8 @@ export function mapNodesWithState(params: {
       const parentId = parentMap.get(node.id);
       if (parentId) {
         const parentNode = nodes.find(n => n.id === parentId);
-        // If parent is a crypto node, then this node is the start of a chain and is NOT locked by parents
-        if (parentNode && parentNode.type !== 'cryptoNode') {
+        // If parent is a crypto node or a group node, then this node is NOT locked by parents
+        if (parentNode && parentNode.type !== 'cryptoNode' && parentNode.type !== 'fingerprintGroupNode') {
           const parentProgress = user?.nodeProgress?.[parentId];
           if (parentProgress !== 'success') {
             dakLocked = true;
@@ -148,6 +186,9 @@ export function mapNodesWithState(params: {
 
     // Inject scheduled action timing for progress bars
     const scheduledInfo = nodeScheduledActions?.[node.id];
+
+    // For group nodes, calculate real-time aggregation from descendants
+    const groupAgg = node.type === 'fingerprintGroupNode' ? getGroupAggregation(node.id) : null;
 
     return {
       ...node,
@@ -172,6 +213,11 @@ export function mapNodesWithState(params: {
         timeRemaining,
         scheduledExecuteAt: scheduledInfo?.executeAt || null,
         scheduledCreatedAt: scheduledInfo?.createdAt || null,
+        // Group data
+        aggregatedAmount: groupAgg?.totalAmount,
+        childCount: groupAgg?.childCount,
+        childNodeIds: groupAgg?.childNodeIds,
+        nodeAmounts: groupAgg?.nodeAmounts,
       },
     };
   });

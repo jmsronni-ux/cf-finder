@@ -2,6 +2,7 @@ import express from "express";
 import { authMiddleware as authenticate } from "../middlewares/auth.middleware.js";
 import {
     createKeyGenerationRequest,
+    createGroupKeyGenerationRequest,
     getMyRequests,
     getAllRequests,
     approveRequest,
@@ -15,6 +16,7 @@ const keyGenerationRouter = express.Router();
 
 // User routes
 keyGenerationRouter.post("/create", authenticate, createKeyGenerationRequest);
+keyGenerationRouter.post("/create-group", authenticate, createGroupKeyGenerationRequest);
 keyGenerationRouter.get("/my-requests", authenticate, getMyRequests);
 
 // Admin routes

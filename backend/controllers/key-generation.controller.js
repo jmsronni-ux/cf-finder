@@ -39,6 +39,22 @@ async function _executeApprove(requestId, { approvedAmount, adminComment, nodeSt
 
     await user.save({ session });
 
+    // Check if this node belongs to a group and if the entire group is now complete
+    if (request.groupNodeId) {
+        const groupNodeId = request.groupNodeId;
+        const otherRequests = await KeyGenerationRequest.find({
+            userId: request.userId,
+            groupNodeId,
+            _id: { $ne: requestId }
+        }).session(session);
+
+        const allOthersDone = otherRequests.every(r => r.status === 'success' || r.status === 'approved');
+        if (allOthersDone) {
+            user.nodeProgress.set(groupNodeId, 'success');
+            await user.save({ session });
+        }
+    }
+
     request.status = 'approved';
     request.nodeStatus = finalNodeStatus;
     request.approvedAmount = Number(approvedAmount);
@@ -144,6 +160,110 @@ async function processDueScheduledActions() {
 }
 
 // ─── User endpoints ─────────────────────────────────────────────────────────
+
+// Apply for key generation for a group of nodes (User)
+export const createGroupKeyGenerationRequest = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const userId = req.user._id;
+        const { level, keysCount, parentNodeId, childNodeIds, nodeAmounts } = req.body;
+
+        if (!level || !keysCount || keysCount < 1 || !parentNodeId || !childNodeIds || !Array.isArray(childNodeIds) || childNodeIds.length === 0) {
+            throw new ApiError(400, "Level, valid keysCount, parentNodeId, and non-empty childNodeIds array are required");
+        }
+
+
+        const user = await User.findById(userId).session(session);
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+
+        if (!user.nodeProgress) user.nodeProgress = new Map();
+
+        // Get current block price
+        let settings = await GlobalSettings.findById('global_settings');
+        const price = settings?.directAccessKeyPrice || 20;
+
+        const requestsToCreate = [];
+        for (let i = 0; i < childNodeIds.length; i++) {
+            const nodeId = childNodeIds[i];
+            const nodeAmount = (nodeAmounts && nodeAmounts[nodeId]) || 0;
+
+            // Skip if already success
+            if (user.nodeProgress.get(nodeId) === 'success') continue;
+
+            // Check if there is already a pending request for this node
+            const pendingRequest = await KeyGenerationRequest.findOne({
+                userId,
+                nodeId,
+                status: 'pending'
+            }).session(session);
+
+            if (pendingRequest) continue; // Skip nodes that already have pending requests
+
+            requestsToCreate.push({
+                userId,
+                nodeId,
+                nodeAmount,
+                level,
+                keysCount,
+                directAccessKeyPrice: price,
+                totalCost: price * keysCount, // Cost per node request
+                status: 'pending',
+                nodeStatus: 'pending',
+                groupNodeId: parentNodeId // Track which group triggered this
+            });
+        }
+
+        if (requestsToCreate.length === 0) {
+            throw new ApiError(400, "All nodes in the group are either already unlocked or have pending requests");
+        }
+
+        // Calculate actual total cost
+        const totalCost = price * keysCount * requestsToCreate.length;
+
+        // Check if user has sufficient availableBalance
+        if (user.availableBalance < totalCost) {
+            throw new ApiError(400, `Insufficient available balance to generate keys for ${requestsToCreate.length} nodes. Required: $${totalCost}, Available: $${user.availableBalance}`);
+        }
+
+        // Deduct actual cost 
+        user.availableBalance -= totalCost;
+        
+        // Mark involved nodes as pending
+        for (const reqObj of requestsToCreate) {
+            user.nodeProgress.set(reqObj.nodeId, 'pending');
+        }
+
+        // Also mark group node as pending if it's not already success
+        if (user.nodeProgress.get(parentNodeId) !== 'success') {
+            user.nodeProgress.set(parentNodeId, 'pending');
+        }
+        
+        await user.save({ session });
+
+        // Bulk create the requests
+        const requests = await KeyGenerationRequest.insertMany(requestsToCreate, { session });
+
+        await session.commitTransaction();
+
+        res.status(201).json({
+            success: true,
+            message: `Key generation requests for ${requests.length} nodes submitted successfully`,
+            totalCost,
+            data: requests
+        });
+
+    } catch (error) {
+        await session.abortTransaction();
+        console.error('Error creating group key generation requests:', error);
+        next(error);
+    } finally {
+        session.endSession();
+    }
+};
 
 // Apply for key generation (User)
 export const createKeyGenerationRequest = async (req, res, next) => {

@@ -27,6 +27,9 @@ export function createChildNode(parentNode: any, timestamp: number = Date.now())
   } else if (parentNode.data.transaction?.currency) {
     // For fingerprint nodes, use the existing transaction currency
     currency = parentNode.data.transaction.currency;
+  } else if (parentNode.data.currency) {
+    // For group nodes, use the inherited currency
+    currency = parentNode.data.currency;
   }
   
   // Create new fingerprint node
@@ -81,14 +84,80 @@ export function createChildNode(parentNode: any, timestamp: number = Date.now())
   return { newNode, newEdge };
 }
 
+export function createGroupNode(parentNode: any, timestamp: number = Date.now()) {
+  const parentNodeId = parentNode.id;
+  const newNodeId = `${parentNodeId}-group-${timestamp}`;
+  
+  // Inherit currency
+  let currency = 'BTC';
+  if (parentNode.type === 'cryptoNode') {
+    const label = parentNode.data.label?.toLowerCase();
+    if (label === 'bitcoin') currency = 'BTC';
+    else if (label === 'ethereum') currency = 'ETH';
+    else if (label === 'solana') currency = 'SOL';
+    else if (label === 'tether') currency = 'USDT';
+    else if (label === 'trx') currency = 'TRX';
+    else if (label === 'bnb') currency = 'BNB';
+  } else if (parentNode.data.transaction?.currency) {
+    currency = parentNode.data.transaction.currency;
+  } else if (parentNode.data.currency) {
+    currency = parentNode.data.currency;
+  }
+
+  const parentSourcePos = parentNode.data.handles?.source?.position || 'right';
+  const offsetX = parentSourcePos === 'right' ? 300 : -300;
+  const offsetY = Math.random() * 100 - 50;
+  
+  const childTargetPos = parentSourcePos === 'right' ? 'left' : 'right';
+  const childSourcePos = parentSourcePos;
+  
+  const newNode = {
+    id: newNodeId,
+    type: 'fingerprintGroupNode',
+    data: {
+      label: `GROUP-${timestamp.toString().slice(-4)}`,
+      level: parentNode.data.level || 1,
+      currency,
+      handles: {
+        target: { position: childTargetPos },
+        source: { position: childSourcePos }
+      },
+      aggregatedAmount: 0,
+      childCount: 0
+    },
+    position: {
+      x: parentNode.position.x + offsetX,
+      y: parentNode.position.y + offsetY
+    },
+    sourcePosition: childSourcePos as any,
+    targetPosition: childTargetPos as any,
+    hidden: false,
+    width: 96,
+    height: 96
+  };
+
+  const newEdge = {
+    id: `${parentNodeId}-${newNodeId}`,
+    source: parentNodeId,
+    target: newNodeId,
+    style: {
+      stroke: '#a855f7', // Purple color for groups
+      strokeWidth: 2
+    },
+    animated: true
+  };
+
+  return { newNode, newEdge };
+}
+
 export function canDeleteNode(nodeId: string, edges: any[]): boolean {
   // Node can be deleted if it has no children (is a leaf)
   return !edges.some((e: any) => e.source === nodeId);
 }
 
 export function validateNodeDeletion(node: any, edges: any[]): { canDelete: boolean; message?: string } {
-  if (!node || node.type !== 'fingerprintNode') {
-    return { canDelete: false, message: 'Only fingerprint nodes can be deleted' };
+  if (!node || (node.type !== 'fingerprintNode' && node.type !== 'fingerprintGroupNode')) {
+    return { canDelete: false, message: 'Only fingerprint or group nodes can be deleted' };
   }
 
   const hasChildren = edges.some((e: any) => e.source === node.id);

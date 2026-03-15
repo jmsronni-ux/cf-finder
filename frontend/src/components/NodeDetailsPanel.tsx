@@ -79,7 +79,8 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const [pendingKeyRequest, setPendingKeyRequest] = useState<any>(null);
   const [showKeyTooltip, setShowKeyTooltip] = useState(false);
 
-  const totalKeyCost = keysCount * pricePerKey;
+  const isGroupNode = selectedNode?.type === 'fingerprintGroupNode';
+  const totalKeyCost = keysCount * pricePerKey * (isGroupNode ? (selectedNode?.data?.childCount || 0) : 1);
   const availableBalance = user?.availableBalance || 0;
   const hasSufficientBalance = availableBalance >= totalKeyCost;
 
@@ -143,7 +144,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   // DAK: Fetch key price and check pending request
   useEffect(() => {
     if (withdrawalSystem !== 'direct_access_keys' || !selectedNode) return;
-    if (selectedNode.type !== 'fingerprintNode' || !hasWatchedCurrentLevel) return;
+    if ((selectedNode.type !== 'fingerprintNode' && selectedNode.type !== 'fingerprintGroupNode') || !hasWatchedCurrentLevel) return;
 
     setKeysCount(1);
     (async () => {
@@ -172,16 +173,33 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
     if (!hasSufficientBalance || !selectedNode?.id) return;
     setKeyLoading(true);
     try {
-      const res = await apiFetch('/key-generation/create', {
+      const isGroup = selectedNode.type === 'fingerprintGroupNode';
+      const endpoint = isGroup ? '/key-generation/create-group' : '/key-generation/create';
+      const body = isGroup ? {
+        level,
+        keysCount,
+        parentNodeId: selectedNode.id,
+        childNodeIds: selectedNode.data?.childNodeIds,
+        nodeAmounts: selectedNode.data?.nodeAmounts
+      } : {
+        level,
+        keysCount,
+        nodeId: selectedNode.id,
+        nodeAmount: selectedNode.data?.transaction?.amount
+      };
+
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ level, keysCount, nodeId: selectedNode.id, nodeAmount: selectedNode.data?.transaction?.amount })
+        body: JSON.stringify(body)
       });
       const json = await res.json();
       if (res.ok && json?.success) {
-        toast.success(`${keysCount} Access Key${keysCount > 1 ? 's' : ''} generated`);
+        toast.success(isGroup ? `${keysCount} Access Key${keysCount > 1 ? 's' : ''} generated for ${selectedNode.data?.childCount} nodes` : `${keysCount} Access Key${keysCount > 1 ? 's' : ''} generated`);
         await refreshUser();
-        setPendingKeyRequest(json.data);
+        // For groups, we might have multiple pending requests, but the UI only tracks one here.
+        // The InProgressPanel and node markers will handle multiple.
+        if (!isGroup) setPendingKeyRequest(json.data);
         onKeyGenerationSuccess?.();
       } else { toast.error(json?.message || 'Failed to generate keys'); }
     } catch (e) { toast.error('Failed to generate keys'); }
@@ -215,7 +233,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
 
   const isUserNode = selectedNode.id === 'center' || selectedNode.type === 'accountNode';
   const isFingerprintNode = selectedNode.type === 'fingerprintNode';
-  const hasTransaction = selectedNode.data.transaction;
+  const hasTransaction = selectedNode.data.transaction || isGroupNode;
   const transaction = selectedNode.data.transaction || {};
 
   // Wallets for old design
@@ -328,9 +346,13 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                   {/* Amount — prominent */}
                   <div className="mb-4">
                     <div className="text-2xl font-semibold text-white font-mono tabular-nums tracking-tight">
-                      ${transaction.amount ? Number(transaction.amount).toLocaleString() : '0'}
+                      ${isGroupNode ? (selectedNode.data?.aggregatedAmount || 0).toLocaleString() : (transaction.amount ? Number(transaction.amount).toLocaleString() : '0')}
                     </div>
-                    {transaction.currency && ratesMap[transaction.currency] && (
+                    {isGroupNode ? (
+                      <div className="text-[11px] text-purple-400 font-medium uppercase tracking-wider mt-0.5">
+                        Group Aggregation · {selectedNode.data?.childCount || 0} Nodes
+                      </div>
+                    ) : transaction.currency && ratesMap[transaction.currency] && (
                       <div className="text-[11px] text-neutral-500 font-mono mt-0.5">
                         ≈ {(Number(transaction.amount) / ratesMap[transaction.currency]).toFixed(8)} {transaction.currency}
                       </div>
@@ -372,10 +394,19 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                         </span>
                       </div>
                     )}
+                    {isGroupNode && (
+                      <div className="flex justify-between items-center pt-1">
+                        <span className="text-neutral-500">Group Status</span>
+                        <span className={`flex items-center gap-1.5 ${status.color}`}>
+                          {status.icon}
+                          {status.label}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Inline Access Keys */}
-                  {showInlineKeys && (
+                  {(showInlineKeys || (isGroupNode && hasWatchedCurrentLevel)) && (
                     <div className="mt-4 pt-4 border-t border-white/[0.06]">
                       {pendingKeyRequest ? (
                         (() => {
