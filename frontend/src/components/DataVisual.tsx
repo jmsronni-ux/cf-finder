@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Calendar,
@@ -10,6 +10,12 @@ import {
   Settings,
   Layers,
   Clock,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  GitBranch,
+  ChevronDown,
 } from 'lucide-react';
 
 interface DataVisualProps {
@@ -40,6 +46,66 @@ const statusConfig: Record<string, { color: string; bg: string; border: string; 
   Fail: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/25', dot: 'bg-red-400' },
   'Cold Wallet': { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/25', dot: 'bg-blue-400' },
   Reported: { color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/25', dot: 'bg-orange-400' },
+};
+
+// Collapsible D-pad dropdown for edge handle positions
+const EdgeHandlesDropdown: React.FC<{
+  targetPos: string;
+  sourcePos: string;
+  DPad: React.FC<{ current: string; onChange: (v: string) => void; accentColor: string }>;
+  setHandlePos: (type: 'target' | 'source', value: string) => void;
+}> = ({ targetPos, sourcePos, DPad, setHandlePos }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="border border-white/5 rounded-xl overflow-hidden">
+      {/* Header toggle */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/[0.03] transition-colors"
+      >
+        <div className="flex items-center gap-1.5">
+          <GitBranch size={10} className="text-gray-500" />
+          <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Edge Handles</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] text-gray-600 font-mono">
+            {targetPos[0].toUpperCase()} → {sourcePos[0].toUpperCase()}
+          </span>
+          <ChevronDown
+            size={11}
+            className={`text-gray-600 transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </button>
+
+      {/* Collapsible content */}
+      {open && (
+        <div className="px-3 pb-3 pt-1">
+          <div className="grid grid-cols-2 gap-3">
+            {/* Incoming column */}
+            <div className="flex flex-col items-center gap-1.5">
+              <span className="text-[9px] text-gray-600 uppercase tracking-widest font-medium">Incoming</span>
+              <DPad
+                current={targetPos}
+                onChange={(v) => setHandlePos('target', v)}
+                accentColor="bg-cyan-500/25 border border-cyan-500/50 text-cyan-400"
+              />
+            </div>
+            {/* Outgoing column */}
+            <div className="flex flex-col items-center gap-1.5">
+              <span className="text-[9px] text-gray-600 uppercase tracking-widest font-medium">Outgoing</span>
+              <DPad
+                current={sourcePos}
+                onChange={(v) => setHandlePos('source', v)}
+                accentColor="bg-purple-500/25 border border-purple-500/50 text-purple-400"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const DataVisual: React.FC<DataVisualProps> = ({
@@ -201,6 +267,62 @@ const DataVisual: React.FC<DataVisualProps> = ({
               </div>
             </div>
           )}
+
+          {/* ── Edge Handle Positions (Collapsible D-pad) ── */}
+          {isAdmin && (isFingerprintNode || isCryptoNode || isGroupNode) && (() => {
+            const targetPos = selectedNode.data.handles?.target?.position || 'left';
+            const sourcePos = selectedNode.data.handles?.source?.position || 'right';
+            const setHandlePos = (type: 'target' | 'source', value: string) => {
+              const currentHandles = selectedNode.data.handles || { target: { position: 'left' }, source: { position: 'right' } };
+              onUpdateNodeData(selectedNode.id, {
+                handles: { ...currentHandles, [type]: { ...currentHandles[type], position: value } }
+              });
+            };
+
+            const DPad = ({ current, onChange, accentColor }: { current: string; onChange: (v: string) => void; accentColor: string }) => {
+              const btn = (dir: string, icon: React.ReactNode) => {
+                const active = current === dir;
+                return (
+                  <button
+                    onClick={() => onChange(dir)}
+                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-all ${
+                      active
+                        ? `${accentColor} shadow-lg scale-110`
+                        : 'bg-white/5 border border-white/10 text-gray-600 hover:bg-white/10 hover:text-gray-400'
+                    }`}
+                  >
+                    {icon}
+                  </button>
+                );
+              };
+
+              return (
+                <div className="flex flex-col items-center gap-0.5">
+                  {/* Top */}
+                  {btn('top', <ArrowUp size={12} />)}
+                  {/* Left - Center - Right */}
+                  <div className="flex items-center gap-0.5">
+                    {btn('left', <ArrowLeft size={12} />)}
+                    <div className="w-7 h-7 rounded-md bg-white/[0.03] border border-white/5 flex items-center justify-center">
+                      <span className="text-[8px] text-gray-500 font-mono uppercase">{current.slice(0, 1)}</span>
+                    </div>
+                    {btn('right', <ArrowRight size={12} />)}
+                  </div>
+                  {/* Bottom */}
+                  {btn('bottom', <ArrowDown size={12} />)}
+                </div>
+              );
+            };
+
+            return (
+              <EdgeHandlesDropdown
+                targetPos={targetPos}
+                sourcePos={sourcePos}
+                DPad={DPad}
+                setHandlePos={setHandlePos}
+              />
+            );
+          })()}
 
           {/* ── Transaction Fields ── */}
           {tx && (
