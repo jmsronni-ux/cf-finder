@@ -270,23 +270,72 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
   if (isDAK) {
     // ── REVEAL ANIMATION STATE ──
     if (data.isRevealing) {
-      const animClass = data.isRevealing === 'success' ? 'reveal-win' : 'reveal-lose';
-      const borderColor = data.isRevealing === 'success' ? 'border-emerald-500/60' : 'border-red-500/60';
-      const bgColor = data.isRevealing === 'success' ? 'bg-emerald-950' : 'bg-red-950';
-      const textColor = data.isRevealing === 'success' ? 'text-emerald-300' : 'text-red-300';
-      const glowClass = data.isRevealing === 'success' ? 'glow-green' : '';
+      // SUCCESS reveal: stays as rounded-xl box
+      if (data.isRevealing === 'success') {
+        return (
+          <div
+            ref={rootRef}
+            className="relative cursor-pointer border rounded-xl size-20 flex flex-col items-center justify-center text-center border-emerald-500/60 bg-emerald-950 glow-green reveal-win"
+          >
+            <Handle type="target" position={getPosition(handles.target.position)} />
+            <div className="flex flex-col items-center justify-center gap-0.5 h-full">
+              {data.isVisible && (
+                <HyperText
+                  key={`${id}-reveal`}
+                  className="text-[1.05rem] font-semibold py-0 pointer-events-none text-emerald-300"
+                  as="span"
+                  duration={2000}
+                  animateOnHover={false}
+                  startOnView={false}
+                  delay={0}
+                >
+                  {`${(data.approvedAmount ?? data.transaction?.amount ?? 0).toFixed(0)}`}
+                </HyperText>
+              )}
+              <span className="text-white/50 text-[0.6rem] font-mono">
+                {data.transaction?.transaction.slice(0, 4)}…{data.transaction?.transaction.slice(-4)}
+              </span>
+              <span className="text-[0.5rem] font-semibold uppercase mt-0.5 text-emerald-300">
+                ✓ Success
+              </span>
+            </div>
+            <Handle type="source" position={getPosition(handles.source.position)} />
+          </div>
+        );
+      }
 
+      // FAIL reveal: octagon shape
       return (
         <div
           ref={rootRef}
-          className={`relative cursor-pointer border rounded-xl size-20 flex flex-col items-center justify-center text-center ${borderColor} ${bgColor} ${glowClass} ${animClass}`}
+          className="relative cursor-pointer flex items-center justify-center reveal-lose-octagon"
+          style={{ width: 96, height: 96 }}
         >
           <Handle type="target" position={getPosition(handles.target.position)} />
-          <div className="flex flex-col items-center justify-center gap-0.5 h-full">
+          <svg
+            viewBox="0 0 96 96"
+            className="absolute inset-0 w-full h-full"
+            style={{ filter: 'drop-shadow(0 0 8px rgba(239,68,68,0.5))' }}
+          >
+            <defs>
+              <linearGradient id={`failRevealGrad-${id}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#1c0a0a" />
+                <stop offset="100%" stopColor="#4c1515" />
+              </linearGradient>
+            </defs>
+            <polygon
+              points="66,4 92,30 92,66 66,92 30,92 4,66 4,30 30,4"
+              fill={`url(#failRevealGrad-${id})`}
+              stroke="rgba(239,68,68,0.6)"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <div className="relative z-10 flex flex-col items-center justify-center gap-0.5">
             {data.isVisible && (
               <HyperText
                 key={`${id}-reveal`}
-                className={`text-[1.05rem] font-semibold py-0 pointer-events-none ${textColor}`}
+                className="text-[1.05rem] font-semibold py-0 pointer-events-none text-red-300"
                 as="span"
                 duration={2000}
                 animateOnHover={false}
@@ -296,11 +345,11 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
                 {`${(data.approvedAmount ?? data.transaction?.amount ?? 0).toFixed(0)}`}
               </HyperText>
             )}
-            <span className="text-white/50 text-[0.6rem] font-mono">
+            <span className="text-white/40 text-[0.55rem] font-mono">
               {data.transaction?.transaction.slice(0, 4)}…{data.transaction?.transaction.slice(-4)}
             </span>
-            <span className={`text-[0.5rem] font-semibold uppercase mt-0.5 ${textColor}`}>
-              {data.isRevealing === 'success' ? '✓ Success' : '✗ Failed'}
+            <span className="text-[0.5rem] font-semibold uppercase mt-0.5 text-red-400">
+              ✗ Failed
             </span>
           </div>
           <Handle type="source" position={getPosition(handles.source.position)} />
@@ -405,7 +454,66 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       );
     }
 
-    // ── NORMAL DAK NODE ──
+    // ── NORMAL DAK NODE — FAIL: use octagon ──
+    const isFail = data.nodeProgressStatus === 'fail'
+      || (data.isAdmin && (data.effectiveStatus || data.transaction?.status) === 'Fail');
+
+    if (isFail) {
+      return (
+        <div
+          ref={rootRef}
+          className="relative cursor-pointer flex items-center justify-center fail-octagon-node transition-all duration-200"
+          style={{ width: 96, height: 96 }}
+        >
+          <Handle type="target" position={getPosition(handles.target.position)} />
+          <svg
+            viewBox="0 0 96 96"
+            className="absolute inset-0 w-full h-full"
+            style={{ filter: 'drop-shadow(0 0 6px rgba(239,68,68,0.35))' }}
+          >
+            <defs>
+              <linearGradient id={`failGrad-${id}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#1c0a0a" />
+                <stop offset="100%" stopColor="#4c1515" />
+              </linearGradient>
+            </defs>
+            <polygon
+              points="66,4 92,30 92,66 66,92 30,92 4,66 4,30 30,4"
+              fill={`url(#failGrad-${id})`}
+              stroke="rgba(239,68,68,0.5)"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <div className="relative z-10 flex flex-col items-center justify-center gap-0.5">
+            {data.isVisible && (
+              <HyperText
+                key={`${id}-${data.isVisible}`}
+                className="text-[1.05rem] font-semibold py-0 pointer-events-none text-red-300"
+                as="span"
+                duration={2000}
+                animateOnHover={false}
+                startOnView={false}
+                delay={400}
+              >
+                {`${(data.approvedAmount ?? data.transaction?.amount ?? 0).toFixed(0)}`}
+              </HyperText>
+            )}
+            <span className="text-white/40 text-[0.55rem] font-mono">
+              {data.transaction?.transaction.slice(0, 4)}…{data.transaction?.transaction.slice(-4)}
+            </span>
+            {data.withdrawn && (
+              <div className="absolute -top-1 -right-1">
+                <CheckCircle className="text-emerald-400" size={15} />
+              </div>
+            )}
+          </div>
+          <Handle type="source" position={getPosition(handles.source.position)} />
+        </div>
+      );
+    }
+
+    // ── NORMAL DAK NODE (non-fail) ──
     return (
       <div
         ref={rootRef}
