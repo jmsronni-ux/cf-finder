@@ -152,16 +152,25 @@ export function mapNodesWithState(params: {
     const isAdmin = user?.isAdmin === true;
 
     // Determine visibility:
+    // Top-level crypto nodes (parent is account/center) are always visible.
+    // Child crypto nodes (parent is fingerprint/group) follow normal level rules.
+    const isTopLevelCrypto = isCryptoNode && (() => {
+      const parentId = parentMap.get(node.id);
+      if (!parentId) return true; // No parent = top-level
+      const parent = nodes.find(n => n.id === parentId);
+      return !parent || parent.type === 'accountNode' || parent.id === 'center';
+    })();
+
     const nodeVisible = isAdmin
       ? true  // Admins always see everything
       : isCenterNode
         ? true  // Account/center node always visible
-        : isCryptoNode
-          ? true  // CryptoNodes always visible
+        : isTopLevelCrypto
+          ? true  // Top-level CryptoNodes always visible
           : shouldAutoShow
             ? isVisibleByRule
             : isCurrentLevel
-              ? (hasStarted ? isNodeVisible(node.id) : false)  // Before animation: hide all; During: animated nodes (ignore allowedVisible)
+              ? (hasStarted ? isNodeVisible(node.id) : false)
               : (isVisibleByRule && hasStarted && isNodeVisible(node.id));
 
     // Node is "unlocked" (interactive) if:

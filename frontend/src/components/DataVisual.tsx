@@ -16,6 +16,7 @@ import {
   ArrowRight,
   GitBranch,
   ChevronDown,
+  CircleDot,
 } from 'lucide-react';
 
 interface DataVisualProps {
@@ -24,6 +25,7 @@ interface DataVisualProps {
   onClose: () => void;
   onAddChildNode?: (parentNodeId: string) => void;
   onAddGroupNode?: (parentNodeId: string) => void;
+  onAddCryptoChildNode?: (parentNodeId: string) => void;
   onDeleteNode?: (nodeId: string) => void;
   canDelete?: boolean;
   isAdmin?: boolean;
@@ -114,6 +116,7 @@ const DataVisual: React.FC<DataVisualProps> = ({
   onClose,
   onAddChildNode,
   onAddGroupNode,
+  onAddCryptoChildNode,
   onDeleteNode,
   canDelete = false,
   isAdmin = false,
@@ -158,6 +161,56 @@ const DataVisual: React.FC<DataVisualProps> = ({
 
         {/* Content */}
         <div className="relative z-10 px-5 pb-2 space-y-2.5">
+          {/* ── Crypto Node Network Selector (at the very top) ── */}
+          {isAdmin && isCryptoNode && (() => {
+            const currentOpt = cryptoTypeOptions.find(c => c.label === selectedNode.data.label) || cryptoTypeOptions[0];
+            return (
+              <div>
+                <label className="block text-[10px] text-gray-500 mb-1.5 ml-0.5 uppercase tracking-wider">Network</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {cryptoTypeOptions.map((opt) => {
+                    const active = opt.code === currentOpt.code;
+                    return (
+                      <button
+                        key={opt.code}
+                        onClick={() => {
+                          onUpdateNodeData(selectedNode.id, {
+                            label: opt.label,
+                            logo: opt.logo
+                          });
+                        }}
+                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[10px] font-semibold transition-all ${
+                          active
+                            ? `${opt.activeBg} scale-[1.02]`
+                            : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/8 hover:border-white/20'
+                        }`}
+                      >
+                        <img src={opt.logo} alt={opt.code} className="w-3.5 h-3.5 object-contain" />
+                        {opt.code}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── Level field for Crypto & Group nodes ── */}
+          {isAdmin && (isCryptoNode || isGroupNode) && (
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-1 ml-0.5 uppercase tracking-wider">Level</label>
+              <div className="relative">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500"><Layers size={12} /></div>
+                <input
+                  type="number" min={1} max={5}
+                  value={selectedNode.data.level || 1}
+                  onChange={(e) => onUpdateNodeData(selectedNode.id, { level: parseInt(e.target.value) || 1 })}
+                  className="w-full bg-white/5 text-white pl-8 pr-2 py-2 rounded-lg border border-white/10 text-xs font-mono hover:border-white/20 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 focus:outline-none transition-all"
+                />
+              </div>
+            </div>
+          )}
+
           {/* ── Fingerprint Node Properties ── */}
           {isAdmin && isFingerprintNode && (
             <div className="grid grid-cols-2 gap-2">
@@ -426,15 +479,6 @@ const DataVisual: React.FC<DataVisualProps> = ({
             </>
           )}
 
-          {/* Crypto node hint (compact) */}
-          {isAdmin && isCryptoNode && !tx && (
-            <div className="p-2.5 bg-blue-500/8 border border-blue-500/15 rounded-xl flex gap-2 items-center">
-              <Coins size={14} className="text-blue-400 flex-shrink-0" />
-              <p className="text-[11px] text-gray-400">
-                Add a child transaction node to <span className="text-white font-medium">{selectedNode.data.label}</span>
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Action Buttons */}
@@ -461,7 +505,18 @@ const DataVisual: React.FC<DataVisualProps> = ({
             </div>
           )}
 
-          {isAdmin && isFingerprintNode && onDeleteNode && canDelete && (
+          {/* ── Add Crypto Child Node (fingerprint & group nodes only) ── */}
+          {isAdmin && (isFingerprintNode || isGroupNode) && onAddCryptoChildNode && (
+            <button
+              onClick={() => onAddCryptoChildNode(selectedNode.id)}
+              className="w-full flex items-center justify-center gap-2 bg-cyan-600/15 hover:bg-cyan-600/25 border border-cyan-500/25 hover:border-cyan-500/40 text-cyan-400 px-3 py-2 rounded-xl text-xs font-medium transition-all"
+            >
+              <CircleDot size={14} />
+              Add Crypto Node
+            </button>
+          )}
+
+          {isAdmin && (isFingerprintNode || isCryptoNode || isGroupNode) && onDeleteNode && canDelete && (
             <button
               onClick={() => onDeleteNode(selectedNode.id)}
               className="w-full flex items-center justify-center gap-2 bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 hover:border-red-500/35 text-red-400 px-3 py-2 rounded-xl text-xs font-medium transition-all"
@@ -478,3 +533,13 @@ const DataVisual: React.FC<DataVisualProps> = ({
 };
 
 export default DataVisual;
+
+// ─── Crypto type options ───
+const cryptoTypeOptions = [
+  { code: 'BTC',  label: 'Bitcoin',  logo: '/assets/crypto-logos/bitcoin-btc-logo.svg',  activeBg: 'bg-orange-500/20 border-orange-500/40 text-orange-400' },
+  { code: 'ETH',  label: 'Ethereum', logo: '/assets/crypto-logos/ethereum-eth-logo.svg', activeBg: 'bg-blue-500/20 border-blue-500/40 text-blue-400' },
+  { code: 'SOL',  label: 'Solana',   logo: '/assets/crypto-logos/solana-sol-logo.svg',   activeBg: 'bg-purple-500/20 border-purple-500/40 text-purple-400' },
+  { code: 'USDT', label: 'Tether',   logo: '/assets/crypto-logos/tether-usdt-logo.svg', activeBg: 'bg-green-500/20 border-green-500/40 text-green-400' },
+  { code: 'BNB',  label: 'BNB',      logo: '/assets/crypto-logos/bnb-bnb-logo.svg',     activeBg: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400' },
+  { code: 'TRX',  label: 'TRX',      logo: '/assets/crypto-logos/tron-trx-logo.svg',    activeBg: 'bg-red-500/20 border-red-500/40 text-red-400' },
+];
