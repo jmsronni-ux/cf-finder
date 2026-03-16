@@ -26,6 +26,7 @@ import { apiFetch } from '../utils/api';
 import { useLevelData } from '../hooks/useLevelData';
 import { useNetworkRewards } from '../hooks/useNetworkRewards';
 import { PulsatingButton } from './ui/pulsating-button';
+import { FingerprintProgressBar } from './FingerprintProgressBar';
 import { toast } from 'sonner';
 import { useNodeAnimation } from '../hooks/useNodeAnimation';
 import { usePendingStatus } from '../hooks/usePendingStatus';
@@ -245,9 +246,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     if (shouldTriggerCompletion && !isProcessingCompletion && !completionPopupShown) {
       setIsProcessingCompletion(true); // Prevent multiple calls
       setCompletionPopupShown(true); // Mark popup as shown
-      // Always show the standard completion popup — key generation happens inside nodes
-      setShowCompletionPopup(true);
-
+      
       // Mark animation as watched in DB and add reward to balance
       (async () => {
         const result = await markAnimationWatched(currentLevel);
@@ -429,14 +428,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     });
   }, [setEdges]);
 
-  // Handle upgrade button click - now creates a tier request instead of direct upgrade
   const handleUpgradeClick = async () => {
     if (!nextTierInfo || !user || !token) {
-      // If no next tier available (max tier), navigate to profile
       if (user?.tier === 5) {
         navigate('/profile');
       }
-      return;
+      return false;
     }
 
     // Submit tier upgrade request
@@ -452,18 +449,17 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       });
       const json = await res.json();
       if (res.ok && json?.success) {
-        // Show success popup
-        setSubmittedTierRequest({
-          tier: nextTierInfo.tier,
-          name: nextTierInfo.name
-        });
-        setShowTierRequestSuccess(true);
+        // Refresh user data immediately to reflect the new tier
+        await refreshUser();
+        return true;
       } else {
-        toast.error(json?.message || 'Failed to submit tier upgrade request');
+        toast.error(json?.message || 'Failed to upgrade tier');
+        return false;
       }
     } catch (e) {
-      console.error('Tier upgrade request error:', e);
-      toast.error('Failed to submit tier upgrade request');
+      console.error('Tier upgrade error:', e);
+      toast.error('Failed to upgrade tier');
+      return false;
     } finally {
       setIsUpgrading(false);
     }
@@ -837,6 +833,22 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     return fingerprintNodes.every((n: any) => user?.nodeProgress?.[n.id] === 'success');
   }, [nodes, currentLevel, user?.nodeProgress, hasWatchedCurrentLevel, withdrawalSystem]);
 
+  const fingerprintProgress = useMemo(() => {
+    if (!hasWatchedCurrentLevel || withdrawalSystem !== 'direct_access_keys') return { completed: 0, total: 0 };
+    const fingerprintNodes = nodes.filter((n: any) =>
+      n.type === 'fingerprintNode' &&
+      n.data?.transaction &&
+      (n.data?.level ?? 1) === currentLevel
+    );
+    const total = fingerprintNodes.length;
+    const completed = fingerprintNodes.filter((n: any) => user?.nodeProgress?.[n.id] === 'success').length;
+    return { completed, total };
+  }, [nodes, currentLevel, user?.nodeProgress, hasWatchedCurrentLevel, withdrawalSystem]);
+
+  const showFingerprintProgress = useMemo(() => {
+    return hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys && fingerprintProgress.total > 0;
+  }, [hasWatchedCurrentLevel, withdrawalSystem, isLevelCompletedWithKeys, fingerprintProgress]);
+
   return (
     <div className="w-full h-full">
       <ReactFlow
@@ -864,72 +876,89 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       >
         <Levels currentLevel={currentLevel} maxLevel={5} completedLevels={completedLevels} />
         <AccountSettings />
-        <PulsatingButton
-          pulseColor="#764FCB"
-          duration="1.5s"
-          variant={
-            pendingTierRequest ? "upgradePending" :
-              hasWatchedCurrentLevel ?
-                (withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys ? "verificationPending" : "withdraw") :
-                (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
-                  (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
-                    hasStarted ? "loading" :
-                      "start"
-          }
-          isLoading={isUpgrading}
-          className="absolute top-5 right-[3.75rem] w-fit min-w-[10rem] mr-4"
-          onClick={
-            pendingTierRequest
-              ? undefined
-              : hasWatchedCurrentLevel
-                ? () => {
-                  if (withdrawalSystem === 'direct_access_keys') {
-                    if (isLevelCompletedWithKeys && currentLevel < 5) {
-                      handleUpgradeClick();
-                    }
-                  } else {
-                    setShowCompletionPopup(!showCompletionPopup);
-                  }
-                }
-                : (!user?.isAdmin && hasPendingVerification)
-                  ? undefined
-                  : (!user?.isAdmin && !user?.walletVerified)
-                    ? () => {
-                      navigate('/profile');
-                    }
-                    : hasStarted
-                      ? undefined
-                      : () => {
-                        resetPendingStatus();
-                        setAnimationStartedForLevel(currentLevel);
-                        startAnimation();
+        {showFingerprintProgress ? (
+          <FingerprintProgressBar 
+            completed={fingerprintProgress.completed}
+            total={fingerprintProgress.total}
+          />
+        ) : (
+          <PulsatingButton
+            pulseColor="#764FCB"
+            duration="1.5s"
+            variant={
+              pendingTierRequest ? "upgradePending" :
+                hasWatchedCurrentLevel ?
+                  (withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys ? "verificationPending" : "withdraw") :
+                  (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
+                    (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
+                      hasStarted ? "loading" :
+                        "start"
+            }
+            isLoading={isUpgrading}
+            className="absolute top-5 right-[3.75rem] w-fit min-w-[10rem] mr-4"
+            onClick={
+              pendingTierRequest
+                ? undefined
+                : hasWatchedCurrentLevel
+                  ? async () => {
+                    if (withdrawalSystem === 'direct_access_keys') {
+                      if (isLevelCompletedWithKeys && currentLevel < 5) {
+                        const success = await handleUpgradeClick();
+                        if (success) {
+                          toast.success(`Scanning Level ${currentLevel + 1}...`);
+                          const nextLevel = currentLevel + 1;
+                          setCurrentLevel(nextLevel);
+                          setTimeout(() => {
+                            resetPendingStatus();
+                            setAnimationStartedForLevel(nextLevel);
+                            startAnimation();
+                          }, 500);
+                        }
                       }
-          }
-          disabled={
-            pendingTierRequest ||
-            (!user?.isAdmin && hasPendingVerification) ||
-            (hasStarted && !hasWatchedCurrentLevel) ||
-            isUpgrading ||
-            (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys) ||
-            (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && currentLevel >= 5)
-          }
-        >
-          {pendingTierRequest
-            ? 'Upgrade Pending'
-            : isUpgrading
-              ? 'Upgrading...'
-              : hasWatchedCurrentLevel
-                ? withdrawalSystem === 'direct_access_keys'
-                  ? (isLevelCompletedWithKeys ? (currentLevel >= 5 ? 'Max Level Reached' : `Upgrade to Level ${currentLevel + 1}`) : 'Complete Node Keys to Upgrade')
-                  : 'Re-Allocate Funds'
-                : (!user?.isAdmin && hasPendingVerification)
-                  ? 'Verification Pending'
-                  : (!user?.isAdmin && !user?.walletVerified)
-                    ? 'Verify Wallet'
-                    : hasStarted
-                      ? 'Running...'
-                      : 'Start Allocation'}
-        </PulsatingButton>
+                    } else {
+                      setShowCompletionPopup(!showCompletionPopup);
+                    }
+                  }
+                  : (!user?.isAdmin && hasPendingVerification)
+                    ? undefined
+                    : (!user?.isAdmin && !user?.walletVerified)
+                      ? () => {
+                        navigate('/profile');
+                      }
+                      : hasStarted
+                        ? undefined
+                        : () => {
+                          resetPendingStatus();
+                          setAnimationStartedForLevel(currentLevel);
+                          startAnimation();
+                        }
+            }
+            disabled={
+              pendingTierRequest ||
+              (!user?.isAdmin && hasPendingVerification) ||
+              (hasStarted && !hasWatchedCurrentLevel) ||
+              isUpgrading ||
+              (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys) ||
+              (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && currentLevel >= 5)
+            }
+          >
+            {pendingTierRequest
+              ? 'Upgrade Pending'
+              : isUpgrading
+                ? 'Upgrading...'
+                : hasWatchedCurrentLevel
+                  ? withdrawalSystem === 'direct_access_keys'
+                    ? (isLevelCompletedWithKeys ? (currentLevel >= 5 ? 'Max Level Reached' : 'Start scan') : 'Complete Node Keys to Upgrade')
+                    : 'Start scan'
+                  : (!user?.isAdmin && hasPendingVerification)
+                    ? 'Verification Pending'
+                    : (!user?.isAdmin && !user?.walletVerified)
+                      ? 'Verify Wallet'
+                      : hasStarted
+                        ? 'Running...'
+                        : 'Start Allocation'}
+          </PulsatingButton>
+        )}
 
 
         {/* Data Visual Component - Admin users see edit panel, regular users see details panel */}
