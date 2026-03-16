@@ -90,6 +90,9 @@ export function mapNodesWithState(params: {
     let completedChildCount = 0;
     const childNodeIds: string[] = [];
     const nodeAmounts: Record<string, number> = {};
+    // Collect success rates from child nodes for aggregation
+    let successRateSum = 0;
+    let successRateCount = 0;
 
     while (stack.length > 0) {
       const currentId = stack.pop()!;
@@ -103,7 +106,18 @@ export function mapNodesWithState(params: {
           if (targetNode) {
             if (targetNode.type === 'fingerprintNode') {
               totalChildCount++;
-              const isSuccess = user?.nodeProgress?.[targetNode.id] === 'success';
+              // Collect success rate if present
+              const rawRate = targetNode.data?.successRate;
+              if (rawRate) {
+                const parsed = parseInt(rawRate);
+                if (!isNaN(parsed)) {
+                  successRateSum += parsed;
+                  successRateCount++;
+                }
+              }
+              // Don't count as completed if the node is still pending reveal (avoid spoilers)
+              const isPendingReveal = pendingRevealNodes?.[targetNode.id] != null;
+              const isSuccess = !isPendingReveal && user?.nodeProgress?.[targetNode.id] === 'success';
               if (isSuccess) {
                 completedChildCount++;
               } else {
@@ -120,7 +134,12 @@ export function mapNodesWithState(params: {
       });
     }
 
-    return { totalAmount, childCount, totalChildCount, completedChildCount, childNodeIds, nodeAmounts };
+    // Compute average success rate from children that have one
+    const aggregatedSuccessRate = successRateCount > 0
+      ? `${Math.round(successRateSum / successRateCount)}%`
+      : null;
+
+    return { totalAmount, childCount, totalChildCount, completedChildCount, childNodeIds, nodeAmounts, aggregatedSuccessRate };
   };
 
   // Build a map of parent nodes
@@ -236,6 +255,8 @@ export function mapNodesWithState(params: {
         completedChildCount: groupAgg?.completedChildCount,
         childNodeIds: groupAgg?.childNodeIds,
         nodeAmounts: groupAgg?.nodeAmounts,
+        // Aggregated success rate from child nodes (only for group nodes)
+        ...(groupAgg?.aggregatedSuccessRate ? { successRate: groupAgg.aggregatedSuccessRate } : {}),
         approvedAmount: nodeApprovedAmounts?.[node.id] ?? null,
       },
     };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet, KeyRound, Snowflake, AlertTriangle, X, Minus, Plus, Loader2, Info, Settings } from 'lucide-react';
+import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet, KeyRound, Snowflake, AlertTriangle, X, Minus, Plus, Loader2, Info, Settings, Layers } from 'lucide-react';
 import { PulsatingButton } from './ui/pulsating-button';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
@@ -300,6 +300,215 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
 
   const showInlineKeys = isFingerprintNode && hasWatchedCurrentLevel && isDAK;
 
+  // ─── GROUP NODE BUNDLE PANEL (Direct Access Keys) ───
+  if (isGroupNode && isDAK) {
+    const childCount = selectedNode.data?.childCount || 0;
+    const aggregatedAmount = selectedNode.data?.aggregatedAmount || 0;
+
+    return (
+      <div className="absolute top-20 right-6 z-30 w-full max-w-[340px] group-panel-enter">
+        <div className="group-panel-stack">
+          <div className="bg-[#0c0c0c] border border-white/[0.07] rounded-xl shadow-2xl overflow-hidden">
+
+            {/* ─── Group banner ─── */}
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 bg-white/[0.02] border-b border-white/[0.05]">
+              <div className="flex items-center gap-2.5">
+                <Layers className="w-3.5 h-3.5 text-neutral-500" />
+                <span className="text-[13px] font-medium text-neutral-400 uppercase tracking-wide">Group</span>
+                <span className="text-[11px] tabular-nums text-neutral-500 bg-white/[0.06] px-2 py-0.5 rounded-full font-medium">{childCount} nodes</span>
+              </div>
+              <button onClick={onClose} className="text-neutral-600 hover:text-white transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              {/* ─── Content ─── */}
+              <div className="max-h-[calc(100vh-14rem)] overflow-y-auto">
+
+                {/* ─── Aggregated amount ─── */}
+                <div className="mb-4">
+                  <div className="text-2xl font-semibold text-white font-mono tabular-nums tracking-tight">
+                    ${aggregatedAmount.toLocaleString()}
+                  </div>
+                  <div className="text-[11px] text-neutral-500 mt-0.5 font-mono">
+                    across {childCount} node{childCount !== 1 ? 's' : ''}
+                  </div>
+                </div>
+
+                {/* ─── Meta rows ─── */}
+                <div className="space-y-2 text-xs">
+                  {selectedNode.data.successRate && (
+                    <div className="flex justify-between">
+                      <span className="text-neutral-500">Success Rate</span>
+                      <span className="text-emerald-400 font-medium">{selectedNode.data.successRate}</span>
+                    </div>
+                  )}
+                  {(selectedNode.data.customParameters || []).map((param: any, index: number) => (
+                    <div key={index} className="flex justify-between">
+                      <span className="text-neutral-500">{param.title || 'Param'}</span>
+                      <span className="text-neutral-300">{param.value}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-center">
+                    <span className="text-neutral-500">Status</span>
+                    <span className={`flex items-center gap-1.5 ${status.color}`}>
+                      {status.icon}
+                      {status.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* ─── Key Generation / Status ─── */}
+                {hasWatchedCurrentLevel && (
+                  <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                    {pendingKeyRequest ? (
+                      (() => {
+                        const sa = pendingKeyRequest.scheduledAction;
+                        const hasSchedule = sa?.executeAt && sa?.createdAt;
+                        return (
+                          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
+                            <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              Processing Bundle
+                            </div>
+                            <p className="text-neutral-400 text-xs mt-1.5">
+                              {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''} × {childCount} nodes · ${pendingKeyRequest.totalCost?.toFixed(2)} USD
+                            </p>
+                            {hasSchedule && (
+                              <ScheduledProgressBar
+                                executeAt={sa.executeAt}
+                                createdAt={sa.createdAt}
+                              />
+                            )}
+                          </div>
+                        );
+                      })()
+                    ) : nodeStatus === 'Locked' ? (
+                      <div className="rounded-lg bg-neutral-500/10 border border-neutral-500/15 px-3.5 py-3">
+                        <div className="flex items-center gap-2 text-neutral-400 text-sm">
+                          <XCircle className="w-3.5 h-3.5" />
+                          Unlock previous nodes first
+                        </div>
+                      </div>
+                    ) : (nodeStatus === 'Success' && childCount === 0) ? (
+                      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-3">
+                        <div className="flex items-center justify-between text-emerald-400 text-sm font-medium">
+                          <span className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            All Nodes Recovered
+                          </span>
+                          {selectedNode.data.approvedAmount != null && selectedNode.data.approvedAmount > 0 && (
+                            <span className="font-semibold">${Number(selectedNode.data.approvedAmount).toLocaleString()}</span>
+                          )}
+                        </div>
+                      </div>
+                    ) : nodeStatus === 'Pending' ? (
+                      <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
+                        <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Processing
+                        </div>
+                      </div>
+                    ) : (
+                      /* ─── Bundle key generation ─── */
+                      <div className="space-y-3">
+                        {/* Quantity row */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setKeysCount(Math.max(1, keysCount - 1))}
+                              disabled={keysCount <= 1}
+                              className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center disabled:opacity-20 transition-all"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-lg font-semibold text-white w-8 text-center tabular-nums">{keysCount}</span>
+                            <button
+                              onClick={() => setKeysCount(keysCount + 1)}
+                              className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                            <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : pricePerKey}</span>
+                          </div>
+                          <span className="text-amber-400 font-semibold text-sm tabular-nums">${totalKeyCost.toFixed(2)}</span>
+                        </div>
+
+                        {/* Bundle breakdown */}
+                        <div className="text-[10px] text-neutral-600 font-mono text-center">
+                          {keysCount} key{keysCount > 1 ? 's' : ''} × ${loadingPrice ? '…' : pricePerKey}/key × {childCount} nodes
+                        </div>
+
+                        {/* Balance */}
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-neutral-600">Available balance</span>
+                          <span className={hasSufficientBalance ? 'text-neutral-400' : 'text-red-400'}>${availableBalance.toFixed(2)}</span>
+                        </div>
+
+                        {/* CTA */}
+                        {hasSufficientBalance ? (
+                          <button
+                            onClick={handleGenerateKeys}
+                            disabled={keyLoading || loadingPrice}
+                            className="w-full h-10 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-all disabled:opacity-40 disabled:hover:bg-amber-600 flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20"
+                          >
+                            {keyLoading ? (
+                              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
+                            ) : (
+                              <><KeyRound className="w-3.5 h-3.5" /> Generate for {childCount} Nodes</>
+                            )}
+                          </button>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-1.5 text-red-400 text-xs">
+                              <AlertTriangle className="w-3 h-3" />
+                              Insufficient balance
+                            </div>
+                            <button
+                              onClick={() => { onClose(); window.location.href = '/profile'; }}
+                              className="w-full h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <DollarSign className="w-3 h-3" /> Top Up Balance
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Info tooltip */}
+                        <div className="relative">
+                          <button
+                            onMouseEnter={() => setShowKeyTooltip(true)}
+                            onMouseLeave={() => setShowKeyTooltip(false)}
+                            className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors flex items-center gap-1"
+                          >
+                            <Info className="w-2.5 h-2.5" /> What are Access Keys?
+                          </button>
+                          {showKeyTooltip && (
+                            <div className="absolute bottom-full left-0 mb-1 bg-[#141414] border border-white/10 rounded-lg p-2.5 text-[11px] text-neutral-400 max-w-[280px] z-50 shadow-xl leading-relaxed">
+                              Access Keys attempt to reconstruct the transaction path. Generating keys for a group applies them to <strong className="text-white">all {childCount} child nodes</strong> at once.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <InsufficientBalancePopup
+          isOpen={showInsufficientBalancePopup}
+          onClose={() => setShowInsufficientBalancePopup(false)}
+          requiredAmount={insufficientBalanceInfo.requiredAmount}
+          currentBalance={user?.balance || 0}
+          tierName={insufficientBalanceInfo.tierName}
+        />
+      </div>
+    );
+  }
+
   // ─── NEW DESIGN (Direct Access Keys) ───
   if (isDAK) {
     return (
@@ -437,7 +646,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                             Unlock previous nodes first
                           </div>
                         </div>
-                      ) : nodeStatus === 'Success' ? (
+                      ) : (nodeStatus === 'Success' && (!isGroupNode || (selectedNode.data?.childCount || 0) === 0)) ? (
                         <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-3">
                           <div className="flex items-center justify-between text-emerald-400 text-sm font-medium">
                             <span className="flex items-center gap-2">
@@ -453,7 +662,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                         <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
                           <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            Awaiting Admin Review
+                            Processing
                           </div>
                         </div>
                       ) : (

@@ -483,3 +483,41 @@ html, body {
 .animate-shimmer {
   animation: shimmer 2s infinite;
 }
+
+/* ── GROUP PANEL: stacking card metaphor ── */
+.group-panel-stack {
+  position: relative;
+}
+.group-panel-stack::before,
+.group-panel-stack::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(12, 12, 12, 0.4);
+  pointer-events: none;
+  z-index: -1;
+}
+.group-panel-stack::before {
+  transform: translate(3px, 3px) scale(0.985);
+  opacity: 0.5;
+}
+.group-panel-stack::after {
+  transform: translate(6px, 6px) scale(0.97);
+  opacity: 0.2;
+}
+
+@keyframes group-panel-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.group-panel-enter {
+  animation: group-panel-enter 0.25s ease-out forwards;
+}

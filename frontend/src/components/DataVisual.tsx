@@ -385,6 +385,36 @@ const DataVisual: React.FC<DataVisualProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Success Rate — read-only computed from children (group only) */}
+              {isGroupNode && (() => {
+                const groupRate = selectedNode.data.successRate;
+                if (!groupRate) return null;
+                const groupRateNum = parseInt(groupRate) || 0;
+                const groupRateColor = groupRateNum >= 80 ? 'text-emerald-400' : groupRateNum >= 50 ? 'text-yellow-400' : 'text-red-400';
+                const groupRateBg = groupRateNum >= 80 ? 'bg-emerald-400' : groupRateNum >= 50 ? 'bg-yellow-400' : 'bg-red-400';
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1">
+                        <Gauge size={10} className="text-gray-500" />
+                        <label className="text-[10px] text-gray-500 uppercase tracking-wider">Success Rate</label>
+                        <span className="text-[8px] text-gray-600 font-mono">(avg)</span>
+                      </div>
+                      <span className={`text-xs font-bold font-mono ${groupRateColor}`}>{groupRateNum}%</span>
+                    </div>
+                    <div className="relative h-3 flex items-center">
+                      {/* Track background */}
+                      <div className="absolute inset-x-0 h-1.5 rounded-full bg-white/5 border border-white/10" />
+                      {/* Filled track */}
+                      <div
+                        className={`absolute left-0 h-1.5 rounded-full ${groupRateBg}/30 transition-all duration-500`}
+                        style={{ width: `${groupRateNum}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
             </Section>
           )}
 

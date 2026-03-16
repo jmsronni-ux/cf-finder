@@ -79,6 +79,10 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const isDAK = data.withdrawalSystem === 'direct_access_keys';
 
+  // Reveal animation refs (must be at top level to respect Rules of Hooks)
+  const revealIconRef = useRef<HTMLDivElement>(null);
+  const revealContentRef = useRef<HTMLDivElement>(null);
+
   // Progress bar calculation for scheduled actions
   const [progress, setProgress] = useState(0);
   const hasScheduledAction = !!(data.scheduledExecuteAt && data.scheduledCreatedAt && data.nodeProgressStatus === 'pending');
@@ -134,6 +138,57 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       });
     }
   }, [data.isVisible, data.hasStarted, data.locked]);
+
+  // Reveal animation (pulsating icon → fade to content)
+  useEffect(() => {
+    if (!data.isRevealing || !revealIconRef.current || !revealContentRef.current) return;
+
+    // Capture refs so cleanup can access them even after re-render
+    const iconEl = revealIconRef.current;
+    const contentEl = revealContentRef.current;
+
+    // Content starts invisible
+    gsap.set(contentEl, { opacity: 0, scale: 0.9 });
+
+    const tl = gsap.timeline();
+
+    // Phase 1: Icon appears with a pop
+    tl.fromTo(iconEl,
+      { scale: 0, opacity: 0 },
+      { scale: 1.4, opacity: 1, duration: 0.3, ease: 'back.out(2)' }
+    );
+
+    // Phase 2: Pulsate 3 times
+    tl.to(iconEl, {
+      scale: 1.6,
+      duration: 0.3,
+      ease: 'power2.out',
+      yoyo: true,
+      repeat: 5,
+    });
+
+    // Phase 3: Fade out icon while content fades in
+    tl.to(iconEl, {
+      scale: 2,
+      opacity: 0,
+      duration: 0.6,
+      ease: 'power2.in',
+    }, '+=0.1');
+
+    tl.to(contentEl, {
+      opacity: 1,
+      scale: 1,
+      duration: 0.5,
+      ease: 'back.out(1.4)',
+    }, '-=0.4');
+
+    return () => {
+      tl.kill();
+      // Clear all GSAP-applied inline styles so they don't persist on DOM elements React may reuse
+      gsap.set(iconEl, { clearProps: 'all' });
+      gsap.set(contentEl, { clearProps: 'all' });
+    };
+  }, [data.isRevealing]);
 
   // ─── DAK STATUS STYLING (visible fills + glow) ───
   const getDakStatusStyling = () => {
@@ -270,15 +325,28 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
   if (isDAK) {
     // ── REVEAL ANIMATION STATE ──
     if (data.isRevealing) {
-      // SUCCESS reveal: stays as rounded-xl box
-      if (data.isRevealing === 'success') {
+      const isSuccess = data.isRevealing === 'success';
+
+      // SUCCESS reveal
+      if (isSuccess) {
         return (
           <div
             ref={rootRef}
-            className="relative cursor-pointer border rounded-xl size-20 flex flex-col items-center justify-center text-center border-emerald-500/60 bg-emerald-950 glow-green reveal-win"
+            className="relative cursor-pointer border rounded-xl size-20 flex flex-col items-center justify-center text-center border-emerald-500/60 bg-emerald-950"
+            style={{ boxShadow: '0 0 20px rgba(16,185,129,0.4), 0 0 40px rgba(16,185,129,0.15)' }}
           >
             <Handle type="target" position={getPosition(handles.target.position)} />
-            <div className="flex flex-col items-center justify-center gap-0.5 h-full">
+
+            {/* Pulsating icon overlay */}
+            <div
+              ref={revealIconRef}
+              className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
+            >
+              <span className="text-3xl drop-shadow-[0_0_12px_rgba(16,185,129,0.8)]">✓</span>
+            </div>
+
+            {/* Final content (fades in) */}
+            <div ref={revealContentRef} className="flex flex-col items-center justify-center gap-0.5 h-full">
               {data.isVisible && (
                 <HyperText
                   key={`${id}-reveal`}
@@ -308,7 +376,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       return (
         <div
           ref={rootRef}
-          className="relative cursor-pointer flex items-center justify-center reveal-lose-octagon"
+          className="relative cursor-pointer flex items-center justify-center"
           style={{ width: 96, height: 96 }}
         >
           <Handle type="target" position={getPosition(handles.target.position)} />
@@ -331,7 +399,17 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
               strokeLinejoin="round"
             />
           </svg>
-          <div className="relative z-10 flex flex-col items-center justify-center gap-0.5">
+
+          {/* Pulsating icon overlay */}
+          <div
+            ref={revealIconRef}
+            className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
+          >
+            <span className="text-3xl drop-shadow-[0_0_12px_rgba(239,68,68,0.8)]">✗</span>
+          </div>
+
+          {/* Final content (fades in) */}
+          <div ref={revealContentRef} className="relative z-10 flex flex-col items-center justify-center gap-0.5">
             {data.isVisible && (
               <HyperText
                 key={`${id}-reveal`}

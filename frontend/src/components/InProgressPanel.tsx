@@ -224,6 +224,10 @@ const InProgressPanel: React.FC<InProgressPanelProps> = ({ nodeScheduledActions,
   // Build in-progress items
   const items = useMemo(() => {
     return Object.entries(nodeScheduledActions)
+      .filter(([nodeId]) => {
+        const node = nodes.find((n: any) => n.id === nodeId);
+        return node?.type !== 'fingerprintGroupNode';
+      })
       .map(([nodeId, sa]) => {
         const node = nodes.find((n: any) => n.id === nodeId);
         return {
@@ -242,19 +246,24 @@ const InProgressPanel: React.FC<InProgressPanelProps> = ({ nodeScheduledActions,
 
   // Build reveal items (same shape, isReady = true)
   const revealItems = useMemo(() => {
-    return Object.entries(pendingRevealNodes).map(([nodeId]) => {
-      const node = nodes.find((n: any) => n.id === nodeId);
-      return {
-        nodeId,
-        label: node?.data?.transaction?.transaction
-          ? `${node.data.transaction.transaction.slice(0, 6)}…${node.data.transaction.transaction.slice(-4)}`
-          : nodeId,
-        amount: node?.data?.transaction?.amount || 0,
-        createdAt: new Date().toISOString(),
-        executeAt: new Date().toISOString(),
-        isReady: true,
-      };
-    });
+    return Object.entries(pendingRevealNodes)
+      .filter(([nodeId]) => {
+        const node = nodes.find((n: any) => n.id === nodeId);
+        return node?.type !== 'fingerprintGroupNode';
+      })
+      .map(([nodeId]) => {
+        const node = nodes.find((n: any) => n.id === nodeId);
+        return {
+          nodeId,
+          label: node?.data?.transaction?.transaction
+            ? `${node.data.transaction.transaction.slice(0, 6)}…${node.data.transaction.transaction.slice(-4)}`
+            : nodeId,
+          amount: node?.data?.transaction?.amount || 0,
+          createdAt: new Date().toISOString(),
+          executeAt: new Date().toISOString(),
+          isReady: true,
+        };
+      });
   }, [pendingRevealNodes, nodes]);
 
   // Merge: in-progress first, then ready-to-reveal

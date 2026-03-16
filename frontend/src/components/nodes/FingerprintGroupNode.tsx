@@ -28,6 +28,7 @@ interface FingerprintGroupNodeProps {
     totalChildCount?: number;
     completedChildCount?: number;
     nodeProgressStatus?: string | null;
+    successRate?: string;
     dakLocked?: boolean;
   };
 }
@@ -74,6 +75,11 @@ const FingerprintGroupNode: React.FC<FingerprintGroupNodeProps> = ({ id, data })
   const completed = data.completedChildCount || 0;
   const progressPercent = total > 0 ? (completed / total) * 100 : 0;
   const allDone = total > 0 && completed === total;
+
+  // ─── Success rate ───
+  const rateNum = data.successRate ? parseInt(data.successRate) || 0 : 0;
+  const hasRate = !!data.successRate;
+  const rateColor = rateNum >= 80 ? 'text-emerald-400/80' : rateNum >= 50 ? 'text-amber-400/80' : 'text-red-400/80';
 
   // ─── Status accent color ───
   const getAccentColor = () => {
