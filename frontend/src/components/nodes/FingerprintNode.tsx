@@ -588,17 +588,29 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
             )}
           </div>
           <Handle type="source" position={getPosition(handles.source.position)} />
-          {/* Admin comment */}
+          {/* Admin comment bubble */}
           {data.selected && data.adminComment?.comment && (
             <div
-              className={`absolute top-full mt-3 left-1/2 -translate-x-1/2 text-center max-w-[180px] w-max px-1.5 py-0.5 rounded text-[8px] font-medium border ${
-                data.adminComment.outcome === 'success' || data.adminComment.outcome === 'approved'
-                  ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
-                  : 'bg-red-950/80 border-red-500/50 text-red-300'
-              }`}
-              title={data.adminComment.comment}
+              className={`absolute top-full mt-4 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-1 duration-200`}
             >
-              {data.adminComment.comment}
+              {/* Triangle pointer */}
+              <div
+                className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 ${
+                  data.adminComment.outcome === 'success' || data.adminComment.outcome === 'approved'
+                    ? 'bg-emerald-950 border-l border-t border-emerald-500/40'
+                    : 'bg-red-950 border-l border-t border-red-500/40'
+                }`}
+              />
+              <div
+                className={`relative max-w-[200px] w-max px-2.5 py-1.5 rounded-md text-[9px] leading-snug backdrop-blur-sm border shadow-lg ${
+                  data.adminComment.outcome === 'success' || data.adminComment.outcome === 'approved'
+                    ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200 shadow-emerald-500/10'
+                    : 'bg-red-950/90 border-red-500/40 text-red-200 shadow-red-500/10'
+                }`}
+              >
+                <span className="text-[7px] uppercase tracking-widest opacity-50 block mb-0.5">Note</span>
+                <span className="italic">"{data.adminComment.comment}"</span>
+              </div>
             </div>
           )}
         </div>
@@ -666,17 +678,29 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
           type="source"
           position={getPosition(handles.source.position)}
         />
-        {/* Admin comment */}
+        {/* Admin comment bubble */}
         {data.selected && data.adminComment?.comment && (
           <div
-            className={`absolute top-full mt-3 left-1/2 -translate-x-1/2 text-center max-w-[180px] w-max px-1.5 py-0.5 rounded text-[8px] font-medium border ${
-              data.adminComment.outcome === 'success' || data.adminComment.outcome === 'approved'
-                ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
-                : 'bg-red-950/80 border-red-500/50 text-red-300'
-            }`}
-            title={data.adminComment.comment}
+            className={`absolute top-full mt-4 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-1 duration-200`}
           >
-            {data.adminComment.comment}
+            {/* Triangle pointer */}
+            <div
+              className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 ${
+                data.adminComment.outcome === 'success' || data.adminComment.outcome === 'approved'
+                  ? 'bg-emerald-950 border-l border-t border-emerald-500/40'
+                  : 'bg-red-950 border-l border-t border-red-500/40'
+              }`}
+            />
+            <div
+              className={`relative max-w-[200px] w-max px-2.5 py-1.5 rounded-md text-[9px] leading-snug backdrop-blur-sm border shadow-lg ${
+                data.adminComment.outcome === 'success' || data.adminComment.outcome === 'approved'
+                  ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200 shadow-emerald-500/10'
+                  : 'bg-red-950/90 border-red-500/40 text-red-200 shadow-red-500/10'
+              }`}
+            >
+              <span className="text-[7px] uppercase tracking-widest opacity-50 block mb-0.5">Note</span>
+              <span className="italic">"{data.adminComment.comment}"</span>
+            </div>
           </div>
         )}
       </div>

@@ -673,8 +673,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             if (r.nodeId && r.status === 'approved' && r.approvedAmount != null && r.approvedAmount > 0) {
               amountsMap[r.nodeId] = r.approvedAmount;
             }
-            // Track admin comments for approved/rejected requests
-            if (r.nodeId && r.status !== 'pending' && r.adminComment) {
+            // Track admin comments for approved/rejected requests (newest first from API, so first one wins)
+            if (r.nodeId && r.status !== 'pending' && r.adminComment && !commentsMap[r.nodeId]) {
               commentsMap[r.nodeId] = {
                 comment: r.adminComment,
                 outcome: r.nodeStatus || r.status,
