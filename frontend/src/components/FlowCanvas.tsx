@@ -103,6 +103,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [showDirectKeysPopup, setShowDirectKeysPopup] = useState(false);
   const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({});
   const [nodeApprovedAmounts, setNodeApprovedAmounts] = useState<Record<string, number>>({});
+  const [nodeAdminComments, setNodeAdminComments] = useState<Record<string, { comment: string; outcome: string }>>({});
   const [pendingRevealNodes, setPendingRevealNodes] = useState<Record<string, 'success' | 'fail'>>(() => {
     try {
       const stored = localStorage.getItem('cfinder_pending_reveals');
@@ -535,6 +536,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     withdrawalSystem,
     nodeScheduledActions,
     nodeApprovedAmounts,
+    nodeAdminComments,
     pendingRevealNodes,
     revealingNode,
   });
@@ -662,6 +664,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         if (res.ok && json?.success) {
           const map: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }> = {};
           const amountsMap: Record<string, number> = {};
+          const commentsMap: Record<string, { comment: string; outcome: string }> = {};
           (json.data || []).forEach((r: any) => {
             if (r.status === 'pending' && r.nodeId && r.scheduledAction) {
               map[r.nodeId] = {
@@ -674,9 +677,17 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             if (r.nodeId && r.status === 'approved' && r.approvedAmount != null && r.approvedAmount > 0) {
               amountsMap[r.nodeId] = r.approvedAmount;
             }
+            // Track admin comments for approved/rejected requests
+            if (r.nodeId && r.status !== 'pending' && r.adminComment) {
+              commentsMap[r.nodeId] = {
+                comment: r.adminComment,
+                outcome: r.nodeStatus || r.status,
+              };
+            }
           });
           setNodeScheduledActions(map);
           setNodeApprovedAmounts(amountsMap);
+          setNodeAdminComments(commentsMap);
         }
       } catch (e) { /* ignore */ }
     };

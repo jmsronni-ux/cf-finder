@@ -2,15 +2,12 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Users,
-  Crown,
-  Coins,
   ChevronRight,
   Home,
   Settings,
   ShieldCheck,
   FileText,
   Key,
-  KeyRound,
   UserCircle,
   Copy,
   Send
@@ -60,13 +57,7 @@ const AdminNavigation: React.FC = () => {
     color: 'from-violet-500 to-fuchsia-500',
   });
 
-  navItems.push({
-    name: 'Key Requests',
-    path: '/admin/key-generation',
-    icon: <KeyRound className="w-5 h-5" />,
-    description: 'Manage Direct Access Key generation requests',
-    color: 'from-orange-500 to-yellow-500',
-  });
+
 
   const isActive = (path: string) => {
     return location.pathname.startsWith(path);

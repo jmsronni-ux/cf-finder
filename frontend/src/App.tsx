@@ -18,7 +18,7 @@ import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Toaster } from "sonner";
 import AdminUserPasswords from "./pages/admin/AdminUserPasswords";
-import AdminKeyGenerationRequests from "./pages/admin/AdminKeyGenerationRequests";
+
 
 function App() {
 
@@ -80,11 +80,7 @@ function App() {
             <AdminUserPasswords />
           </ProtectedRoute>
         } />
-        <Route path="/admin/key-generation" element={
-          <ProtectedRoute>
-            <AdminKeyGenerationRequests />
-          </ProtectedRoute>
-        } />
+
         {/* Redirect old /admin/users route to /admin/user-passwords */}
         <Route path="/admin/users" element={
           <ProtectedRoute>

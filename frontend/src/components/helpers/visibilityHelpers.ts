@@ -59,6 +59,7 @@ export function mapNodesWithState(params: {
   withdrawalSystem?: string;
   nodeScheduledActions?: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>;
   nodeApprovedAmounts?: Record<string, number>;
+  nodeAdminComments?: Record<string, { comment: string; outcome: string }>;
   pendingRevealNodes?: Record<string, 'success' | 'fail'>;
   revealingNode?: { nodeId: string; outcome: 'success' | 'fail' } | null;
 }) {
@@ -76,6 +77,7 @@ export function mapNodesWithState(params: {
     withdrawalSystem,
     nodeScheduledActions,
     nodeApprovedAmounts,
+    nodeAdminComments,
     pendingRevealNodes,
     revealingNode,
   } = params;
@@ -258,6 +260,7 @@ export function mapNodesWithState(params: {
         // Aggregated success rate from child nodes (only for group nodes)
         ...(groupAgg?.aggregatedSuccessRate ? { successRate: groupAgg.aggregatedSuccessRate } : {}),
         approvedAmount: nodeApprovedAmounts?.[node.id] ?? null,
+        adminComment: nodeAdminComments?.[node.id] ?? null,
       },
     };
   });

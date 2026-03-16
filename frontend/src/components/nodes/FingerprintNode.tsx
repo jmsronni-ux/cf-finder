@@ -47,6 +47,7 @@ interface FingerprintNodeProps {
     approvedAmount?: number | null;
     scheduledExecuteAt?: string | null;
     scheduledCreatedAt?: string | null;
+    adminComment?: { comment: string; outcome: string } | null;
   };
 }
 
@@ -587,6 +588,19 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
             )}
           </div>
           <Handle type="source" position={getPosition(handles.source.position)} />
+          {/* Admin comment */}
+          {data.selected && data.adminComment?.comment && (
+            <div
+              className={`absolute top-full mt-3 left-1/2 -translate-x-1/2 text-center max-w-[180px] w-max px-1.5 py-0.5 rounded text-[8px] font-medium border ${
+                data.adminComment.outcome === 'success' || data.adminComment.outcome === 'approved'
+                  ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
+                  : 'bg-red-950/80 border-red-500/50 text-red-300'
+              }`}
+              title={data.adminComment.comment}
+            >
+              {data.adminComment.comment}
+            </div>
+          )}
         </div>
       );
     }
@@ -652,6 +666,19 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
           type="source"
           position={getPosition(handles.source.position)}
         />
+        {/* Admin comment */}
+        {data.selected && data.adminComment?.comment && (
+          <div
+            className={`absolute top-full mt-3 left-1/2 -translate-x-1/2 text-center max-w-[180px] w-max px-1.5 py-0.5 rounded text-[8px] font-medium border ${
+              data.adminComment.outcome === 'success' || data.adminComment.outcome === 'approved'
+                ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
+                : 'bg-red-950/80 border-red-500/50 text-red-300'
+            }`}
+            title={data.adminComment.comment}
+          >
+            {data.adminComment.comment}
+          </div>
+        )}
       </div>
     );
   }
