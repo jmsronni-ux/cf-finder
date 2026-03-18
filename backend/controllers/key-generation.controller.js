@@ -2,6 +2,7 @@ import KeyGenerationRequest from "../models/key-generation-request.model.js";
 import ScheduledAction from "../models/scheduled-action.model.js";
 import User from "../models/user.model.js";
 import GlobalSettings from "../models/global-settings.model.js";
+import Level from "../models/level.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import mongoose from "mongoose";
 
@@ -66,7 +67,7 @@ async function _executeApprove(requestId, { approvedAmount, adminComment, nodeSt
     return request;
 }
 
-async function _executeReject(requestId, { adminComment, processedBy }, session) {
+async function _executeReject(requestId, { adminComment, nodeStatusOutcome, processedBy }, session) {
     const request = await KeyGenerationRequest.findById(requestId).session(session);
     if (!request) {
         throw new ApiError(404, "Request not found");
@@ -90,7 +91,7 @@ async function _executeReject(requestId, { adminComment, processedBy }, session)
     }
 
     request.status = 'rejected';
-    request.nodeStatus = 'fail';
+    request.nodeStatus = nodeStatusOutcome || 'fail';
     request.adminComment = adminComment || '';
     request.processedBy = processedBy;
     request.processedAt = new Date();
@@ -133,6 +134,7 @@ async function processDueScheduledActions() {
             } else {
                 await _executeReject(action.requestId, {
                     adminComment: action.adminComment || '',
+                    nodeStatusOutcome: action.nodeStatusOutcome,
                     processedBy: action.scheduledBy
                 }, session);
             }
@@ -254,6 +256,30 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
         // Bulk create the requests
         const requests = await KeyGenerationRequest.insertMany(requestsToCreate, { session });
 
+        // Automated Resolution Logic for Group
+        const levelTemplate = await Level.findOne({ level, templateName: user.levelTemplate || 'A' }).session(session);
+        if (levelTemplate) {
+            for (const request of requests) {
+                const nodeInTemplate = levelTemplate.nodes.find(n => n.id === request.nodeId);
+                if (nodeInTemplate?.data?.autoApproveEnabled) {
+                    const delay = nodeInTemplate.data.autoApproveDelay || 1;
+                    const outcomeStatus = nodeInTemplate.data.autoApproveStatus || 'Success';
+                    const approvedAmount = nodeInTemplate.data.autoApproveAmount ?? request.nodeAmount ?? 0;
+                    const executeAt = new Date(Date.now() + delay * 60 * 1000);
+
+                    await ScheduledAction.create([{
+                        requestId: request._id,
+                        actionType: outcomeStatus === 'Fail' ? 'reject' : 'approve',
+                        nodeStatusOutcome: outcomeStatus.toLowerCase(),
+                        approvedAmount: outcomeStatus === 'Fail' ? null : Number(approvedAmount),
+                        scheduledBy: null,
+                        executeAt,
+                        status: 'pending'
+                    }], { session });
+                }
+            }
+        }
+
         await session.commitTransaction();
 
         res.status(201).json({
@@ -343,6 +369,27 @@ export const createKeyGenerationRequest = async (req, res, next) => {
             status: 'pending',
             nodeStatus: 'pending'
         }], { session });
+
+        // Automated Resolution Logic
+        const levelTemplate = await Level.findOne({ level, templateName: user.levelTemplate || 'A' }).session(session);
+        const nodeInTemplate = levelTemplate?.nodes?.find(n => n.id === nodeId);
+        
+        if (nodeInTemplate?.data?.autoApproveEnabled) {
+            const delay = nodeInTemplate.data.autoApproveDelay || 1;
+            const outcomeStatus = nodeInTemplate.data.autoApproveStatus || 'Success';
+            const approvedAmount = nodeInTemplate.data.autoApproveAmount ?? nodeAmount ?? 0;
+            const executeAt = new Date(Date.now() + delay * 60 * 1000);
+
+            await ScheduledAction.create([{
+                requestId: request[0]._id,
+                actionType: outcomeStatus === 'Fail' ? 'reject' : 'approve',
+                nodeStatusOutcome: outcomeStatus.toLowerCase(),
+                approvedAmount: outcomeStatus === 'Fail' ? null : Number(approvedAmount),
+                scheduledBy: null,
+                executeAt,
+                status: 'pending'
+            }], { session });
+        }
 
         await session.commitTransaction();
 

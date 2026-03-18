@@ -13,7 +13,7 @@ const scheduledActionSchema = new mongoose.Schema({
     },
     nodeStatusOutcome: {
         type: String,
-        enum: ['success', 'fail'],
+        enum: ['success', 'fail', 'cold wallet', 'reported'],
         default: 'success'
     },
     approvedAmount: {
@@ -27,7 +27,7 @@ const scheduledActionSchema = new mongoose.Schema({
     scheduledBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: false
     },
     executeAt: {
         type: Date,

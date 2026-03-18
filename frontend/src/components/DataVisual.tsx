@@ -418,6 +418,75 @@ const DataVisual: React.FC<DataVisualProps> = ({
             </Section>
           )}
 
+          {/* ══════════ Automated Resolution Section ══════════ */}
+          {isAdmin && isFingerprintNode && (
+            <Section title="Automated Resolution" icon={<Gauge size={10} className="text-gray-500" />} defaultOpen={false}>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] text-gray-500 uppercase tracking-wider">Enable Auto-Resolve</label>
+                <button
+                  onClick={() => update({ autoApproveEnabled: !selectedNode.data.autoApproveEnabled })}
+                  className={`w-8 h-4 rounded-full transition-all relative ${selectedNode.data.autoApproveEnabled ? 'bg-purple-500' : 'bg-white/10'}`}
+                >
+                  <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${selectedNode.data.autoApproveEnabled ? 'left-[17px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+
+              {selectedNode.data.autoApproveEnabled && (
+                <div className="space-y-3 dv-slide-in">
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-gray-500 w-20 flex-shrink-0">Delay (Min)</label>
+                    <div className="relative flex-1">
+                      <div className={ICON_WRAP}><Clock size={10} /></div>
+                      <input
+                        type="number" min={1}
+                        value={selectedNode.data.autoApproveDelay || 1}
+                        onChange={(e) => update({ autoApproveDelay: parseInt(e.target.value) || 1 })}
+                        className={INPUT}
+                        placeholder="Delay in minutes"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-gray-500 w-20 flex-shrink-0">Win Amount</label>
+                    <div className="relative flex-1">
+                      <div className={ICON_WRAP}><DollarSign size={10} /></div>
+                      <input
+                        type="number" step="0.00000001"
+                        value={selectedNode.data.autoApproveAmount ?? selectedNode.data.transaction?.amount ?? 0}
+                        onChange={(e) => update({ autoApproveAmount: parseFloat(e.target.value) || 0 })}
+                        className={INPUT}
+                        placeholder="Payout amount"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={LABEL}>Outcome Status</label>
+                    <div className="flex flex-wrap gap-1">
+                      {statusOptions.filter(opt => opt.value !== 'Pending').map((opt) => {
+                        const active = (selectedNode.data.autoApproveStatus || 'Success') === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            onClick={() => update({ autoApproveStatus: opt.value })}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-medium transition-all ${active
+                                ? `${opt.bg} ${opt.border} ${opt.color}`
+                                : 'bg-white/3 border-white/8 text-gray-600 hover:bg-white/6 hover:text-gray-400'
+                              }`}
+                          >
+                            <div className={`w-1.5 h-1.5 rounded-full ${active ? opt.dot : 'bg-gray-700'}`} />
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Section>
+          )}
+
           {/* ══════════ Transaction Section ══════════ */}
           {tx && (
             <Section title="Transaction" icon={<DollarSign size={10} className="text-gray-500" />} defaultOpen={true}>

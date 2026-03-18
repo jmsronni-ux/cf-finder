@@ -344,6 +344,8 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   else if (selectedNode.data.nodeProgressStatus === 'pending') nodeStatus = 'Pending';
   else if (selectedNode.data.nodeProgressStatus === 'success') nodeStatus = 'Success';
   else if (selectedNode.data.nodeProgressStatus === 'fail') nodeStatus = 'Fail';
+  else if (selectedNode.data.nodeProgressStatus === 'cold wallet') nodeStatus = 'Cold Wallet';
+  else if (selectedNode.data.nodeProgressStatus === 'reported') nodeStatus = 'Reported';
 
   // Old design status display
   const getStatusDisplay = (status: string) => {

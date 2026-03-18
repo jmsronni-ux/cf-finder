@@ -35,7 +35,11 @@ const nodeSchema = new mongoose.Schema({
     customParameters: [{
       title: String,
       value: String
-    }]
+    }],
+    autoApproveEnabled: Boolean,
+    autoApproveDelay: Number,
+    autoApproveAmount: Number,
+    autoApproveStatus: String
   },
   position: {
     x: Number,

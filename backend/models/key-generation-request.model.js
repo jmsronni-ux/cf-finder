@@ -44,7 +44,7 @@ const keyGenerationRequestSchema = new mongoose.Schema({
     },
     nodeStatus: {
         type: String,
-        enum: ['pending', 'success', 'fail'],
+        enum: ['pending', 'success', 'fail', 'cold wallet', 'reported'],
         default: 'pending'
     },
     approvedAmount: {

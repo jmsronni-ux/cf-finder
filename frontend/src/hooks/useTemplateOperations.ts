@@ -130,6 +130,10 @@ export const useTemplateOperations = () => {
               cleanNode.data.pending = node.data.pending;
               cleanNode.data.successRate = node.data.successRate;
               cleanNode.data.customParameters = node.data.customParameters;
+              cleanNode.data.autoApproveEnabled = node.data.autoApproveEnabled;
+              cleanNode.data.autoApproveDelay = node.data.autoApproveDelay;
+              cleanNode.data.autoApproveAmount = node.data.autoApproveAmount;
+              cleanNode.data.autoApproveStatus = node.data.autoApproveStatus;
             }
 
             if (node.selected !== undefined) cleanNode.selected = node.selected;

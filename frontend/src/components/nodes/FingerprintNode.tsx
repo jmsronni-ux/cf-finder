@@ -235,6 +235,12 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     if (data.nodeProgressStatus === 'fail') {
       return 'border-red-500/60 bg-red-950';
     }
+    if (data.nodeProgressStatus === 'cold wallet') {
+      return 'border-sky-500/60 bg-sky-950 glow-blue';
+    }
+    if (data.nodeProgressStatus === 'reported') {
+      return 'border-orange-500/60 bg-orange-950 glow-orange';
+    }
     if (data.nodeProgressStatus === 'pending_reveal') {
       return 'border-purple-500/60 bg-purple-950/80 sealed-node';
     }

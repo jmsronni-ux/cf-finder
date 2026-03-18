@@ -100,6 +100,8 @@ const FingerprintGroupNode: React.FC<FingerprintGroupNodeProps> = ({ id, data })
     if (data.blocked || data.locked) return { border: 'border-neutral-600/60', ring: '' };
     if (allDone || data.nodeProgressStatus === 'success') return { border: 'border-emerald-500/40', ring: 'ring-1 ring-emerald-500/20' };
     if (data.nodeProgressStatus === 'pending') return { border: 'border-amber-500/40', ring: 'ring-1 ring-amber-500/20' };
+    if (data.nodeProgressStatus === 'cold wallet') return { border: 'border-sky-500/40', ring: 'ring-1 ring-sky-500/20' };
+    if (data.nodeProgressStatus === 'reported') return { border: 'border-orange-500/40', ring: 'ring-1 ring-orange-500/20' };
     if (data.selected) return { border: 'border-purple-400/50', ring: 'ring-2 ring-purple-400/30' };
     if (completed > 0) return { border: 'border-emerald-500/30', ring: '' };
     return { border: 'border-neutral-500/30', ring: '' };
@@ -111,6 +113,8 @@ const FingerprintGroupNode: React.FC<FingerprintGroupNodeProps> = ({ id, data })
   const getGlowClass = () => {
     if (allDone || data.nodeProgressStatus === 'success') return 'glow-green';
     if (data.nodeProgressStatus === 'pending') return 'glow-yellow';
+    if (data.nodeProgressStatus === 'cold wallet') return 'glow-blue';
+    if (data.nodeProgressStatus === 'reported') return 'glow-orange';
     return '';
   };
 
