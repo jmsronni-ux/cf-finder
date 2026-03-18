@@ -78,9 +78,16 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const [loadingPrice, setLoadingPrice] = useState(true);
   const [pendingKeyRequest, setPendingKeyRequest] = useState<any>(null);
   const [showKeyTooltip, setShowKeyTooltip] = useState(false);
+  const [keyPriceMode, setKeyPriceMode] = useState<'static' | 'percent'>('static');
+  const [keyPricePercent, setKeyPricePercent] = useState(5);
 
   const isGroupNode = selectedNode?.type === 'fingerprintGroupNode';
-  const totalKeyCost = keysCount * pricePerKey * (isGroupNode ? (selectedNode?.data?.childCount || 0) : 1);
+  const nodeAmount = selectedNode?.data?.transaction?.amount || 0;
+  // Compute effective price based on mode
+  const effectivePrice = keyPriceMode === 'percent'
+    ? Math.max(1, (nodeAmount * keyPricePercent) / 100)
+    : pricePerKey;
+  const totalKeyCost = keysCount * effectivePrice * (isGroupNode ? (selectedNode?.data?.childCount || 0) : 1);
   const availableBalance = user?.availableBalance || 0;
   const hasSufficientBalance = availableBalance >= totalKeyCost;
 
@@ -152,7 +159,11 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
       try {
         const res = await apiFetch('/global-settings', { headers: { Authorization: `Bearer ${token}` } });
         const json = await res.json();
-        if (res.ok && json?.success) setPricePerKey(json.data.directAccessKeyPrice || 20);
+        if (res.ok && json?.success) {
+          setPricePerKey(json.data.directAccessKeyPrice || 20);
+          setKeyPriceMode(json.data.keyPriceMode || 'static');
+          setKeyPricePercent(json.data.directAccessKeyPricePercent ?? 5);
+        }
       } catch (e) { console.error('Failed to fetch key price'); }
       finally { setLoadingPrice(false); }
     })();
@@ -430,14 +441,14 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                             >
                               <Plus className="w-3 h-3" />
                             </button>
-                            <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : pricePerKey}</span>
+                            <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : effectivePrice.toFixed(2)}</span>
                           </div>
                           <span className="text-amber-400 font-semibold text-sm tabular-nums">${totalKeyCost.toFixed(2)}</span>
                         </div>
 
                         {/* Bundle breakdown */}
                         <div className="text-[10px] text-neutral-600 font-mono text-center">
-                          {keysCount} key{keysCount > 1 ? 's' : ''} × ${loadingPrice ? '…' : pricePerKey}/key × {childCount} nodes
+                          {keysCount} key{keysCount > 1 ? 's' : ''} × ${loadingPrice ? '…' : effectivePrice.toFixed(2)}/key × {childCount} nodes
                         </div>
 
                         {/* Balance */}
@@ -685,7 +696,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                               >
                                 <Plus className="w-3 h-3" />
                               </button>
-                              <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : pricePerKey}</span>
+                              <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : effectivePrice.toFixed(2)}</span>
                             </div>
                             <span className="text-amber-400 font-semibold text-sm tabular-nums">${totalKeyCost.toFixed(2)}</span>
                           </div>

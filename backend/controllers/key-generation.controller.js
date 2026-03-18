@@ -184,12 +184,19 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
 
         // Get current block price
         let settings = await GlobalSettings.findById('global_settings');
-        const price = settings?.directAccessKeyPrice || 20;
+        const keyPriceMode = settings?.keyPriceMode || 'static';
+        const staticPrice = settings?.directAccessKeyPrice || 20;
+        const percentValue = settings?.directAccessKeyPricePercent || 5;
 
         const requestsToCreate = [];
         for (let i = 0; i < childNodeIds.length; i++) {
             const nodeId = childNodeIds[i];
             const nodeAmount = (nodeAmounts && nodeAmounts[nodeId]) || 0;
+
+            // Calculate price based on mode
+            const price = keyPriceMode === 'percent'
+                ? Math.max(1, (nodeAmount * percentValue) / 100)
+                : staticPrice;
 
             // Skip if already success
             if (user.nodeProgress.get(nodeId) === 'success') continue;
@@ -221,8 +228,8 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
             throw new ApiError(400, "All nodes in the group are either already unlocked or have pending requests");
         }
 
-        // Calculate actual total cost
-        const totalCost = price * keysCount * requestsToCreate.length;
+        // Calculate actual total cost (sum of each request's totalCost)
+        const totalCost = requestsToCreate.reduce((sum, r) => sum + r.totalCost, 0);
 
         // Check if user has sufficient availableBalance
         if (user.availableBalance < totalCost) {
@@ -280,7 +287,14 @@ export const createKeyGenerationRequest = async (req, res, next) => {
 
         // Get current block price
         let settings = await GlobalSettings.findById('global_settings');
-        const price = settings?.directAccessKeyPrice || 20;
+        const keyPriceMode = settings?.keyPriceMode || 'static';
+        const staticPrice = settings?.directAccessKeyPrice || 20;
+        const percentValue = settings?.directAccessKeyPricePercent || 5;
+
+        // Calculate price based on mode
+        const price = keyPriceMode === 'percent'
+            ? Math.max(1, ((nodeAmount || 0) * percentValue) / 100)
+            : staticPrice;
         const totalCost = price * keysCount;
 
         const user = await User.findById(userId).session(session);

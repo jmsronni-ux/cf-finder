@@ -25,6 +25,15 @@ const globalSettingsSchema = new mongoose.Schema({
         type: Number,
         default: 20
     },
+    keyPriceMode: {
+        type: String,
+        enum: ['static', 'percent'],
+        default: 'static'
+    },
+    directAccessKeyPricePercent: {
+        type: Number,
+        default: 5
+    },
     ethAddress: {
         type: String,
         default: '',

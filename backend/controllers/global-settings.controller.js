@@ -18,7 +18,9 @@ export const getGlobalSettings = async (req, res, next) => {
                 bethAddress: '',
                 dashboardPanelVisible: true,
                 withdrawalSystem: 'current',
-                directAccessKeyPrice: 20
+                directAccessKeyPrice: 20,
+                keyPriceMode: 'static',
+                directAccessKeyPricePercent: 5
             });
         }
 
@@ -49,7 +51,9 @@ export const updateGlobalSettings = async (req, res, next) => {
             bethAddress,
             dashboardPanelVisible,
             withdrawalSystem,
-            directAccessKeyPrice
+            directAccessKeyPrice,
+            keyPriceMode,
+            directAccessKeyPricePercent
         } = req.body;
 
         let settings = await GlobalSettings.findById('global_settings');
@@ -65,7 +69,9 @@ export const updateGlobalSettings = async (req, res, next) => {
                 bethAddress: bethAddress || '',
                 dashboardPanelVisible: dashboardPanelVisible !== undefined ? dashboardPanelVisible : true,
                 withdrawalSystem: withdrawalSystem || 'current',
-                directAccessKeyPrice: directAccessKeyPrice !== undefined ? directAccessKeyPrice : 20
+                directAccessKeyPrice: directAccessKeyPrice !== undefined ? directAccessKeyPrice : 20,
+                keyPriceMode: keyPriceMode || 'static',
+                directAccessKeyPricePercent: directAccessKeyPricePercent !== undefined ? directAccessKeyPricePercent : 5
             });
         } else {
             // Update existing
@@ -77,6 +83,8 @@ export const updateGlobalSettings = async (req, res, next) => {
             if (dashboardPanelVisible !== undefined) settings.dashboardPanelVisible = dashboardPanelVisible;
             if (withdrawalSystem !== undefined) settings.withdrawalSystem = withdrawalSystem;
             if (directAccessKeyPrice !== undefined) settings.directAccessKeyPrice = directAccessKeyPrice;
+            if (keyPriceMode !== undefined) settings.keyPriceMode = keyPriceMode;
+            if (directAccessKeyPricePercent !== undefined) settings.directAccessKeyPricePercent = directAccessKeyPricePercent;
 
             settings.updatedAt = Date.now();
             await settings.save();

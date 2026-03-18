@@ -29,8 +29,14 @@ export const DirectAccessKeysPopup: React.FC<DirectAccessKeysPopupProps> = ({
   const [loadingPrice, setLoadingPrice] = useState(true);
   const [pendingRequest, setPendingRequest] = useState<any>(null);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [keyPriceMode, setKeyPriceMode] = useState<'static' | 'percent'>('static');
+  const [keyPricePercent, setKeyPricePercent] = useState(5);
 
-  const totalCost = keysCount * pricePerKey;
+  // Calculate effective price: if percent mode, derive from nodeAmount
+  const effectivePrice = keyPriceMode === 'percent'
+    ? Math.max(1, ((nodeAmount || 0) * keyPricePercent) / 100)
+    : pricePerKey;
+  const totalCost = keysCount * effectivePrice;
   const availableBalance = user?.availableBalance || 0;
   const hasSufficientBalance = availableBalance >= totalCost;
 
@@ -51,6 +57,8 @@ export const DirectAccessKeysPopup: React.FC<DirectAccessKeysPopupProps> = ({
       const json = await res.json();
       if (res.ok && json?.success) {
         setPricePerKey(json.data.directAccessKeyPrice || 20);
+        setKeyPriceMode(json.data.keyPriceMode || 'static');
+        setKeyPricePercent(json.data.directAccessKeyPricePercent ?? 5);
       }
     } catch (e) {
       console.error('Failed to fetch key price');
@@ -158,9 +166,14 @@ export const DirectAccessKeysPopup: React.FC<DirectAccessKeysPopupProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-400">Cost per Node Key</span>
                 <span className="text-lg font-bold text-white">
-                  {loadingPrice ? <Loader2 className="w-4 h-4 animate-spin" /> : `$${pricePerKey} USD`}
+                  {loadingPrice ? <Loader2 className="w-4 h-4 animate-spin" /> : `$${effectivePrice.toFixed(2)} USD`}
                 </span>
               </div>
+              {keyPriceMode === 'percent' && !loadingPrice && (
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {keyPricePercent}% of ${(nodeAmount || 0).toLocaleString()} node amount
+                </p>
+              )}
             </div>
 
             {/* Key Quantity Selector */}
