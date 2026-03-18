@@ -30,6 +30,8 @@ interface FingerprintGroupNodeProps {
     nodeProgressStatus?: string | null;
     successRate?: string;
     dakLocked?: boolean;
+    level?: number;
+    user?: any;
   };
 }
 
@@ -61,12 +63,24 @@ const FingerprintGroupNode: React.FC<FingerprintGroupNodeProps> = ({ id, data })
     if (data.hasStarted && !data.isVisible) {
       gsap.set(rootRef.current, { opacity: 0, scale: 0.5 });
     } else if (data.isVisible) {
-      gsap.to(rootRef.current, {
-        opacity: 1,
-        scale: 1,
-        duration: 0.5,
-        ease: 'back.out(1.7)',
-      });
+      // If we already animated this node (e.g. level already watched), skip animation
+      const nodeLevel = data.level ?? 1;
+      const hasWatchedNodeLevel = data.user?.[`lvl${nodeLevel}anim` as keyof typeof data.user] === 1;
+
+      if (hasWatchedNodeLevel) {
+        gsap.set(rootRef.current, { opacity: 1, scale: 1 });
+      } else {
+        gsap.fromTo(rootRef.current,
+          { opacity: 0, scale: 0.5 },
+          {
+            opacity: 1,
+            scale: 1,
+            duration: 0.5,
+            ease: 'back.out(1.7)',
+            overwrite: 'auto'
+          }
+        );
+      }
     }
   }, [data.isVisible, data.hasStarted, data.locked]);
 

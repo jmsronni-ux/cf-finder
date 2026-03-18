@@ -261,6 +261,8 @@ export function mapNodesWithState(params: {
         ...(groupAgg?.aggregatedSuccessRate ? { successRate: groupAgg.aggregatedSuccessRate } : {}),
         approvedAmount: nodeApprovedAmounts?.[node.id] ?? null,
         adminComment: nodeAdminComments?.[node.id] ?? null,
+        user,
+        level: nodeLevel,
       },
     };
   });

@@ -124,19 +124,38 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     }
 
     if (data.hasStarted && !data.isVisible) {
-      // Hide initially
+      // Ensure the node is hidden if animation started but it's not its turn yet
       gsap.set(rootRef.current, {
         opacity: 0,
         scale: 0.5,
       });
     } else if (data.isVisible) {
-      // Animate in
-      gsap.to(rootRef.current, {
-        opacity: 1,
-        scale: 1,
-        duration: 0.5,
-        ease: 'back.out(1.7)',
-      });
+      // If we already animated this node (e.g. level already watched or animation finished),
+      // we can skip the animated transition and just set the final state.
+      // But for current level animation, we want the smooth "from" state.
+      const hasWatchedCurrentLevel = data.user?.[`lvl${data.level ?? 1}anim` as keyof typeof data.user] === 1;
+
+      if (hasWatchedCurrentLevel) {
+        gsap.set(rootRef.current, {
+          opacity: 1,
+          scale: 1,
+        });
+      } else {
+        // Staggered appear animation using fromTo to handle mount transition
+        gsap.fromTo(rootRef.current, 
+          { 
+            opacity: 0, 
+            scale: 0.5 
+          },
+          {
+            opacity: 1,
+            scale: 1,
+            duration: 0.5,
+            ease: 'back.out(1.7)',
+            overwrite: 'auto'
+          }
+        );
+      }
     }
   }, [data.isVisible, data.hasStarted, data.locked]);
 

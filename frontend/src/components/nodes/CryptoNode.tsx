@@ -19,6 +19,8 @@ interface CryptoNodeProps {
         position: string;
       };
     };
+    level?: number;
+    user?: any;
   };
 }
 
@@ -95,19 +97,30 @@ const CryptoNode: React.FC<CryptoNodeProps> = ({ data }) => {
     if (!rootRef.current) return;
     
     if (data.hasStarted && !data.isVisible) {
-      // Hide initially
+      // Ensure the node is hidden if animation started but it's not its turn yet
       gsap.set(rootRef.current, {
         opacity: 0,
         scale: 0.5,
       });
     } else if (data.isVisible) {
-      // Animate in
-      gsap.to(rootRef.current, {
-        opacity: 1,
-        scale: 1,
-        duration: 0.6,
-        ease: 'elastic.out(1, 0.5)',
-      });
+      // If we already animated this node (e.g. level already watched), skip animation
+      const nodeLevel = data.level ?? 1;
+      const hasWatchedNodeLevel = data.user?.[`lvl${nodeLevel}anim` as keyof typeof data.user] === 1;
+
+      if (hasWatchedNodeLevel) {
+        gsap.set(rootRef.current, { opacity: 1, scale: 1 });
+      } else {
+        gsap.fromTo(rootRef.current,
+          { opacity: 0, scale: 0.5 },
+          {
+            opacity: 1,
+            scale: 1,
+            duration: 0.6,
+            ease: 'elastic.out(1, 0.5)',
+            overwrite: 'auto'
+          }
+        );
+      }
     }
   }, [data.isVisible, data.hasStarted]);
 
