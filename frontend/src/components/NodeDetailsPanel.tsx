@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import FakeTerminal from './FakeTerminal';
 import { Calendar, Hash, DollarSign, CheckCircle2, Clock, XCircle, FileText, User, Wallet, KeyRound, Snowflake, AlertTriangle, X, Minus, Plus, Loader2, Info, Settings, Layers } from 'lucide-react';
 import { PulsatingButton } from './ui/pulsating-button';
 import { Button } from './ui/button';
@@ -21,31 +22,105 @@ interface NodeDetailsPanelProps {
   onKeyGenerationSuccess?: () => void;
 }
 
-// Progress bar sub-component for scheduled actions
-const ScheduledProgressBar: React.FC<{ executeAt: string; createdAt: string }> = ({ executeAt, createdAt }) => {
+// Progress bar sub-component removed — replaced by ProcessingSteps below
+
+// 3-step milestone tracker for processing states
+const PROCESSING_STEPS = [
+  { label: 'Scanning Blockchain', threshold: 0 },
+  { label: 'Tracing Fund Path', threshold: 35 },
+  { label: 'Initiating Recovery', threshold: 70 },
+];
+
+const ProcessingSteps: React.FC<{ executeAt?: string; createdAt?: string }> = ({ executeAt, createdAt }) => {
   const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
-    const start = new Date(createdAt).getTime();
-    const end = new Date(executeAt).getTime();
-    const total = end - start;
-    if (total <= 0) { setProgress(100); return; }
+    if (executeAt && createdAt) {
+      const start = new Date(createdAt).getTime();
+      const end = new Date(executeAt).getTime();
+      const total = end - start;
+      if (total <= 0) { setProgress(100); return; }
 
-    const update = () => {
-      const elapsed = Date.now() - start;
-      setProgress(Math.min(100, Math.max(0, (elapsed / total) * 100)));
-    };
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
+      const update = () => {
+        const elapsed = Date.now() - start;
+        setProgress(Math.min(100, Math.max(0, (elapsed / total) * 100)));
+      };
+      update();
+      const interval = setInterval(update, 1000);
+      return () => clearInterval(interval);
+    } else {
+      let p = 0;
+      const interval = setInterval(() => {
+        p += 0.3 + Math.random() * 0.5;
+        if (p > 95) p = 95;
+        setProgress(p);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
   }, [executeAt, createdAt]);
 
+  // Determine step states
+  const getStepState = (i: number) => {
+    const isReached = progress >= PROCESSING_STEPS[i].threshold;
+    const isLast = i === PROCESSING_STEPS.length - 1;
+    const isPassed = isReached && (isLast ? progress >= 90 : progress >= PROCESSING_STEPS[i + 1].threshold);
+    const isActive = isReached && !isPassed;
+    return { isReached, isPassed, isActive };
+  };
+
   return (
-    <div className="mt-2.5 w-full h-1.5 rounded-full overflow-hidden bg-amber-900/30">
+    <div className="mt-3 relative">
+      {/* Connecting line background */}
+      <div className="absolute top-[9px] left-[9px] right-[9px] h-[2px] bg-white/[0.06] rounded-full" />
+      {/* Connecting line fill — green for passed, amber for active */}
       <div
-        className="h-full bg-amber-400 rounded-full transition-[width] duration-1000 ease-linear"
-        style={{ width: `${progress}%` }}
+        className="absolute top-[9px] left-[9px] h-[2px] rounded-full transition-all duration-1000 ease-linear"
+        style={{
+          width: `calc(${Math.min(progress, 100)}% - 18px)`,
+          background: progress >= PROCESSING_STEPS[PROCESSING_STEPS.length - 1].threshold
+            ? 'rgb(52, 211, 153)' // emerald-400
+            : `linear-gradient(to right, rgb(52, 211, 153) ${Math.max(0, progress - 15)}%, rgb(245, 158, 11) 100%)`,
+        }}
       />
+      {/* Traveling dot */}
+      <div
+        className={`absolute top-[5px] w-[10px] h-[10px] rounded-full transition-all duration-1000 ease-linear z-10 ${
+          progress >= PROCESSING_STEPS[PROCESSING_STEPS.length - 1].threshold
+            ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
+            : 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+        }`}
+        style={{ left: `calc(${Math.min(progress, 100)}% - 14px)` }}
+      />
+      {/* Step circles + labels */}
+      <div className="flex justify-between relative z-20">
+        {PROCESSING_STEPS.map((step, i) => {
+          const { isReached, isPassed, isActive } = getStepState(i);
+          return (
+            <div key={i} className="flex flex-col items-center" style={{ width: '33.33%' }}>
+              <div
+                className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all duration-500 ${
+                  isPassed
+                    ? 'border-emerald-400 bg-[#0a1a14]'
+                    : isActive
+                      ? 'border-amber-400 bg-amber-400/20'
+                      : 'border-white/10 bg-[#0c0c0c]'
+                }`}
+              >
+                {isPassed ? (
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                ) : isActive ? (
+                  <div className="w-[6px] h-[6px] rounded-full bg-amber-400 animate-pulse" />
+                ) : null}
+              </div>
+              <span className={`text-[9px] mt-1.5 text-center leading-tight transition-colors duration-500 ${
+                isPassed ? 'text-emerald-400 font-medium' : isActive ? 'text-amber-400 font-medium' : 'text-neutral-600'
+              }`}>
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -378,20 +453,25 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                         const sa = pendingKeyRequest.scheduledAction;
                         const hasSchedule = sa?.executeAt && sa?.createdAt;
                         return (
-                          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
-                            <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              Processing Bundle
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                Processing Bundle
+                              </div>
+                              <span className="text-neutral-500 text-[10px] font-mono tabular-nums">
+                                {pendingKeyRequest.keysCount}× · {childCount}n
+                              </span>
                             </div>
-                            <p className="text-neutral-400 text-xs mt-1.5">
+                            <FakeTerminal />
+                            <p className="text-neutral-500 text-[10px] font-mono text-center">
                               {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''} × {childCount} nodes · ${pendingKeyRequest.totalCost?.toFixed(2)} USD
                             </p>
-                            {hasSchedule && (
-                              <ScheduledProgressBar
-                                executeAt={sa.executeAt}
-                                createdAt={sa.createdAt}
-                              />
-                            )}
+
+                            <ProcessingSteps
+                              executeAt={sa?.executeAt}
+                              createdAt={sa?.createdAt}
+                            />
                           </div>
                         );
                       })()
@@ -415,11 +495,13 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                         </div>
                       </div>
                     ) : nodeStatus === 'Pending' ? (
-                      <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
+                      <div className="space-y-2.5">
                         <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          Processing
+                          Processing Bundle
                         </div>
+                        <FakeTerminal />
+                        <ProcessingSteps />
                       </div>
                     ) : (
                       /* ─── Bundle key generation ─── */
@@ -633,20 +715,25 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                           const sa = pendingKeyRequest.scheduledAction;
                           const hasSchedule = sa?.executeAt && sa?.createdAt;
                           return (
-                            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
-                              <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                Processing Request
+                            <div className="space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  Processing Request
+                                </div>
+                                <span className="text-neutral-500 text-[10px] font-mono tabular-nums">
+                                  {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''}
+                                </span>
                               </div>
-                              <p className="text-neutral-400 text-xs mt-1.5">
+                              <FakeTerminal />
+                              <p className="text-neutral-500 text-[10px] font-mono text-center">
                                 {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''} · ${pendingKeyRequest.totalCost?.toFixed(2)} USD
                               </p>
-                              {hasSchedule && (
-                                <ScheduledProgressBar
-                                  executeAt={sa.executeAt}
-                                  createdAt={sa.createdAt}
-                                />
-                              )}
+
+                              <ProcessingSteps
+                                executeAt={sa?.executeAt}
+                                createdAt={sa?.createdAt}
+                              />
                             </div>
                           );
                         })()
@@ -670,11 +757,13 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                           </div>
                         </div>
                       ) : nodeStatus === 'Pending' ? (
-                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3.5 py-3">
+                        <div className="space-y-2.5">
                           <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             Processing
                           </div>
+                          <FakeTerminal />
+                          <ProcessingSteps />
                         </div>
                       ) : (
                         /* Key generation */
