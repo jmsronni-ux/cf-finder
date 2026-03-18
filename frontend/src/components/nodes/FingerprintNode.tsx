@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Handle } from 'reactflow';
 import { gsap } from 'gsap';
-import { Fingerprint, Lock, CheckCircle } from 'lucide-react';
+import { Fingerprint, Lock, CheckCircle, Shield, Loader2, Check, X } from 'lucide-react';
 import { HyperText } from '@/components/ui/hyper-text';
+import confetti from 'canvas-confetti';
 
 interface FingerprintNodeProps {
   id: string;
@@ -86,6 +87,8 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
 
   // Progress bar calculation for scheduled actions
   const [progress, setProgress] = useState(0);
+  // Verification steps animation phase: 'idle' | 0 | 1 | 2 | 'done'
+  const [verifyPhase, setVerifyPhase] = useState<'idle' | 0 | 1 | 2 | 'done'>('idle');
   const hasScheduledAction = !!(data.scheduledExecuteAt && data.scheduledCreatedAt && data.nodeProgressStatus === 'pending');
 
   useEffect(() => {
@@ -463,23 +466,173 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
 
     // ── SEALED "MYSTERY" STATE (pending_reveal) ──
     if (data.nodeProgressStatus === 'pending_reveal') {
+      const VERIFY_STEPS = [
+        { label: 'Signature', icon: Shield },
+        { label: 'Block Hash', icon: Fingerprint },
+        { label: 'Finalize', icon: CheckCircle },
+      ];
+
+      // Determine outcome for step 3 from revealOutcome prop
+      const finalOutcome = data.revealOutcome ?? 'success';
+
+      const handleVerifyClick = () => {
+        if (verifyPhase !== 'idle') return;
+        setVerifyPhase(0);
+        setTimeout(() => setVerifyPhase(1), 900);
+        setTimeout(() => setVerifyPhase(2), 1800);
+        setTimeout(() => {
+          setVerifyPhase('done');
+          // Fire confetti + celebration sound on success
+          if (finalOutcome === 'success') {
+            const colors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0'];
+            confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors });
+            setTimeout(() => confetti({ particleCount: 30, spread: 50, origin: { y: 0.5 }, colors }), 200);
+            // Ascending arpeggio chime (C5 → E5 → G5 → C6)
+            try {
+              const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const notes = [523.25, 659.25, 783.99, 1046.5];
+              notes.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                const t = ctx.currentTime + i * 0.1;
+                gain.gain.setValueAtTime(0.15, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+                osc.start(t);
+                osc.stop(t + 0.4);
+              });
+              setTimeout(() => ctx.close(), 1000);
+            } catch { /* ignore audio errors */ }
+          } else {
+            // Descending buzzer for fail (E5 → C4)
+            try {
+              const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const notes = [659.25, 523.25, 392.0, 261.63];
+              notes.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'square';
+                osc.frequency.value = freq;
+                const t = ctx.currentTime + i * 0.12;
+                gain.gain.setValueAtTime(0.08, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                osc.start(t);
+                osc.stop(t + 0.3);
+              });
+              setTimeout(() => ctx.close(), 1000);
+            } catch { /* ignore audio errors */ }
+          }
+          // After steps complete, trigger the reveal
+          setTimeout(() => data.onReveal?.(id), 600);
+        }, 2700);
+      };
+
+      const getStepStatus = (index: number) => {
+        if (verifyPhase === 'idle') return 'pending';
+        if (typeof verifyPhase === 'number') {
+          if (index < verifyPhase) return 'success'; // previous steps always succeed
+          if (index === verifyPhase) return 'loading';
+          return 'pending';
+        }
+        // verifyPhase === 'done'
+        if (index < 2) return 'success';
+        return finalOutcome === 'success' ? 'success' : 'fail';
+      };
+
       return (
         <div
           ref={rootRef}
-          className="relative cursor-pointer size-[100px] flex items-center justify-center"
-          onClick={() => data.onReveal?.(id)}
+          className="relative cursor-pointer flex items-center justify-center"
+          style={{ width: 140, height: 160 }}
         >
           <Handle type="target" position={getPosition(handles.target.position)} />
 
-          {/* Sealed circle */}
-          <div className="relative size-[76px] rounded-full bg-gradient-to-br from-purple-950 to-neutral-900 border-2 border-purple-500/40 flex flex-col items-center justify-center sealed-node overflow-hidden z-10 hover:scale-105 transition-transform">
+          {/* Card container */}
+          <div className="relative w-[130px] rounded-xl bg-gradient-to-b from-neutral-900 to-neutral-950 border border-amber-500/25 flex flex-col items-stretch overflow-hidden backdrop-blur-sm shadow-[0_0_24px_rgba(245,158,11,0.15),0_0_48px_rgba(245,158,11,0.05)]">
             {/* Shimmer overlay */}
-            <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden rounded-full">
-              <div className="absolute top-0 -left-full w-1/2 h-full bg-gradient-to-r from-transparent via-purple-400/10 to-transparent animate-[shimmer-processing_3s_ease-in-out_infinite]" />
+            {verifyPhase === 'idle' && (
+              <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden rounded-xl">
+                <div className="absolute top-0 -left-full w-1/2 h-full bg-gradient-to-r from-transparent via-amber-400/8 to-transparent animate-[shimmer-processing_3s_ease-in-out_infinite]" />
+              </div>
+            )}
+
+            {/* Steps list */}
+            <div className="flex flex-col gap-0 px-2.5 pt-2.5 pb-1.5">
+              {VERIFY_STEPS.map((step, idx) => {
+                const status = getStepStatus(idx);
+                const StepIcon = step.icon;
+                return (
+                  <div key={idx} className="flex items-center gap-2 py-[5px]">
+                    {/* Step status indicator */}
+                    <div className={`
+                      flex-shrink-0 w-[18px] h-[18px] rounded-full flex items-center justify-center transition-all duration-300
+                      ${status === 'pending' ? 'bg-white/5 border border-white/15' : ''}
+                      ${status === 'loading' ? 'bg-amber-500/20 border border-amber-400/50' : ''}
+                      ${status === 'success' ? 'bg-emerald-500/20 border border-emerald-500/50' : ''}
+                      ${status === 'fail' ? 'bg-red-500/20 border border-red-500/50' : ''}
+                    `}>
+                      {status === 'pending' && (
+                        <StepIcon size={9} className="text-white/30" />
+                      )}
+                      {status === 'loading' && (
+                        <Loader2 size={10} className="text-amber-300 animate-spin" />
+                      )}
+                      {status === 'success' && (
+                        <Check size={10} className="text-emerald-400" />
+                      )}
+                      {status === 'fail' && (
+                        <X size={10} className="text-red-400" />
+                      )}
+                    </div>
+
+                    {/* Step label */}
+                    <span className={`
+                      text-[9px] font-medium tracking-wide uppercase transition-colors duration-300
+                      ${status === 'pending' ? 'text-white/30' : ''}
+                      ${status === 'loading' ? 'text-amber-200' : ''}
+                      ${status === 'success' ? 'text-emerald-300/80' : ''}
+                      ${status === 'fail' ? 'text-red-300/80' : ''}
+                    `}>
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Floating question mark */}
-            <span className="text-purple-300/80 text-2xl font-bold select-none">?</span>
+            {/* Divider */}
+            <div className="h-px bg-white/5 mx-2" />
+
+            {/* Verify button */}
+            <div className="px-2.5 py-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleVerifyClick();
+                }}
+                disabled={verifyPhase !== 'idle'}
+                className={`
+                  w-full py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all duration-300
+                  ${verifyPhase === 'idle'
+                    ? 'bg-gradient-to-r from-amber-600/60 to-amber-500/50 hover:from-amber-500/70 hover:to-amber-400/60 text-white border border-amber-500/40 hover:border-amber-400/60 shadow-[0_0_16px_rgba(245,158,11,0.25)] hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] cursor-pointer active:scale-95 animate-pulse'
+                    : verifyPhase === 'done'
+                      ? finalOutcome === 'success'
+                        ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
+                        : 'bg-red-600/30 text-red-300 border border-red-500/40'
+                      : 'bg-amber-600/15 text-amber-300/60 border border-amber-500/20 cursor-wait'
+                  }
+                `}
+              >
+                {verifyPhase === 'idle' && 'Verify'}
+                {typeof verifyPhase === 'number' && 'Checking...'}
+                {verifyPhase === 'done' && (finalOutcome === 'success' ? '✓ Verified' : '✗ Failed')}
+              </button>
+            </div>
           </div>
 
           <Handle type="source" position={getPosition(handles.source.position)} />

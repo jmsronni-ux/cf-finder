@@ -91,26 +91,21 @@ const ProgressRow: React.FC<{
   const end = new Date(executeAt).getTime();
   const remaining = Math.max(0, end - Date.now());
 
-  // Determine color scheme: amber for in-progress, purple for ready-to-reveal
-  const dotColor = isReady ? 'bg-purple-400' : 'bg-amber-400';
-  const textColor = isReady ? 'text-purple-400' : 'text-amber-400';
+  // Determine color scheme: amber for in-progress, green for ready-to-reveal
+  const dotColor = isReady ? 'bg-emerald-400' : 'bg-amber-400';
+  const textColor = isReady ? 'text-emerald-400' : 'text-amber-400';
   const gradientBg = isReady
-    ? 'linear-gradient(90deg, #a855f7, #7c3aed)'
+    ? 'linear-gradient(90deg, #10b981, #059669)'
     : 'linear-gradient(90deg, #f59e0b, #f97316)';
-  const hoverBg = isReady ? 'hover:bg-purple-500/[0.06]' : 'hover:bg-white/[0.03]';
+  const hoverBg = isReady ? 'hover:bg-emerald-500/[0.06]' : 'hover:bg-white/[0.03]';
 
   return (
     <div
       className={`py-3 px-5 border-b border-white/[0.04] last:border-b-0 cursor-pointer transition-colors ${hoverBg}`}
       onClick={() => {
-        if (isReady && onReveal) {
-          onFocus(nodeId);
-          setTimeout(() => onReveal(nodeId), 600);
-        } else {
-          onFocus(nodeId);
-        }
+        onFocus(nodeId);
       }}
-      title={isReady ? 'Click to reveal result' : 'Click to focus on node'}
+      title={isReady ? 'Click to focus on node' : 'Click to focus on node'}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -123,7 +118,7 @@ const ProgressRow: React.FC<{
           <span className="text-neutral-300 text-xs truncate">{label || nodeId}</span>
         </div>
         <span className={`text-xs font-mono font-semibold tabular-nums ml-3 flex-shrink-0 ${textColor}`}>
-          {isReady ? 'Tap to open' : `${Math.round(progress)}%`}
+          {isReady ? 'Complete' : `${Math.round(progress)}%`}
         </span>
       </div>
       {/* Progress bar — always shown, purple when at 100% */}
@@ -135,8 +130,8 @@ const ProgressRow: React.FC<{
       </div>
       <div className="flex items-center justify-between mt-1.5 ml-[18px]">
         <span className="text-neutral-600 text-[11px] font-mono">${amount.toFixed(0)}</span>
-        <span className={`text-[11px] ${isReady ? 'text-purple-500/60' : 'text-neutral-600'}`}>
-          {isReady ? 'Complete' : formatApproxTime(remaining)}
+        <span className={`text-[11px] ${isReady ? 'text-emerald-500/60' : 'text-neutral-600'}`}>
+          {isReady ? 'Tap to view' : formatApproxTime(remaining)}
         </span>
       </div>
     </div>
@@ -327,7 +322,7 @@ const InProgressPanel: React.FC<InProgressPanelProps> = ({ nodeScheduledActions,
                   </span>
                 )}
                 {revealItems.length > 0 && (
-                  <span className="text-purple-400/80 text-[11px] font-mono bg-purple-500/10 border border-purple-500/15 px-1.5 py-0.5 rounded">
+                  <span className="text-emerald-400/80 text-[11px] font-mono bg-emerald-500/10 border border-emerald-500/15 px-1.5 py-0.5 rounded">
                     {revealItems.length}
                   </span>
                 )}

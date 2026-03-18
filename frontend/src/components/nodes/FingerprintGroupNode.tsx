@@ -148,17 +148,23 @@ const FingerprintGroupNode: React.FC<FingerprintGroupNodeProps> = ({ id, data })
         {/* ─── Amount Section (main area) ─── */}
         <div className="flex-1 flex items-center justify-center px-2">
           {data.isVisible ? (
-            <HyperText
-              key={`${id}-amount-${data.aggregatedAmount}-${data.childCount}`}
-              className="text-[1.05rem] font-bold py-0 pointer-events-none text-white font-mono leading-none tracking-tight"
-              as="span"
-              duration={1500}
-              animateOnHover={false}
-              startOnView={false}
-              delay={200}
-            >
-              {`${(data.aggregatedAmount || 0).toFixed(0)}`}
-            </HyperText>
+            allDone ? (
+              <span className="text-[0.6rem] font-bold text-emerald-400 font-mono leading-none tracking-wide uppercase">
+                Complete
+              </span>
+            ) : (
+              <HyperText
+                key={`${id}-amount-${data.aggregatedAmount}-${data.childCount}`}
+                className="text-[1.05rem] font-bold py-0 pointer-events-none text-white font-mono leading-none tracking-tight"
+                as="span"
+                duration={1500}
+                animateOnHover={false}
+                startOnView={false}
+                delay={200}
+              >
+                {`${(data.aggregatedAmount || 0).toFixed(0)}`}
+              </HyperText>
+            )
           ) : (
             <span className="text-[1.05rem] font-bold text-white/10 font-mono leading-none">—</span>
           )}
