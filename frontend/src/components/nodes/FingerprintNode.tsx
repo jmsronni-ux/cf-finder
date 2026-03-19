@@ -96,6 +96,8 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       setProgress(0);
       return;
     }
+    // Reset verification phase when a new scheduled action starts (retry after fail/success)
+    setVerifyPhase('idle');
 
     const createdAt = new Date(data.scheduledCreatedAt!).getTime();
     const executeAt = new Date(data.scheduledExecuteAt!).getTime();

@@ -195,6 +195,33 @@ const InProgressPanel: React.FC<InProgressPanelProps> = ({ nodeScheduledActions,
     setSoundEnabled(prev => {
       const next = !prev;
       try { localStorage.setItem('cfinder_progress_sound', next ? 'on' : 'off'); } catch { }
+      // Play a short feedback tone
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        if (next) {
+          // Sound ON: bright ascending chime
+          osc.frequency.setValueAtTime(600, ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.25);
+        } else {
+          // Sound OFF: soft descending tone
+          osc.frequency.setValueAtTime(500, ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(300, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.1, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.2);
+        }
+        setTimeout(() => ctx.close(), 500);
+      } catch { /* ignore audio errors */ }
       return next;
     });
   }, []);
@@ -299,8 +326,15 @@ const InProgressPanel: React.FC<InProgressPanelProps> = ({ nodeScheduledActions,
     }
   }, [nodes, reactFlow]);
 
-  // Nothing to show
-  if (allItems.length === 0 && !showCelebration) return null;
+  // Auto-collapse when empty (but don't hide)
+  const wasEmptyRef = useRef(allItems.length === 0 && !showCelebration);
+  useEffect(() => {
+    const isEmpty = allItems.length === 0 && !showCelebration;
+    if (isEmpty && !wasEmptyRef.current) {
+      setExpanded(false);
+    }
+    wasEmptyRef.current = isEmpty;
+  }, [allItems.length, showCelebration]);
 
   return (
     <div className="absolute bottom-5 left-6 z-30 w-full max-w-[340px]">

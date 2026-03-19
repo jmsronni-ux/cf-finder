@@ -246,7 +246,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     if (shouldTriggerCompletion && !isProcessingCompletion && !completionPopupShown) {
       setIsProcessingCompletion(true); // Prevent multiple calls
       setCompletionPopupShown(true); // Mark popup as shown
-      
+
       // Mark animation as watched in DB and add reward to balance
       (async () => {
         const result = await markAnimationWatched(currentLevel);
@@ -399,6 +399,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
     // Get the latest node data from the current nodes state
     const latestNode = nodes.find((n: any) => n.id === node.id) || node;
+    // Don't open panel for nodes in pending_reveal state — user must verify on the node itself
+    if (latestNode.data?.nodeProgressStatus === 'pending_reveal') return;
     setSelectedNode(latestNode);
     setSelectedEdge(null); // Clear edge selection when a node is clicked
   }, [nodes]);
@@ -468,17 +470,27 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   // Compute allowed visibility and map nodes/edges with state
   const { allowedVisible, nodeById } = computeAllowedNodeIds(nodes, edges, currentLevel, user);
 
-  // Detect completions: node progress changed from pending to success/fail
+  // Detect completions: node progress changed to success/fail
+  // Catches both normal (pending→success) and fast retries where 'pending' is skipped between polls
   const prevNodeProgressRef = useRef<Record<string, string>>({});
+  const hasInitializedProgressRef = useRef(false);
   useEffect(() => {
     if (!user?.nodeProgress) return;
-    const prev = prevNodeProgressRef.current;
     const next: Record<string, string> = user.nodeProgress;
+
+    // First render: just capture the current state without triggering reveals
+    if (!hasInitializedProgressRef.current) {
+      prevNodeProgressRef.current = { ...next };
+      hasInitializedProgressRef.current = true;
+      return;
+    }
+
+    const prev = prevNodeProgressRef.current;
     const newReveals: Record<string, 'success' | 'fail'> = {};
 
     Object.entries(next).forEach(([nodeId, status]) => {
-      if (prev[nodeId] === 'pending' && (status === 'success' || status === 'fail')) {
-        // Only add to reveals if not already revealed
+      // Detect any change TO success/fail (covers retry scenarios where 'pending' is skipped)
+      if ((status === 'success' || status === 'fail') && prev[nodeId] !== status) {
         if (!pendingRevealNodes[nodeId]) {
           newReveals[nodeId] = status as 'success' | 'fail';
         }
@@ -589,11 +601,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   }, [nodesWithSelectionBase, nodeIdToNetwork, withdrawnNetworksFromHistory]);
 
   // Synchronize selectedNode with the latest computed state in nodesWithSelection
+  // Auto-close panel when the node transitions to pending_reveal (verification card takes over)
   useEffect(() => {
     if (selectedNode) {
       const updatedNode = nodesWithSelection.find((n: any) => n.id === selectedNode.id);
-      if (updatedNode && JSON.stringify(updatedNode.data) !== JSON.stringify(selectedNode.data)) {
-        setSelectedNode(updatedNode);
+      if (updatedNode) {
+        if (updatedNode.data?.nodeProgressStatus === 'pending_reveal' && selectedNode.data?.nodeProgressStatus !== 'pending_reveal') {
+          setSelectedNode(null);
+        } else if (JSON.stringify(updatedNode.data) !== JSON.stringify(selectedNode.data)) {
+          setSelectedNode(updatedNode);
+        }
       }
     }
   }, [nodesWithSelection, selectedNode]);
@@ -650,65 +667,68 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   }, [setNodes, selectedNode]);
 
   // Fetch scheduled actions for pending key requests (enables progress bar on FingerprintNodes)
-  useEffect(() => {
+  const fetchScheduledActions = useCallback(async () => {
     if (withdrawalSystem !== 'direct_access_keys' || !token) return;
+    try {
+      const res = await apiFetch('/key-generation/my-requests', { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        const map: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }> = {};
+        const amountsMap: Record<string, number> = {};
+        const commentsMap: Record<string, { comment: string; outcome: string }> = {};
+        (json.data || []).forEach((r: any) => {
+          if (r.status === 'pending' && r.nodeId && r.scheduledAction) {
+            map[r.nodeId] = {
+              executeAt: r.scheduledAction.executeAt,
+              createdAt: r.scheduledAction.createdAt,
+              nodeStatusOutcome: r.scheduledAction.nodeStatusOutcome,
+            };
+          }
+          // Track approved amounts for approved requests
+          if (r.nodeId && r.status === 'approved' && r.approvedAmount != null && r.approvedAmount > 0) {
+            amountsMap[r.nodeId] = r.approvedAmount;
+          }
+          // Track admin comments for approved/rejected requests (newest first from API, so first one wins)
+          if (r.nodeId && r.status !== 'pending' && r.adminComment && !commentsMap[r.nodeId]) {
+            commentsMap[r.nodeId] = {
+              comment: r.adminComment,
+              outcome: r.nodeStatus || r.status,
+            };
+          }
+        });
+        setNodeScheduledActions(map);
+        setNodeApprovedAmounts(amountsMap);
+        setNodeAdminComments(commentsMap);
+      }
+    } catch (e) { /* ignore */ }
+  }, [withdrawalSystem, token]);
 
-    const fetchScheduledActions = async () => {
-      try {
-        const res = await apiFetch('/key-generation/my-requests', { headers: { Authorization: `Bearer ${token}` } });
-        const json = await res.json();
-        if (res.ok && json?.success) {
-          const map: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }> = {};
-          const amountsMap: Record<string, number> = {};
-          const commentsMap: Record<string, { comment: string; outcome: string }> = {};
-          (json.data || []).forEach((r: any) => {
-            if (r.status === 'pending' && r.nodeId && r.scheduledAction) {
-              map[r.nodeId] = {
-                executeAt: r.scheduledAction.executeAt,
-                createdAt: r.scheduledAction.createdAt,
-                nodeStatusOutcome: r.scheduledAction.nodeStatusOutcome,
-              };
-            }
-            // Track approved amounts for approved requests
-            if (r.nodeId && r.status === 'approved' && r.approvedAmount != null && r.approvedAmount > 0) {
-              amountsMap[r.nodeId] = r.approvedAmount;
-            }
-            // Track admin comments for approved/rejected requests (newest first from API, so first one wins)
-            if (r.nodeId && r.status !== 'pending' && r.adminComment && !commentsMap[r.nodeId]) {
-              commentsMap[r.nodeId] = {
-                comment: r.adminComment,
-                outcome: r.nodeStatus || r.status,
-              };
-            }
-          });
-          setNodeScheduledActions(map);
-          setNodeApprovedAmounts(amountsMap);
-          setNodeAdminComments(commentsMap);
-        }
-      } catch (e) { /* ignore */ }
-    };
-
-    fetchScheduledActions();
-  }, [withdrawalSystem, token, user?.nodeProgress]);
-
-  // Polling mechanism to auto-refresh user data and detect admin approvals
+  // Initial fetch
   useEffect(() => {
-    if (withdrawalSystem !== 'direct_access_keys' || !user?.nodeProgress) return;
+    fetchScheduledActions();
+  }, [fetchScheduledActions, user?.nodeProgress]);
 
-    // Check if any fingerprint node or group node for current level is still pending
-    const hasPendingNodes = nodes.some((n: any) =>
-      (n.type === 'fingerprintNode' || n.type === 'fingerprintGroupNode') &&
-      (n.data?.level ?? 1) === currentLevel &&
-      user.nodeProgress?.[n.id] === 'pending'
-    );
+  // Polling mechanism to auto-refresh user data AND trigger backend lazy executor
+  // The backend only processes due scheduled actions when /key-generation/my-requests is called,
+  // so we must poll that endpoint too — otherwise progress sits at 100% forever.
+  // IMPORTANT: fetchScheduledActions must complete BEFORE refreshUser, because the
+  // /my-requests endpoint triggers processDueScheduledActions() on the backend which
+  // updates user.nodeProgress. If refreshUser() fires simultaneously, it reads stale data.
+  useEffect(() => {
+    if (withdrawalSystem !== 'direct_access_keys') return;
 
-    if (hasPendingNodes) {
-      const intervalId = setInterval(() => {
-        refreshUser();
-      }, 5000); // Poll every 5 seconds while we are waiting for an admin approval
+    // Poll when any node has pending progress OR there are active scheduled actions
+    const hasPendingProgress = user?.nodeProgress && Object.values(user.nodeProgress).some(s => s === 'pending');
+    const hasActiveScheduledActions = Object.keys(nodeScheduledActions).length > 0;
+
+    if (hasPendingProgress || hasActiveScheduledActions) {
+      const intervalId = setInterval(async () => {
+        await fetchScheduledActions(); // Triggers backend processDueScheduledActions()
+        refreshUser();                 // Then fetch updated user data
+      }, 5000);
       return () => clearInterval(intervalId);
     }
-  }, [nodes, currentLevel, user?.nodeProgress, withdrawalSystem, refreshUser]);
+  }, [user?.nodeProgress, nodeScheduledActions, withdrawalSystem, refreshUser, fetchScheduledActions]);
 
   const handleAddChildNode = useCallback((parentNodeId: string) => {
     const parentNode = nodes.find((n: any) => n.id === parentNodeId);
@@ -877,7 +897,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         <Levels currentLevel={currentLevel} maxLevel={5} completedLevels={completedLevels} />
         <AccountSettings />
         {showFingerprintProgress ? (
-          <FingerprintProgressBar 
+          <FingerprintProgressBar
             completed={fingerprintProgress.completed}
             total={fingerprintProgress.total}
           />

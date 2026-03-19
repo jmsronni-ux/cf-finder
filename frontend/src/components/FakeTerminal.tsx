@@ -526,7 +526,7 @@ const MAX_VISIBLE_LINES = 50;
 const randomBetween = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
-const FakeTerminal: React.FC = () => {
+const FakeTerminal: React.FC<{ startEmpty?: boolean }> = ({ startEmpty = false }) => {
   const [lines, setLines] = useState<DisplayedLine[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const cancelledRef = useRef(false);
@@ -550,16 +550,19 @@ const FakeTerminal: React.FC = () => {
     const getFullText = (line: TerminalLine) =>
       line.segments.map(s => s.text).join('');
 
-    // Pre-fill with already-completed lines so it never looks freshly started
-    const prefillCount = randomBetween(5, 8);
-    const prefilled: DisplayedLine[] = [];
-    for (let i = 0; i < prefillCount; i++) {
-      const line = getNextLine();
-      const fullText = getFullText(line);
-      const id = ++lineIdRef.current;
-      prefilled.push({ id, line, typedLength: fullText.length, fullText });
+    // Pre-fill with already-completed lines so it looks like it's been running
+    // Skip pre-fill when startEmpty is true (fresh progress start)
+    if (!startEmpty) {
+      const prefillCount = randomBetween(5, 8);
+      const prefilled: DisplayedLine[] = [];
+      for (let i = 0; i < prefillCount; i++) {
+        const line = getNextLine();
+        const fullText = getFullText(line);
+        const id = ++lineIdRef.current;
+        prefilled.push({ id, line, typedLength: fullText.length, fullText });
+      }
+      setLines(prefilled);
     }
-    setLines(prefilled);
 
     const wait = (ms: number) =>
       new Promise<void>(resolve => {

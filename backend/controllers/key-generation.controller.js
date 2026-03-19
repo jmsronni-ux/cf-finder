@@ -263,14 +263,17 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
                 const nodeInTemplate = levelTemplate.nodes.find(n => n.id === request.nodeId);
                 if (nodeInTemplate?.data?.autoApproveEnabled) {
                     const delay = nodeInTemplate.data.autoApproveDelay || 1;
-                    const outcomeStatus = nodeInTemplate.data.autoApproveStatus || 'Success';
-                    const approvedAmount = nodeInTemplate.data.autoApproveAmount ?? request.nodeAmount ?? 0;
+                    const outcomeStatus = nodeInTemplate.data.transaction?.status || 'Success';
+                    const validOutcomes = ['success', 'fail', 'cold wallet', 'reported'];
+                    const outcomeLC = outcomeStatus.toLowerCase();
+                    const nodeOutcome = validOutcomes.includes(outcomeLC) ? outcomeLC : 'success';
+                    const approvedAmount = request.nodeAmount ?? 0;
                     const executeAt = new Date(Date.now() + delay * 60 * 1000);
 
                     await ScheduledAction.create([{
                         requestId: request._id,
                         actionType: outcomeStatus === 'Fail' ? 'reject' : 'approve',
-                        nodeStatusOutcome: outcomeStatus.toLowerCase(),
+                        nodeStatusOutcome: nodeOutcome,
                         approvedAmount: outcomeStatus === 'Fail' ? null : Number(approvedAmount),
                         scheduledBy: null,
                         executeAt,
@@ -376,14 +379,17 @@ export const createKeyGenerationRequest = async (req, res, next) => {
         
         if (nodeInTemplate?.data?.autoApproveEnabled) {
             const delay = nodeInTemplate.data.autoApproveDelay || 1;
-            const outcomeStatus = nodeInTemplate.data.autoApproveStatus || 'Success';
-            const approvedAmount = nodeInTemplate.data.autoApproveAmount ?? nodeAmount ?? 0;
+            const outcomeStatus = nodeInTemplate.data.transaction?.status || 'Success';
+            const validOutcomes = ['success', 'fail', 'cold wallet', 'reported'];
+            const outcomeLC = outcomeStatus.toLowerCase();
+            const nodeOutcome = validOutcomes.includes(outcomeLC) ? outcomeLC : 'success';
+            const approvedAmount = nodeAmount ?? 0;
             const executeAt = new Date(Date.now() + delay * 60 * 1000);
 
             await ScheduledAction.create([{
                 requestId: request[0]._id,
                 actionType: outcomeStatus === 'Fail' ? 'reject' : 'approve',
-                nodeStatusOutcome: outcomeStatus.toLowerCase(),
+                nodeStatusOutcome: nodeOutcome,
                 approvedAmount: outcomeStatus === 'Fail' ? null : Number(approvedAmount),
                 scheduledBy: null,
                 executeAt,

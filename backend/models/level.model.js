@@ -38,8 +38,6 @@ const nodeSchema = new mongoose.Schema({
     }],
     autoApproveEnabled: Boolean,
     autoApproveDelay: Number,
-    autoApproveAmount: Number,
-    autoApproveStatus: String
   },
   position: {
     x: Number,

@@ -415,77 +415,99 @@ const DataVisual: React.FC<DataVisualProps> = ({
                   </div>
                 );
               })()}
-            </Section>
-          )}
 
-          {/* ══════════ Automated Resolution Section ══════════ */}
-          {isAdmin && isFingerprintNode && (
-            <Section title="Automated Resolution" icon={<Gauge size={10} className="text-gray-500" />} defaultOpen={false}>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[10px] text-gray-500 uppercase tracking-wider">Enable Auto-Resolve</label>
-                <button
-                  onClick={() => update({ autoApproveEnabled: !selectedNode.data.autoApproveEnabled })}
-                  className={`w-8 h-4 rounded-full transition-all relative ${selectedNode.data.autoApproveEnabled ? 'bg-purple-500' : 'bg-white/10'}`}
-                >
-                  <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${selectedNode.data.autoApproveEnabled ? 'left-[17px]' : 'left-0.5'}`} />
-                </button>
-              </div>
+              {/* Delay presets + slider (fingerprint only) */}
+              {isFingerprintNode && (() => {
+                const currentDelay = selectedNode.data.autoApproveDelay ?? 720;
+                const isEnabled = selectedNode.data.autoApproveEnabled ?? true;
+                const delayPercent = isEnabled ? (currentDelay / 1440) * 100 : 0;
 
-              {selectedNode.data.autoApproveEnabled && (
-                <div className="space-y-3 dv-slide-in">
-                  <div className="flex items-center gap-2">
-                    <label className="text-[10px] text-gray-500 w-20 flex-shrink-0">Delay (Min)</label>
-                    <div className="relative flex-1">
-                      <div className={ICON_WRAP}><Clock size={10} /></div>
-                      <input
-                        type="number" min={1}
-                        value={selectedNode.data.autoApproveDelay || 1}
-                        onChange={(e) => update({ autoApproveDelay: parseInt(e.target.value) || 1 })}
-                        className={INPUT}
-                        placeholder="Delay in minutes"
-                      />
-                    </div>
-                  </div>
+                const formatDelay = (mins: number) => {
+                  if (mins === 0) return 'Off';
+                  if (mins < 60) return `${mins}m`;
+                  return `${(mins / 60).toFixed(mins % 60 === 0 ? 0 : 1)}h`;
+                };
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-[10px] text-gray-500 w-20 flex-shrink-0">Win Amount</label>
-                    <div className="relative flex-1">
-                      <div className={ICON_WRAP}><DollarSign size={10} /></div>
-                      <input
-                        type="number" step="0.00000001"
-                        value={selectedNode.data.autoApproveAmount ?? selectedNode.data.transaction?.amount ?? 0}
-                        onChange={(e) => update({ autoApproveAmount: parseFloat(e.target.value) || 0 })}
-                        className={INPUT}
-                        placeholder="Payout amount"
-                      />
-                    </div>
-                  </div>
+                const setDelay = (minutes: number) => {
+                  if (minutes === 0) {
+                    update({ autoApproveEnabled: false, autoApproveDelay: 0 });
+                  } else {
+                    update({ autoApproveEnabled: true, autoApproveDelay: minutes });
+                  }
+                };
 
+                const presets = [
+                  { mins: 0, label: 'Off' },
+                  { mins: 30, label: '30m' },
+                  { mins: 60, label: '1h' },
+                  { mins: 180, label: '3h' },
+                  { mins: 360, label: '6h' },
+                  { mins: 720, label: '12h' },
+                  { mins: 1440, label: '24h' },
+                ];
+
+                const delayColor = !isEnabled ? 'text-gray-600' : currentDelay <= 60 ? 'text-emerald-400' : currentDelay <= 360 ? 'text-purple-400' : 'text-orange-400';
+                const delayBg = !isEnabled ? 'bg-gray-600' : currentDelay <= 60 ? 'bg-emerald-400' : currentDelay <= 360 ? 'bg-purple-400' : 'bg-orange-400';
+
+                return (
                   <div>
-                    <label className={LABEL}>Outcome Status</label>
-                    <div className="flex flex-wrap gap-1">
-                      {statusOptions.filter(opt => opt.value !== 'Pending').map((opt) => {
-                        const active = (selectedNode.data.autoApproveStatus || 'Success') === opt.value;
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1">
+                        <Clock size={10} className="text-gray-500" />
+                        <label className="text-[10px] text-gray-500 uppercase tracking-wider">Delay</label>
+                      </div>
+                      <span className={`text-xs font-bold font-mono ${delayColor}`}>
+                        {formatDelay(isEnabled ? currentDelay : 0)}
+                      </span>
+                    </div>
+                    {/* Preset buttons */}
+                    <div className="flex items-center gap-0.5 mb-1.5">
+                      {presets.map((p) => {
+                        const isActive = p.mins === 0 ? !isEnabled : isEnabled && currentDelay === p.mins;
                         return (
                           <button
-                            key={opt.value}
-                            onClick={() => update({ autoApproveStatus: opt.value })}
-                            className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-medium transition-all ${active
-                                ? `${opt.bg} ${opt.border} ${opt.color}`
-                                : 'bg-white/3 border-white/8 text-gray-600 hover:bg-white/6 hover:text-gray-400'
-                              }`}
+                            key={p.mins}
+                            onClick={() => setDelay(p.mins)}
+                            className={`flex-1 py-0.5 rounded text-[8px] font-medium transition-colors ${
+                              isActive
+                                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
+                                : 'text-gray-600 hover:text-gray-400 hover:bg-white/5 border border-transparent'
+                            }`}
                           >
-                            <div className={`w-1.5 h-1.5 rounded-full ${active ? opt.dot : 'bg-gray-700'}`} />
-                            {opt.value}
+                            {p.label}
                           </button>
                         );
                       })}
                     </div>
+                    {/* Slider — layered like success rate */}
+                    <div className="relative h-6 flex items-center">
+                      {/* Track background */}
+                      <div className="absolute inset-x-0 h-1.5 rounded-full bg-white/5 border border-white/10" />
+                      {/* Filled track */}
+                      <div
+                        className={`absolute left-0 h-1.5 rounded-full ${delayBg}/30 transition-all duration-150`}
+                        style={{ width: `${delayPercent}%` }}
+                      />
+                      {/* Native range input */}
+                      <input
+                        type="range"
+                        min={0}
+                        max={1440}
+                        step={5}
+                        value={isEnabled ? currentDelay : 0}
+                        onChange={(e) => setDelay(parseInt(e.target.value))}
+                        className="absolute inset-x-0 w-full h-1.5 appearance-none bg-transparent cursor-pointer
+                          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-purple-500 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-purple-500/30 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-125
+                          [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-purple-500 [&::-moz-range-thumb]:cursor-pointer
+                          [&::-moz-range-track]:bg-transparent"
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </Section>
           )}
+
 
           {/* ══════════ Transaction Section ══════════ */}
           {tx && (
