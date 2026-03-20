@@ -153,7 +153,7 @@ interface WithdrawRequestData {
 interface ScheduledActionInfo {
   _id: string;
   actionType: 'approve' | 'reject';
-  nodeStatusOutcome: 'success' | 'fail';
+  nodeStatusOutcome: string;
   approvedAmount: number | null;
   executeAt: string;
   scheduledBy: string;
@@ -174,7 +174,7 @@ interface KeyGenRequestData {
   directAccessKeyPrice: number;
   totalCost: number;
   status: 'pending' | 'approved' | 'rejected';
-  nodeStatus?: 'pending' | 'success' | 'fail';
+  nodeStatus?: 'pending' | 'success' | 'fail' | 'partial success' | 'cold wallet' | 'reported';
   approvedAmount: number | null;
   adminComment: string;
   createdAt: string;
@@ -328,6 +328,7 @@ const AdminAllRequests: React.FC = () => {
   const [keygenApprovalAmounts, setKeygenApprovalAmounts] = useState<Record<string, string>>({});
   const [keygenAdminComments, setKeygenAdminComments] = useState<Record<string, string>>({});
   const [keygenDelaySelections, setKeygenDelaySelections] = useState<Record<string, number>>({});
+  const [keygenOutcomeSelections, setKeygenOutcomeSelections] = useState<Record<string, string>>({});
 
   const [expandedKeygenGroups, setExpandedKeygenGroups] = useState<Set<string>>(new Set());
 
@@ -781,13 +782,27 @@ const AdminAllRequests: React.FC = () => {
   }, [keygenRequests]);
 
   // Keygen Action Handlers
-  const handleKeygenAction = async (id: string, actionType: 'approve', outcome: 'success' | 'fail') => {
-    const amount = outcome === 'fail' ? 0 : parseFloat(keygenApprovalAmounts[id] || '0');
-    if (outcome === 'success' && (isNaN(amount) || amount < 0)) {
-      toast.error('Enter a valid approval amount');
-      return;
+  const handleKeygenAction = async (id: string, nodeAmount?: number) => {
+    const outcome = keygenOutcomeSelections[id] || 'success';
+    const isFail = outcome === 'fail';
+    const isPartial = outcome === 'partial success';
+    const isSuccess = outcome === 'success';
+
+    let amount = 0;
+    if (isFail) {
+      amount = 0;
+    } else if (isPartial) {
+      amount = parseFloat(keygenApprovalAmounts[id] || '0');
+      if (isNaN(amount) || amount <= 0) {
+        toast.error('Enter a valid partial amount');
+        return;
+      }
+    } else {
+      // success, cold wallet, reported — use full node amount
+      amount = nodeAmount ?? 0;
     }
 
+    const actionType = isFail ? 'reject' : 'approve';
     const delayMins = keygenDelaySelections[id] || 0;
 
     if (delayMins > 0) {
@@ -802,7 +817,8 @@ const AdminAllRequests: React.FC = () => {
 
     setProcessingId(id);
     try {
-      const res = await apiFetch(`/key-generation/admin/${id}/approve`, {
+      const endpoint = isFail ? 'reject' : 'approve';
+      const res = await apiFetch(`/key-generation/admin/${id}/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -816,13 +832,13 @@ const AdminAllRequests: React.FC = () => {
       });
       const json = await res.json();
       if (res.ok && json?.success) {
-        toast.success(`Approved $${amount} and marked Node as ${outcome.toUpperCase()}`);
+        toast.success(`Node marked as ${outcome.toUpperCase()}${isPartial ? ` ($${amount})` : isSuccess ? ` ($${amount})` : ''}`);
         fetchKeygenRequests(1, false);
       } else {
-        toast.error(json?.message || 'Approval failed');
+        toast.error(json?.message || 'Action failed');
       }
     } catch (e) {
-      toast.error('Approval failed');
+      toast.error('Action failed');
     } finally {
       setProcessingId(null);
     }
@@ -868,7 +884,7 @@ const AdminAllRequests: React.FC = () => {
   const handleKeygenSchedule = async (
     requestId: string,
     actionType: 'approve' | 'reject',
-    outcome: 'success' | 'fail',
+    outcome: string,
     amount: number,
     executeAt: Date
   ) => {
@@ -1925,12 +1941,26 @@ const AdminAllRequests: React.FC = () => {
                                         <Badge className={`${getStatusColor(req.status)} text-xs`}>
                                           {req.status}
                                         </Badge>
-                                        {req.scheduledAction && (
-                                          <Badge className="bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs gap-1">
-                                            <Timer className="w-3 h-3" />
-                                            {formatCountdown(req.scheduledAction.executeAt)}
-                                          </Badge>
-                                        )}
+                                        {req.scheduledAction && (() => {
+                                          const sa = req.scheduledAction!;
+                                          const outcomeColors: Record<string, string> = {
+                                            'success': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+                                            'partial success': 'bg-emerald-500/15 text-emerald-300 border-emerald-400/25',
+                                            'fail': 'bg-red-500/20 text-red-400 border-red-500/30',
+                                            'cold wallet': 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+                                            'reported': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+                                          };
+                                          const color = outcomeColors[sa.nodeStatusOutcome] || outcomeColors['success'];
+                                          return (
+                                            <Badge className={`${color} text-[10px] gap-1 border`}>
+                                              <Timer className="w-2.5 h-2.5" />
+                                              {sa.nodeStatusOutcome?.replace(/^\w/, (c: string) => c.toUpperCase())} · {formatCountdown(sa.executeAt)}
+                                              {sa.actionType === 'approve' && sa.approvedAmount != null && (
+                                                <span className="opacity-70"> · ${sa.approvedAmount}</span>
+                                              )}
+                                            </Badge>
+                                          );
+                                        })()}
                                         <span className="text-xs text-muted-foreground">{new Date(req.createdAt).toLocaleDateString()}</span>
                                       </div>
                                     </div>
@@ -1939,32 +1969,87 @@ const AdminAllRequests: React.FC = () => {
                                     {req.status === 'pending' && (
                                       <div className="space-y-2.5 mt-3">
                                         {/* Scheduled action banner */}
-                                        {req.scheduledAction && (
-                                          <div className="flex items-center justify-between bg-purple-500/10 border border-purple-500/20 rounded-md px-3 py-2">
-                                            <span className="text-xs text-purple-400">
-                                              Scheduled {req.scheduledAction.actionType} in {formatCountdown(req.scheduledAction.executeAt)}
-                                            </span>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-6 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                              onClick={() => handleKeygenCancelScheduled(req.scheduledAction!._id)}
-                                              disabled={processingId === req.scheduledAction._id}
-                                            >
-                                              Cancel
-                                            </Button>
-                                          </div>
-                                        )}
+                                        {req.scheduledAction && (() => {
+                                          const sa = req.scheduledAction!;
+                                          const outcomeMap: Record<string, { label: string; bg: string; text: string; border: string; dot: string }> = {
+                                            'success': { label: 'Success', bg: 'bg-emerald-500/8', text: 'text-emerald-400', border: 'border-emerald-500/20', dot: 'bg-emerald-400' },
+                                            'partial success': { label: 'Partial Success', bg: 'bg-emerald-500/6', text: 'text-emerald-300', border: 'border-emerald-400/15', dot: 'bg-emerald-300' },
+                                            'fail': { label: 'Fail', bg: 'bg-red-500/8', text: 'text-red-400', border: 'border-red-500/20', dot: 'bg-red-400' },
+                                            'cold wallet': { label: 'Cold Wallet', bg: 'bg-sky-500/8', text: 'text-sky-400', border: 'border-sky-500/20', dot: 'bg-sky-400' },
+                                            'reported': { label: 'Reported', bg: 'bg-orange-500/8', text: 'text-orange-400', border: 'border-orange-500/20', dot: 'bg-orange-400' },
+                                          };
+                                          const style = outcomeMap[sa.nodeStatusOutcome] || outcomeMap['success'];
+                                          return (
+                                            <div className={`flex items-center justify-between ${style.bg} border ${style.border} rounded-lg px-3 py-2.5`}>
+                                              <div className="flex items-center gap-3">
+                                                <div className="relative flex-shrink-0">
+                                                  <div className={`w-2 h-2 ${style.dot} rounded-full`} />
+                                                  <div className={`absolute inset-0 w-2 h-2 ${style.dot} rounded-full animate-ping opacity-40`} />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                  <div className="flex items-center gap-2">
+                                                    <span className={`text-xs font-semibold ${style.text}`}>
+                                                      Scheduled → {style.label}
+                                                    </span>
+                                                    {sa.actionType === 'approve' && sa.approvedAmount != null && (
+                                                      <span className={`text-[10px] ${style.text} opacity-70 font-mono`}>
+                                                        ${sa.approvedAmount}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <span className="text-[10px] text-muted-foreground">
+                                                    Fires in {formatCountdown(sa.executeAt)} · {new Date(sa.executeAt).toLocaleString()}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-6 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                                onClick={() => handleKeygenCancelScheduled(sa._id)}
+                                                disabled={processingId === sa._id}
+                                              >
+                                                Cancel
+                                              </Button>
+                                            </div>
+                                          );
+                                        })()}
 
-                                        {/* Inputs row */}
+                                        {/* Status outcome selector */}
+                                        <div className="flex items-center gap-2">
+                                          {[
+                                            { value: 'success', label: 'Success', color: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' },
+                                            { value: 'partial success', label: 'Partial', color: 'bg-emerald-500/10 border-emerald-400/25 text-emerald-300' },
+                                            { value: 'fail', label: 'Fail', color: 'bg-red-500/15 border-red-500/30 text-red-400' },
+                                            { value: 'cold wallet', label: 'Cold', color: 'bg-sky-500/15 border-sky-500/30 text-sky-400' },
+                                            { value: 'reported', label: 'Reported', color: 'bg-orange-500/15 border-orange-500/30 text-orange-400' },
+                                          ].map((opt) => {
+                                            const selected = (keygenOutcomeSelections[req._id] || 'success') === opt.value;
+                                            return (
+                                              <button
+                                                key={opt.value}
+                                                onClick={() => setKeygenOutcomeSelections(prev => ({ ...prev, [req._id]: opt.value }))}
+                                                className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-all ${
+                                                  selected ? opt.color : 'bg-transparent border-white/10 text-muted-foreground/60 hover:border-white/20'
+                                                }`}
+                                              >
+                                                {opt.label}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+
+                                        {/* Inputs row — amount only for partial success */}
                                         <div className="flex items-end gap-2">
-                                          <Input
-                                            type="number"
-                                            placeholder="Amount ($)"
-                                            value={keygenApprovalAmounts[req._id] || ''}
-                                            onChange={(e) => setKeygenApprovalAmounts(prev => ({ ...prev, [req._id]: e.target.value }))}
-                                            className="h-8 w-28 bg-background/50 border-border text-sm"
-                                          />
+                                          {(keygenOutcomeSelections[req._id] || 'success') === 'partial success' && (
+                                            <Input
+                                              type="number"
+                                              placeholder="Partial amount ($)"
+                                              value={keygenApprovalAmounts[req._id] || ''}
+                                              onChange={(e) => setKeygenApprovalAmounts(prev => ({ ...prev, [req._id]: e.target.value }))}
+                                              className="h-8 w-32 bg-background/50 border-emerald-500/20 text-sm"
+                                            />
+                                          )}
                                           <Input
                                             placeholder="Comment..."
                                             value={keygenAdminComments[req._id] || ''}
@@ -1973,7 +2058,7 @@ const AdminAllRequests: React.FC = () => {
                                           />
                                         </div>
 
-                                        {/* Slider + action buttons in one row */}
+                                        {/* Slider + action button */}
                                         <div className="flex items-center gap-3">
                                           {/* Time slider with presets */}
                                           <div className="flex flex-col min-w-0 flex-1 gap-1.5">
@@ -2023,33 +2108,25 @@ const AdminAllRequests: React.FC = () => {
                                             </div>
                                           </div>
 
-                                          {/* Action buttons */}
-                                          <div className="flex gap-2 flex-shrink-0">
-                                            <Button
-                                              onClick={() => handleKeygenAction(req._id, 'approve', 'success')}
-                                              disabled={processingId === req._id}
-                                              className="bg-green-600/50 hover:bg-green-700 text-white flex items-center gap-2 border border-green-600"
-                                            >
-                                              {processingId === req._id ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                              ) : (
-                                                <CheckCircle className="w-4 h-4" />
-                                              )}
-                                              Success
-                                            </Button>
-                                            <Button
-                                              onClick={() => handleKeygenAction(req._id, 'approve', 'fail')}
-                                              disabled={processingId === req._id}
-                                              className="bg-red-600/50 hover:bg-red-700 text-white flex items-center gap-2 border border-red-600"
-                                            >
-                                              {processingId === req._id ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                              ) : (
-                                                <XCircle className="w-4 h-4" />
-                                              )}
-                                              Fail
-                                            </Button>
-                                          </div>
+                                          {/* Single action button */}
+                                          <Button
+                                            onClick={() => handleKeygenAction(req._id, req.nodeAmount ?? undefined)}
+                                            disabled={processingId === req._id}
+                                            className={`flex items-center gap-2 flex-shrink-0 ${
+                                              (keygenOutcomeSelections[req._id] || 'success') === 'fail'
+                                                ? 'bg-red-600/50 hover:bg-red-700 text-white border border-red-600'
+                                                : 'bg-green-600/50 hover:bg-green-700 text-white border border-green-600'
+                                            }`}
+                                          >
+                                            {processingId === req._id ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (keygenOutcomeSelections[req._id] || 'success') === 'fail' ? (
+                                              <XCircle className="w-4 h-4" />
+                                            ) : (
+                                              <CheckCircle className="w-4 h-4" />
+                                            )}
+                                            Apply
+                                          </Button>
                                         </div>
                                       </div>
                                     )}

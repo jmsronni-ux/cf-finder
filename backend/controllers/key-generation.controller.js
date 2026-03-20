@@ -448,9 +448,13 @@ export const getMyRequests = async (req, res, next) => {
                 const sa = scheduledMap[r._id.toString()];
                 if (sa) {
                     obj.scheduledAction = {
+                        _id: sa._id,
+                        actionType: sa.actionType,
+                        nodeStatusOutcome: sa.nodeStatusOutcome,
+                        approvedAmount: sa.approvedAmount,
                         executeAt: sa.executeAt,
                         createdAt: sa.createdAt,
-                        nodeStatusOutcome: sa.nodeStatusOutcome,
+                        scheduledBy: sa.scheduledBy,
                     };
                 }
                 return obj;
@@ -595,10 +599,11 @@ export const rejectRequest = async (req, res, next) => {
         }
 
         const { id } = req.params;
-        const { adminComment } = req.body;
+        const { adminComment, nodeStatusOutcome } = req.body;
 
         const request = await _executeReject(id, {
             adminComment,
+            nodeStatusOutcome,
             processedBy: req.user._id
         }, session);
 
