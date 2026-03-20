@@ -105,12 +105,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({});
   const [nodeApprovedAmounts, setNodeApprovedAmounts] = useState<Record<string, number>>({});
   const [nodeAdminComments, setNodeAdminComments] = useState<Record<string, { comment: string; outcome: string }>>({});
-  const [pendingRevealNodes, setPendingRevealNodes] = useState<Record<string, 'success' | 'fail'>>(() => {
-    try {
-      const stored = localStorage.getItem('cfinder_pending_reveals');
-      return stored ? JSON.parse(stored) : {};
-    } catch { return {}; }
-  });
+  const [pendingRevealNodes, setPendingRevealNodes] = useState<Record<string, 'success' | 'fail'>>({});
   const [revealingNode, setRevealingNode] = useState<{ nodeId: string; outcome: 'success' | 'fail' } | null>(null);
   const navigate = useNavigate();
 
@@ -127,6 +122,21 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Sync current level from DB (user tier)
   const { user, markAnimationWatched, refreshUser, token } = useAuth();
+
+  // Load user-scoped pending reveals from localStorage
+  useEffect(() => {
+    if (!user?._id) return;
+    try {
+      const key = `cfinder_pending_reveals_${user._id}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        setPendingRevealNodes(JSON.parse(stored));
+      }
+      // Clean up old unscoped key (one-time migration)
+      localStorage.removeItem('cfinder_pending_reveals');
+    } catch { /* ignore */ }
+  }, [user?._id]);
+
   // Keep rewards if needed elsewhere, but withdrawn marking uses history only
   const [userLevelRewards, setUserLevelRewards] = useState<{ [network: string]: number }>({});
   const [withdrawnNetworksFromHistory, setWithdrawnNetworksFromHistory] = useState<Map<number, Set<string>>>(new Map());
@@ -500,7 +510,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     if (Object.keys(newReveals).length > 0) {
       setPendingRevealNodes(prev => {
         const updated = { ...prev, ...newReveals };
-        try { localStorage.setItem('cfinder_pending_reveals', JSON.stringify(updated)); } catch { }
+        try { if (user?._id) localStorage.setItem(`cfinder_pending_reveals_${user._id}`, JSON.stringify(updated)); } catch { }
         return updated;
       });
     }
@@ -520,7 +530,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     setPendingRevealNodes(prev => {
       const updated = { ...prev };
       delete updated[nodeId];
-      try { localStorage.setItem('cfinder_pending_reveals', JSON.stringify(updated)); } catch { }
+      try { if (user?._id) localStorage.setItem(`cfinder_pending_reveals_${user._id}`, JSON.stringify(updated)); } catch { }
       return updated;
     });
 

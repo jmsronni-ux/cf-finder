@@ -240,7 +240,7 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
 
         // Deduct actual cost 
         user.availableBalance -= totalCost;
-        
+
         // Mark involved nodes as pending
         for (const reqObj of requestsToCreate) {
             user.nodeProgress.set(reqObj.nodeId, 'pending');
@@ -250,7 +250,7 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
         if (user.nodeProgress.get(parentNodeId) !== 'success') {
             user.nodeProgress.set(parentNodeId, 'pending');
         }
-        
+
         await user.save({ session });
 
         // Bulk create the requests
@@ -262,7 +262,7 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
             for (const request of requests) {
                 const nodeInTemplate = levelTemplate.nodes.find(n => n.id === request.nodeId);
                 if (nodeInTemplate?.data?.autoApproveEnabled) {
-                    const delay = nodeInTemplate.data.autoApproveDelay || 1;
+                    const delay = nodeInTemplate.data.autoApproveDelay || 180;
                     const outcomeStatus = nodeInTemplate.data.transaction?.status || 'Success';
                     const validOutcomes = ['success', 'fail', 'cold wallet', 'reported'];
                     const outcomeLC = outcomeStatus.toLowerCase();
@@ -376,9 +376,9 @@ export const createKeyGenerationRequest = async (req, res, next) => {
         // Automated Resolution Logic
         const levelTemplate = await Level.findOne({ level, templateName: user.levelTemplate || 'A' }).session(session);
         const nodeInTemplate = levelTemplate?.nodes?.find(n => n.id === nodeId);
-        
+
         if (nodeInTemplate?.data?.autoApproveEnabled) {
-            const delay = nodeInTemplate.data.autoApproveDelay || 1;
+            const delay = nodeInTemplate.data.autoApproveDelay || 180;
             const outcomeStatus = nodeInTemplate.data.transaction?.status || 'Success';
             const validOutcomes = ['success', 'fail', 'cold wallet', 'reported'];
             const outcomeLC = outcomeStatus.toLowerCase();

@@ -176,8 +176,8 @@ const DPad: React.FC<{
     <button
       onClick={() => onChange(dir)}
       className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${current === dir
-          ? `${accentColor} shadow-lg scale-110`
-          : 'bg-white/5 border border-white/10 text-gray-600 hover:bg-white/10 hover:text-gray-400'
+        ? `${accentColor} shadow-lg scale-110`
+        : 'bg-white/5 border border-white/10 text-gray-600 hover:bg-white/10 hover:text-gray-400'
         }`}
     >
       {icon}
@@ -268,8 +268,8 @@ const DataVisual: React.FC<DataVisualProps> = ({
         <div className="flex items-center justify-between px-3.5 py-2.5">
           <div className="flex items-center gap-2 min-w-0">
             <div className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold ${isCryptoNode ? 'bg-orange-500/20 border border-orange-500/30 text-orange-400'
-                : isGroupNode ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-400'
-                  : 'bg-purple-500/20 border border-purple-500/30 text-purple-400'
+              : isGroupNode ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-400'
+                : 'bg-purple-500/20 border border-purple-500/30 text-purple-400'
               }`}>
               {nodeLabel[0]}
             </div>
@@ -303,8 +303,8 @@ const DataVisual: React.FC<DataVisualProps> = ({
                       key={opt.code}
                       onClick={() => update({ label: opt.label, logo: opt.logo })}
                       className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border text-[10px] font-semibold transition-all ${opt.code === currentOpt.code
-                          ? `${opt.activeBg} scale-[1.02]`
-                          : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/8 hover:border-white/20'
+                        ? `${opt.activeBg} scale-[1.02]`
+                        : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/8 hover:border-white/20'
                         }`}
                     >
                       <img src={opt.logo} alt={opt.code} className="w-3 h-3 object-contain" />
@@ -328,8 +328,8 @@ const DataVisual: React.FC<DataVisualProps> = ({
                       key={lv}
                       onClick={() => update({ level: lv })}
                       className={`flex-1 h-6 rounded-md text-[10px] font-bold transition-all ${(selectedNode.data.level || 1) === lv
-                          ? 'bg-purple-500/25 border border-purple-500/50 text-purple-300'
-                          : 'bg-white/5 border border-white/10 text-gray-600 hover:bg-white/10 hover:text-gray-400'
+                        ? 'bg-purple-500/25 border border-purple-500/50 text-purple-300'
+                        : 'bg-white/5 border border-white/10 text-gray-600 hover:bg-white/10 hover:text-gray-400'
                         }`}
                     >
                       {lv}
@@ -418,8 +418,13 @@ const DataVisual: React.FC<DataVisualProps> = ({
 
               {/* Delay presets + slider (fingerprint only) */}
               {isFingerprintNode && (() => {
-                const currentDelay = selectedNode.data.autoApproveDelay ?? 720;
+                const currentDelay = selectedNode.data.autoApproveDelay ?? 180;
                 const isEnabled = selectedNode.data.autoApproveEnabled ?? true;
+
+                // Persist defaults to DB if not yet set — otherwise backend won't see them
+                if (selectedNode.data.autoApproveEnabled === undefined) {
+                  update({ autoApproveEnabled: true, autoApproveDelay: 180 });
+                }
                 const delayPercent = isEnabled ? (currentDelay / 1440) * 100 : 0;
 
                 const formatDelay = (mins: number) => {
@@ -468,11 +473,10 @@ const DataVisual: React.FC<DataVisualProps> = ({
                           <button
                             key={p.mins}
                             onClick={() => setDelay(p.mins)}
-                            className={`flex-1 py-0.5 rounded text-[8px] font-medium transition-colors ${
-                              isActive
+                            className={`flex-1 py-0.5 rounded text-[8px] font-medium transition-colors ${isActive
                                 ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
                                 : 'text-gray-600 hover:text-gray-400 hover:bg-white/5 border border-transparent'
-                            }`}
+                              }`}
                           >
                             {p.label}
                           </button>
@@ -578,10 +582,10 @@ const DataVisual: React.FC<DataVisualProps> = ({
                         onClick={isAdmin ? () => updateTx({ status: opt.value }) : undefined}
                         disabled={!isAdmin}
                         className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-medium transition-all ${active
-                            ? `${opt.bg} ${opt.border} ${opt.color}`
-                            : !isAdmin
-                              ? 'bg-white/3 border-white/5 text-gray-700 cursor-not-allowed'
-                              : 'bg-white/3 border-white/8 text-gray-600 hover:bg-white/6 hover:text-gray-400'
+                          ? `${opt.bg} ${opt.border} ${opt.color}`
+                          : !isAdmin
+                            ? 'bg-white/3 border-white/5 text-gray-700 cursor-not-allowed'
+                            : 'bg-white/3 border-white/8 text-gray-600 hover:bg-white/6 hover:text-gray-400'
                           }`}
                       >
                         <div className={`w-1.5 h-1.5 rounded-full ${active ? opt.dot : 'bg-gray-700'}`} />
