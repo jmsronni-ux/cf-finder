@@ -56,6 +56,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const [showKeyTooltip, setShowKeyTooltip] = useState(false);
   const [keyPriceMode, setKeyPriceMode] = useState<'static' | 'percent'>('static');
   const [keyPricePercent, setKeyPricePercent] = useState(5);
+  const [countdownLabel, setCountdownLabel] = useState<string | null>(null);
 
   const isGroupNode = selectedNode?.type === 'fingerprintGroupNode';
   const nodeAmount = selectedNode?.data?.transaction?.amount || 0;
@@ -68,6 +69,28 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const hasSufficientBalance = availableBalance >= totalKeyCost;
 
   const isDAK = withdrawalSystem === 'direct_access_keys';
+
+  // Live countdown for scheduled processing
+  useEffect(() => {
+    const executeAt = selectedNode?.data?.scheduledExecuteAt;
+    if (!executeAt) { setCountdownLabel(null); return; }
+    const update = () => {
+      const remaining = Math.max(0, new Date(executeAt).getTime() - Date.now());
+      if (remaining <= 0) { setCountdownLabel('any moment'); return; }
+      const mins = remaining / 60000;
+      // Round up to nearest 30 minutes
+      const rounded = Math.ceil(mins / 30) * 30;
+      if (rounded >= 60) {
+        const h = rounded / 60;
+        setCountdownLabel(h % 1 === 0 ? `~${h}h` : `~${h}h`);
+      } else {
+        setCountdownLabel(`~${rounded}min`);
+      }
+    };
+    update();
+    const id = setInterval(update, 30000);
+    return () => clearInterval(id);
+  }, [selectedNode?.data?.scheduledExecuteAt]);
 
   // Fetch pending tier requests
   useEffect(() => {
@@ -433,6 +456,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                                   <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                     Processing Bundle
+                                    {countdownLabel && <span className="text-neutral-500 text-[10px] font-normal ml-1.5">({countdownLabel})</span>}
                                   </div>
                                   <span className="text-neutral-500 text-[10px] font-mono tabular-nums">
                                     {pendingKeyRequest.keysCount}× · {childCount}n
@@ -501,6 +525,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                             <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                               Processing Bundle
+                              {countdownLabel && <span className="text-neutral-500 text-[10px] font-normal ml-1.5">({countdownLabel})</span>}
                             </div>
                             <FakeTerminal startEmpty />
                             <ProcessingSteps
@@ -528,7 +553,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                                 >
                                   <Plus className="w-3 h-3" />
                                 </button>
-                                <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : effectivePrice.toFixed(2)}</span>
+                                <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : effectivePrice.toFixed(2)}{keyPriceMode === 'percent' && !loadingPrice && <span className="text-purple-400/60 ml-0.5">({keyPricePercent}%)</span>}</span>
                               </div>
                               <span className="text-amber-400 font-semibold text-sm tabular-nums">${totalKeyCost.toFixed(2)}</span>
                             </div>
@@ -727,6 +752,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                                 <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                   Processing Request
+                                  {countdownLabel && <span className="text-neutral-500 text-[10px] font-normal ml-1.5">({countdownLabel})</span>}
                                 </div>
                                 <span className="text-neutral-500 text-[10px] font-mono tabular-nums">
                                   {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''}
@@ -795,6 +821,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                           <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             Processing
+                            {countdownLabel && <span className="text-neutral-500 text-[10px] font-normal ml-1.5">({countdownLabel})</span>}
                           </div>
                           <FakeTerminal startEmpty />
                           <ProcessingSteps
@@ -822,10 +849,11 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                               >
                                 <Plus className="w-3 h-3" />
                               </button>
-                              <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : effectivePrice.toFixed(2)}</span>
+                              <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : effectivePrice.toFixed(2)}{keyPriceMode === 'percent' && !loadingPrice && <span className="text-purple-400/60 ml-0.5">({keyPricePercent}%)</span>}</span>
                             </div>
                             <span className="text-amber-400 font-semibold text-sm tabular-nums">${totalKeyCost.toFixed(2)}</span>
                           </div>
+
 
                           {/* Balance line */}
                           <div className="flex justify-between text-[11px]">

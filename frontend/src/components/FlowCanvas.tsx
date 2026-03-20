@@ -987,8 +987,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                 ? 'Upgrading...'
                 : hasWatchedCurrentLevel
                   ? withdrawalSystem === 'direct_access_keys'
-                    ? (isLevelCompletedWithKeys ? (currentLevel >= 5 ? 'Max Level Reached' : 'Start scan') : 'Complete Node Keys to Upgrade')
-                    : 'Start scan'
+                    ? (isLevelCompletedWithKeys ? (currentLevel >= 5 ? 'Max Level Reached' : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')) : 'Complete Node Keys to Upgrade')
+                    : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')
                   : (!user?.isAdmin && hasPendingVerification)
                     ? 'Verification Pending'
                     : (!user?.isAdmin && !user?.walletVerified)
