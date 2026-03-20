@@ -339,9 +339,31 @@ export function mapEdgesWithVisibility(params: {
       hiddenByAnimation = !hasStarted || !sourceVisible || !targetVisible;
     }
 
+    // Inject transfer animation on edges targeting nodes actively being verified
+    const isTargetVerifying = targetNode?.data?.isVerifying === true;
+    let transferData = {};
+    if (isTargetVerifying) {
+      transferData = {
+        dotEnabled: true,
+        dotBounce: true,
+        dotSpeed: 2.5,
+        dotSize: 4,
+        dotColor: '#f59e0b',  // amber
+        dotShape: 'circle',
+        glowEnabled: true,
+        glowIntensity: 0.2,
+        glowSpread: 3,
+      };
+    }
+
     return {
       ...edge,
       hidden: hiddenByAnimation,
+      ...(isTargetVerifying ? {
+        type: 'configurable',
+        data: { ...edge.data, ...transferData },
+        style: { ...edge.style, stroke: '#f59e0b', strokeOpacity: 0.6 },
+      } : {}),
     };
   });
 }

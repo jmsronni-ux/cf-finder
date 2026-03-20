@@ -625,12 +625,19 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     }
   }, [nodesWithSelection, selectedNode]);
 
+  // Build a node lookup from the state-mapped nodes (includes nodeProgressStatus etc.)
+  const stateNodeById = useMemo(() => {
+    const map: Record<string, any> = {};
+    nodesWithSelection.forEach((n: any) => { map[n.id] = n; });
+    return map;
+  }, [nodesWithSelection]);
+
   const edgesWithVisibilityBase = mapEdgesWithVisibility({
     edges,
     isNodeVisible,
     hasStarted,
     allowedVisible,
-    nodeById,
+    nodeById: stateNodeById,
     user,
   });
 

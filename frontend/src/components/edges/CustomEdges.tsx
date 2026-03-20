@@ -20,6 +20,7 @@ const DEFAULTS = {
   dotSpeed: 2,
   dotColor: '',
   dotCustomPath: '',
+  dotBounce: false,
   glowEnabled: false,
   glowIntensity: 0.15,
   glowSpread: 4,
@@ -188,6 +189,11 @@ export function ConfigurableEdge({
               dur={`${cfg.dotSpeed}s`}
               repeatCount="indefinite"
               path={edgePath}
+              {...(cfg.dotBounce ? {
+                keyPoints: "0;1;0",
+                keyTimes: "0;0.5;1",
+                calcMode: "linear",
+              } : {})}
             />
             <DotShape
               shape={cfg.dotShape}
@@ -197,6 +203,26 @@ export function ConfigurableEdge({
               customPath={cfg.dotCustomPath}
             />
           </g>
+          {/* Second trailing dot for bounce mode (creates a "busy transfer" feel) */}
+          {cfg.dotBounce && (
+            <g opacity={0.4}>
+              <animateMotion
+                dur={`${cfg.dotSpeed}s`}
+                repeatCount="indefinite"
+                path={edgePath}
+                keyPoints="1;0;1"
+                keyTimes="0;0.5;1"
+                calcMode="linear"
+              />
+              <DotShape
+                shape={cfg.dotShape}
+                size={cfg.dotSize * 0.7}
+                color={cfg.dotColor || stroke}
+                filterId={glowFilterId}
+                customPath={cfg.dotCustomPath}
+              />
+            </g>
+          )}
           <defs>
             <filter id={glowFilterId} x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="3" result="coloredBlur" />

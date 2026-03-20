@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Handle } from 'reactflow';
+import { Handle, useReactFlow } from 'reactflow';
 import { gsap } from 'gsap';
 import { Fingerprint, Lock, CheckCircle, Shield, Loader2, Check, X } from 'lucide-react';
 import { HyperText } from '@/components/ui/hyper-text';
@@ -54,6 +54,7 @@ interface FingerprintNodeProps {
 }
 
 const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
+  const { setNodes } = useReactFlow();
   const getPosition = (position: string) => {
     switch (position.toLowerCase()) {
       case 'top':
@@ -495,10 +496,15 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       const handleVerifyClick = () => {
         if (verifyPhase !== 'idle') return;
         setVerifyPhase(0);
-        setTimeout(() => setVerifyPhase(1), 900);
-        setTimeout(() => setVerifyPhase(2), 1800);
+        // Signal to the edge system that verification is actively running
+        setNodes((nds: any[]) => nds.map((n: any) => n.id === id ? { ...n, data: { ...n.data, isVerifying: true } } : n));
+        // Variable-duration steps to feel more organic
+        setTimeout(() => setVerifyPhase(1), 2500);   // Step 1 takes 2.5s
+        setTimeout(() => setVerifyPhase(2), 6000);   // Step 2 takes 3.5s (slower, more suspenseful)
         setTimeout(() => {
           setVerifyPhase('done');
+          // Clear the verifying flag on the node data
+          setNodes((nds: any[]) => nds.map((n: any) => n.id === id ? { ...n, data: { ...n.data, isVerifying: false } } : n));
           // Fire confetti + celebration sound on success
           if (finalOutcome === 'success') {
             const colors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0'];
@@ -546,7 +552,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
           }
           // After steps complete, trigger the reveal
           setTimeout(() => data.onReveal?.(id), 600);
-        }, 2700);
+        }, 8500);  // Step 3 takes 2.5s
       };
 
       const getStepStatus = (index: number) => {
@@ -645,9 +651,9 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
                   }
                 `}
               >
-                {verifyPhase === 'idle' && 'Verify'}
-                {typeof verifyPhase === 'number' && 'Checking...'}
-                {verifyPhase === 'done' && (finalOutcome === 'success' ? '✓ Verified' : '✗ Failed')}
+                {verifyPhase === 'idle' && 'Reallocate'}
+                {typeof verifyPhase === 'number' && 'Reallocating...'}
+                {verifyPhase === 'done' && (finalOutcome === 'success' ? '✓ Reallocated' : '✗ Failed')}
               </button>
             </div>
           </div>
