@@ -92,6 +92,7 @@ export function mapNodesWithState(params: {
     let completedChildCount = 0;
     const childNodeIds: string[] = [];
     const nodeAmounts: Record<string, number> = {};
+    const completedChildDetails: { nodeId: string; amount: number; status: string; approvedAmount: number | null }[] = [];
     // Collect success rates from child nodes for aggregation
     let successRateSum = 0;
     let successRateCount = 0;
@@ -119,9 +120,17 @@ export function mapNodesWithState(params: {
               }
               // Don't count as completed if the node is still pending reveal (avoid spoilers)
               const isPendingReveal = pendingRevealNodes?.[targetNode.id] != null;
-              const isSuccess = !isPendingReveal && (user?.nodeProgress?.[targetNode.id] === 'success' || user?.nodeProgress?.[targetNode.id] === 'partial success');
+              const nodeProgressStatus = user?.nodeProgress?.[targetNode.id];
+              const isSuccess = !isPendingReveal && (nodeProgressStatus === 'success' || nodeProgressStatus === 'partial success');
               if (isSuccess) {
                 completedChildCount++;
+                const originalAmount = targetNode.data?.transaction?.amount || 0;
+                completedChildDetails.push({
+                  nodeId: targetNode.id,
+                  amount: originalAmount,
+                  status: nodeProgressStatus,
+                  approvedAmount: nodeApprovedAmounts?.[targetNode.id] ?? null,
+                });
               } else {
                 const amount = targetNode.data?.transaction?.amount || 0;
                 totalAmount += amount;
@@ -130,7 +139,11 @@ export function mapNodesWithState(params: {
                 nodeAmounts[targetNode.id] = amount;
               }
             }
-            stack.push(targetNode.id);
+            // Only continue traversal into non-group nodes;
+            // stop at the next group node boundary
+            if (targetNode.type !== 'fingerprintGroupNode') {
+              stack.push(targetNode.id);
+            }
           }
         }
       });
@@ -141,7 +154,7 @@ export function mapNodesWithState(params: {
       ? `${Math.round(successRateSum / successRateCount)}%`
       : null;
 
-    return { totalAmount, childCount, totalChildCount, completedChildCount, childNodeIds, nodeAmounts, aggregatedSuccessRate };
+    return { totalAmount, childCount, totalChildCount, completedChildCount, childNodeIds, nodeAmounts, aggregatedSuccessRate, completedChildDetails };
   };
 
   // Build a map of parent nodes
@@ -256,6 +269,7 @@ export function mapNodesWithState(params: {
         totalChildCount: groupAgg?.totalChildCount,
         completedChildCount: groupAgg?.completedChildCount,
         childNodeIds: groupAgg?.childNodeIds,
+        completedChildDetails: groupAgg?.completedChildDetails,
         nodeAmounts: groupAgg?.nodeAmounts,
         // Aggregated success rate from child nodes (only for group nodes)
         ...(groupAgg?.aggregatedSuccessRate ? { successRate: groupAgg.aggregatedSuccessRate } : {}),

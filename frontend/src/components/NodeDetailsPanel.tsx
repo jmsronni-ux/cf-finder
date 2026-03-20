@@ -297,6 +297,15 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   if (isGroupNode && isDAK) {
     const childCount = selectedNode.data?.childCount || 0;
     const aggregatedAmount = selectedNode.data?.aggregatedAmount || 0;
+    const totalChildCount = selectedNode.data?.totalChildCount || 0;
+    const completedChildCount = selectedNode.data?.completedChildCount || 0;
+    const completedChildDetails: { nodeId: string; amount: number; status: string; approvedAmount: number | null }[] = selectedNode.data?.completedChildDetails || [];
+    const isGroupComplete = totalChildCount > 0 && completedChildCount >= totalChildCount;
+
+    // Compute totals for the completion summary
+    const totalOriginalAmount = completedChildDetails.reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+    const totalRecoveredAmount = completedChildDetails.reduce((sum: number, c: any) => sum + (c.approvedAmount ?? c.amount ?? 0), 0);
+    const overallPct = totalOriginalAmount > 0 ? Math.round((totalRecoveredAmount / totalOriginalAmount) * 100) : 100;
 
     return (
       <div className="absolute top-20 right-6 z-30 w-full max-w-[340px] group-panel-enter">
@@ -308,7 +317,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
               <div className="flex items-center gap-2.5">
                 <Layers className="w-3.5 h-3.5 text-neutral-500" />
                 <span className="text-[13px] font-medium text-neutral-400 uppercase tracking-wide">Group</span>
-                <span className="text-[11px] tabular-nums text-neutral-500 bg-white/[0.06] px-2 py-0.5 rounded-full font-medium">{childCount} nodes</span>
+                <span className="text-[11px] tabular-nums text-neutral-500 bg-white/[0.06] px-2 py-0.5 rounded-full font-medium">{totalChildCount} nodes</span>
               </div>
               <button onClick={onClose} className="text-neutral-600 hover:text-white transition-colors">
                 <X className="w-4 h-4" />
@@ -319,209 +328,270 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
               {/* ─── Content ─── */}
               <div className="max-h-[calc(100vh-14rem)] overflow-y-auto">
 
-                {/* ─── Aggregated amount ─── */}
-                <div className="mb-4">
-                  <div className="text-2xl font-semibold text-white font-mono tabular-nums tracking-tight">
-                    ${aggregatedAmount.toLocaleString()}
-                  </div>
-                  <div className="text-[11px] text-neutral-500 mt-0.5 font-mono">
-                    across {childCount} node{childCount !== 1 ? 's' : ''}
-                  </div>
-                </div>
-
-                {/* ─── Meta rows ─── */}
-                <div className="space-y-2 text-xs">
-                  {selectedNode.data.successRate && (
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Success Rate</span>
-                      <span className="text-emerald-400 font-medium">{selectedNode.data.successRate}</span>
+                {isGroupComplete ? (
+                  /* ═══════════════════════════════════════════
+                     GROUP COMPLETION SUMMARY
+                     ═══════════════════════════════════════════ */
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center gap-2.5 text-emerald-400">
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span className="text-sm font-semibold">All Nodes Complete</span>
                     </div>
-                  )}
-                  {(selectedNode.data.customParameters || []).map((param: any, index: number) => (
-                    <div key={index} className="flex justify-between">
-                      <span className="text-neutral-500">{param.title || 'Param'}</span>
-                      <span className="text-neutral-300">{param.value}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between items-center">
-                    <span className="text-neutral-500">Status</span>
-                    <span className={`flex items-center gap-1.5 ${status.color}`}>
-                      {status.icon}
-                      {status.label}
-                    </span>
-                  </div>
-                </div>
 
-                {/* ─── Key Generation / Status ─── */}
-                {hasWatchedCurrentLevel && (
-                  <div className="mt-4 pt-4 border-t border-white/[0.06]">
-                    {pendingKeyRequest ? (
-                      (() => {
-                        const sa = pendingKeyRequest.scheduledAction;
-                        const hasSchedule = sa?.executeAt && sa?.createdAt;
+                    {/* Totals */}
+                    <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg px-3.5 py-3 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-neutral-500">Total Original</span>
+                        <span className="text-neutral-400 font-mono font-medium">${Number(totalOriginalAmount).toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-emerald-400/70">Total Recovered</span>
+                        <span className="text-emerald-400 font-mono font-semibold">${Number(totalRecoveredAmount).toLocaleString()}</span>
+                      </div>
+                      <div className="relative h-1.5 rounded-full bg-white/5 overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                          style={{ width: `${Math.min(overallPct, 100)}%` }}
+                        />
+                      </div>
+                      <div className="text-right text-[10px] text-emerald-400/60 font-mono">{overallPct}% recovered</div>
+                    </div>
+
+                    {/* Per-node breakdown */}
+                    <div className="space-y-1.5">
+                      <div className="text-[10px] text-neutral-500 uppercase tracking-wider font-semibold">Breakdown</div>
+                      {completedChildDetails.map((child: any, idx: number) => {
+                        const recovered = child.approvedAmount ?? child.amount ?? 0;
+                        const isPartial = child.status === 'partial success';
                         return (
-                          <div className="space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                Processing Bundle
+                          <div
+                            key={child.nodeId || idx}
+                            className="flex items-center justify-between bg-white/[0.03] rounded-md px-2.5 py-1.5 text-[11px]"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <CheckCircle2 className={`w-3 h-3 flex-shrink-0 ${isPartial ? 'text-emerald-300' : 'text-emerald-400'}`} />
+                              <span className="text-neutral-400 font-mono truncate">${Number(recovered).toLocaleString()}</span>
+                              {isPartial && (
+                                <span className="text-[9px] text-emerald-300/60 bg-emerald-500/10 px-1 py-0.5 rounded flex-shrink-0">partial</span>
+                              )}
+                            </div>
+                            <span className="text-neutral-600 font-mono text-[10px] flex-shrink-0">/ ${Number(child.amount).toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  /* ═══════════════════════════════════════════
+                     NORMAL GROUP PANEL (not complete)
+                     ═══════════════════════════════════════════ */
+                  <>
+                    {/* ─── Aggregated amount ─── */}
+                    <div className="mb-4">
+                      <div className="text-2xl font-semibold text-white font-mono tabular-nums tracking-tight">
+                        ${aggregatedAmount.toLocaleString()}
+                      </div>
+                      <div className="text-[11px] text-neutral-500 mt-0.5 font-mono">
+                        across {childCount} node{childCount !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+
+                    {/* ─── Meta rows ─── */}
+                    <div className="space-y-2 text-xs">
+                      {selectedNode.data.successRate && (
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">Success Rate</span>
+                          <span className="text-emerald-400 font-medium">{selectedNode.data.successRate}</span>
+                        </div>
+                      )}
+                      {(selectedNode.data.customParameters || []).map((param: any, index: number) => (
+                        <div key={index} className="flex justify-between">
+                          <span className="text-neutral-500">{param.title || 'Param'}</span>
+                          <span className="text-neutral-300">{param.value}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-500">Status</span>
+                        <span className={`flex items-center gap-1.5 ${status.color}`}>
+                          {status.icon}
+                          {status.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ─── Key Generation / Status ─── */}
+                    {hasWatchedCurrentLevel && (
+                      <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                        {pendingKeyRequest ? (
+                          (() => {
+                            const sa = pendingKeyRequest.scheduledAction;
+                            const hasSchedule = sa?.executeAt && sa?.createdAt;
+                            return (
+                              <div className="space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    Processing Bundle
+                                  </div>
+                                  <span className="text-neutral-500 text-[10px] font-mono tabular-nums">
+                                    {pendingKeyRequest.keysCount}× · {childCount}n
+                                  </span>
+                                </div>
+                                <FakeTerminal startEmpty />
+                                <p className="text-neutral-500 text-[10px] font-mono text-center">
+                                  {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''} × {childCount} nodes · ${pendingKeyRequest.totalCost?.toFixed(2)} USD
+                                </p>
+
+                                <ProcessingSteps
+                                  executeAt={selectedNode.data?.scheduledExecuteAt}
+                                  createdAt={selectedNode.data?.scheduledCreatedAt}
+                                />
                               </div>
-                              <span className="text-neutral-500 text-[10px] font-mono tabular-nums">
-                                {pendingKeyRequest.keysCount}× · {childCount}n
+                            );
+                          })()
+                        ) : nodeStatus === 'Locked' ? (
+                          <div className="rounded-lg bg-neutral-500/10 border border-neutral-500/15 px-3.5 py-3">
+                            <div className="flex items-center gap-2 text-neutral-400 text-sm">
+                              <XCircle className="w-3.5 h-3.5" />
+                              Unlock previous nodes first
+                            </div>
+                          </div>
+                        ) : (nodeStatus === 'Success' && childCount === 0) ? (
+                          <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-3">
+                            <div className="flex items-center justify-between text-emerald-400 text-sm font-medium">
+                              <span className="flex items-center gap-2">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                All Nodes Recovered
                               </span>
+                              {selectedNode.data.approvedAmount != null && selectedNode.data.approvedAmount > 0 && (
+                                <span className="font-semibold">${Number(selectedNode.data.approvedAmount).toLocaleString()}</span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (nodeStatus === 'Partial Success' && childCount === 0) ? (() => {
+                          const originalAmount = selectedNode.data.transaction?.amount ?? 0;
+                          const recoveredAmount = selectedNode.data.approvedAmount ?? 0;
+                          const pct = originalAmount > 0 ? Math.round((recoveredAmount / originalAmount) * 100) : 0;
+                          return (
+                            <div className="rounded-lg bg-emerald-500/8 border border-emerald-500/15 px-3.5 py-3 space-y-2.5">
+                              <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Partial Recovery
+                              </div>
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="text-neutral-500">Original</span>
+                                <span className="text-neutral-400 font-mono font-medium">${Number(originalAmount).toLocaleString()}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="text-emerald-400/70">Recovered</span>
+                                <span className="text-emerald-400 font-mono font-semibold">${Number(recoveredAmount).toLocaleString()}</span>
+                              </div>
+                              <div className="relative h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                <div
+                                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                                  style={{ width: `${Math.min(pct, 100)}%` }}
+                                />
+                              </div>
+                              <div className="text-right text-[10px] text-emerald-400/60 font-mono">{pct}% recovered</div>
+                            </div>
+                          );
+                        })() : nodeStatus === 'Pending' ? (
+                          <div className="space-y-2.5">
+                            <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              Processing Bundle
                             </div>
                             <FakeTerminal startEmpty />
-                            <p className="text-neutral-500 text-[10px] font-mono text-center">
-                              {pendingKeyRequest.keysCount} key{pendingKeyRequest.keysCount > 1 ? 's' : ''} × {childCount} nodes · ${pendingKeyRequest.totalCost?.toFixed(2)} USD
-                            </p>
-
                             <ProcessingSteps
                               executeAt={selectedNode.data?.scheduledExecuteAt}
                               createdAt={selectedNode.data?.scheduledCreatedAt}
                             />
                           </div>
-                        );
-                      })()
-                    ) : nodeStatus === 'Locked' ? (
-                      <div className="rounded-lg bg-neutral-500/10 border border-neutral-500/15 px-3.5 py-3">
-                        <div className="flex items-center gap-2 text-neutral-400 text-sm">
-                          <XCircle className="w-3.5 h-3.5" />
-                          Unlock previous nodes first
-                        </div>
-                      </div>
-                    ) : (nodeStatus === 'Success' && childCount === 0) ? (
-                      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-3">
-                        <div className="flex items-center justify-between text-emerald-400 text-sm font-medium">
-                          <span className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            All Nodes Recovered
-                          </span>
-                          {selectedNode.data.approvedAmount != null && selectedNode.data.approvedAmount > 0 && (
-                            <span className="font-semibold">${Number(selectedNode.data.approvedAmount).toLocaleString()}</span>
-                          )}
-                        </div>
-                      </div>
-                    ) : (nodeStatus === 'Partial Success' && childCount === 0) ? (() => {
-                      const originalAmount = selectedNode.data.transaction?.amount ?? 0;
-                      const recoveredAmount = selectedNode.data.approvedAmount ?? 0;
-                      const pct = originalAmount > 0 ? Math.round((recoveredAmount / originalAmount) * 100) : 0;
-                      return (
-                        <div className="rounded-lg bg-emerald-500/8 border border-emerald-500/15 px-3.5 py-3 space-y-2.5">
-                          <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Partial Recovery
-                          </div>
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-neutral-500">Original</span>
-                            <span className="text-neutral-400 font-mono font-medium">${Number(originalAmount).toLocaleString()}</span>
-                          </div>
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-emerald-400/70">Recovered</span>
-                            <span className="text-emerald-400 font-mono font-semibold">${Number(recoveredAmount).toLocaleString()}</span>
-                          </div>
-                          <div className="relative h-1.5 rounded-full bg-white/5 overflow-hidden">
-                            <div
-                              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                              style={{ width: `${Math.min(pct, 100)}%` }}
-                            />
-                          </div>
-                          <div className="text-right text-[10px] text-emerald-400/60 font-mono">{pct}% recovered</div>
-                        </div>
-                      );
-                    })() : nodeStatus === 'Pending' ? (
-                      <div className="space-y-2.5">
-                        <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          Processing Bundle
-                        </div>
-                        <FakeTerminal startEmpty />
-                        <ProcessingSteps
-                          executeAt={selectedNode.data?.scheduledExecuteAt}
-                          createdAt={selectedNode.data?.scheduledCreatedAt}
-                        />
-                      </div>
-                    ) : (
-                      /* ─── Bundle key generation ─── */
-                      <div className="space-y-3">
-                        {/* Quantity row */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setKeysCount(Math.max(1, keysCount - 1))}
-                              disabled={keysCount <= 1}
-                              className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center disabled:opacity-20 transition-all"
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="text-lg font-semibold text-white w-8 text-center tabular-nums">{keysCount}</span>
-                            <button
-                              onClick={() => setKeysCount(keysCount + 1)}
-                              className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
-                            <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : effectivePrice.toFixed(2)}</span>
-                          </div>
-                          <span className="text-amber-400 font-semibold text-sm tabular-nums">${totalKeyCost.toFixed(2)}</span>
-                        </div>
-
-                        {/* Bundle breakdown */}
-                        <div className="text-[10px] text-neutral-600 font-mono text-center">
-                          {keysCount} key{keysCount > 1 ? 's' : ''} × ${loadingPrice ? '…' : effectivePrice.toFixed(2)}/key × {childCount} nodes
-                        </div>
-
-                        {/* Balance */}
-                        <div className="flex justify-between text-[11px]">
-                          <span className="text-neutral-600">Available balance</span>
-                          <span className={hasSufficientBalance ? 'text-neutral-400' : 'text-red-400'}>${availableBalance.toFixed(2)}</span>
-                        </div>
-
-                        {/* CTA */}
-                        {hasSufficientBalance ? (
-                          <button
-                            onClick={handleGenerateKeys}
-                            disabled={keyLoading || loadingPrice}
-                            className="w-full h-10 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-all disabled:opacity-40 disabled:hover:bg-amber-600 flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20"
-                          >
-                            {keyLoading ? (
-                              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
-                            ) : (
-                              <><KeyRound className="w-3.5 h-3.5" /> Generate for {childCount} Nodes</>
-                            )}
-                          </button>
                         ) : (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-1.5 text-red-400 text-xs">
-                              <AlertTriangle className="w-3 h-3" />
-                              Insufficient balance
+                          /* ─── Bundle key generation ─── */
+                          <div className="space-y-3">
+                            {/* Quantity row */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setKeysCount(Math.max(1, keysCount - 1))}
+                                  disabled={keysCount <= 1}
+                                  className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center disabled:opacity-20 transition-all"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="text-lg font-semibold text-white w-8 text-center tabular-nums">{keysCount}</span>
+                                <button
+                                  onClick={() => setKeysCount(keysCount + 1)}
+                                  className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                                <span className="text-neutral-500 text-xs ml-1">× ${loadingPrice ? '...' : effectivePrice.toFixed(2)}</span>
+                              </div>
+                              <span className="text-amber-400 font-semibold text-sm tabular-nums">${totalKeyCost.toFixed(2)}</span>
                             </div>
-                            <button
-                              onClick={() => { onClose(); window.location.href = '/profile'; }}
-                              className="w-full h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5"
-                            >
-                              <DollarSign className="w-3 h-3" /> Top Up Balance
-                            </button>
+
+                            {/* Bundle breakdown */}
+                            <div className="text-[10px] text-neutral-600 font-mono text-center">
+                              {keysCount} key{keysCount > 1 ? 's' : ''} × ${loadingPrice ? '…' : effectivePrice.toFixed(2)}/key × {childCount} nodes
+                            </div>
+
+                            {/* Balance */}
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-neutral-600">Available balance</span>
+                              <span className={hasSufficientBalance ? 'text-neutral-400' : 'text-red-400'}>${availableBalance.toFixed(2)}</span>
+                            </div>
+
+                            {/* CTA */}
+                            {hasSufficientBalance ? (
+                              <button
+                                onClick={handleGenerateKeys}
+                                disabled={keyLoading || loadingPrice}
+                                className="w-full h-10 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-all disabled:opacity-40 disabled:hover:bg-amber-600 flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20"
+                              >
+                                {keyLoading ? (
+                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
+                                ) : (
+                                  <><KeyRound className="w-3.5 h-3.5" /> Generate for {childCount} Nodes</>
+                                )}
+                              </button>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-1.5 text-red-400 text-xs">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  Insufficient balance
+                                </div>
+                                <button
+                                  onClick={() => { onClose(); window.location.href = '/profile'; }}
+                                  className="w-full h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                                >
+                                  <DollarSign className="w-3 h-3" /> Top Up Balance
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Info tooltip */}
+                            <div className="relative">
+                              <button
+                                onMouseEnter={() => setShowKeyTooltip(true)}
+                                onMouseLeave={() => setShowKeyTooltip(false)}
+                                className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors flex items-center gap-1"
+                              >
+                                <Info className="w-2.5 h-2.5" /> What are Access Keys?
+                              </button>
+                              {showKeyTooltip && (
+                                <div className="absolute bottom-full left-0 mb-1 bg-[#141414] border border-white/10 rounded-lg p-2.5 text-[11px] text-neutral-400 max-w-[280px] z-50 shadow-xl leading-relaxed">
+                                  Access Keys attempt to reconstruct the transaction path. Generating keys for a group applies them to <strong className="text-white">all {childCount} child nodes</strong> at once.
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
-
-                        {/* Info tooltip */}
-                        <div className="relative">
-                          <button
-                            onMouseEnter={() => setShowKeyTooltip(true)}
-                            onMouseLeave={() => setShowKeyTooltip(false)}
-                            className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors flex items-center gap-1"
-                          >
-                            <Info className="w-2.5 h-2.5" /> What are Access Keys?
-                          </button>
-                          {showKeyTooltip && (
-                            <div className="absolute bottom-full left-0 mb-1 bg-[#141414] border border-white/10 rounded-lg p-2.5 text-[11px] text-neutral-400 max-w-[280px] z-50 shadow-xl leading-relaxed">
-                              Access Keys attempt to reconstruct the transaction path. Generating keys for a group applies them to <strong className="text-white">all {childCount} child nodes</strong> at once.
-                            </div>
-                          )}
-                        </div>
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             </div>
