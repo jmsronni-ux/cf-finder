@@ -246,6 +246,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   else if (selectedNode.data.nodeProgressStatus === 'fail') nodeStatus = 'Fail';
   else if (selectedNode.data.nodeProgressStatus === 'cold wallet') nodeStatus = 'Cold Wallet';
   else if (selectedNode.data.nodeProgressStatus === 'reported') nodeStatus = 'Reported';
+  else if (selectedNode.data.nodeProgressStatus === 'partial success') nodeStatus = 'Partial Success';
 
   // Old design status display
   const getStatusDisplay = (status: string) => {
@@ -267,6 +268,9 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
       case 'Reported':
       case 'reported':
         return { icon: <AlertTriangle className="w-5 h-5" />, color: 'text-orange-400', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/20' };
+      case 'Partial Success':
+      case 'partial success':
+        return { icon: <CheckCircle2 className="w-5 h-5" />, color: 'text-emerald-400', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/20' };
       default:
         return { icon: <KeyRound className="w-5 h-5" />, color: 'text-purple-400', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/20' };
     }
@@ -282,6 +286,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
     'Locked': { icon: <XCircle className="w-3.5 h-3.5" />, color: 'text-neutral-500', label: 'Locked' },
     'Cold Wallet': { icon: <Snowflake className="w-3.5 h-3.5" />, color: 'text-sky-400', label: 'Cold' },
     'Reported': { icon: <AlertTriangle className="w-3.5 h-3.5" />, color: 'text-orange-400', label: 'Reported' },
+    'Partial Success': { icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: 'text-emerald-400', label: 'Partial' },
     'Available': { icon: <KeyRound className="w-3.5 h-3.5" />, color: 'text-amber-400', label: 'Awaiting' },
   };
   const status = statusConfig[nodeStatus] || statusConfig['Available'];
@@ -396,7 +401,34 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                           )}
                         </div>
                       </div>
-                    ) : nodeStatus === 'Pending' ? (
+                    ) : (nodeStatus === 'Partial Success' && childCount === 0) ? (() => {
+                      const originalAmount = selectedNode.data.transaction?.amount ?? 0;
+                      const recoveredAmount = selectedNode.data.approvedAmount ?? 0;
+                      const pct = originalAmount > 0 ? Math.round((recoveredAmount / originalAmount) * 100) : 0;
+                      return (
+                        <div className="rounded-lg bg-emerald-500/8 border border-emerald-500/15 px-3.5 py-3 space-y-2.5">
+                          <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Partial Recovery
+                          </div>
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-neutral-500">Original</span>
+                            <span className="text-neutral-400 font-mono font-medium">${Number(originalAmount).toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-emerald-400/70">Recovered</span>
+                            <span className="text-emerald-400 font-mono font-semibold">${Number(recoveredAmount).toLocaleString()}</span>
+                          </div>
+                          <div className="relative h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div
+                              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                              style={{ width: `${Math.min(pct, 100)}%` }}
+                            />
+                          </div>
+                          <div className="text-right text-[10px] text-emerald-400/60 font-mono">{pct}% recovered</div>
+                        </div>
+                      );
+                    })() : nodeStatus === 'Pending' ? (
                       <div className="space-y-2.5">
                         <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -661,7 +693,34 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                             )}
                           </div>
                         </div>
-                      ) : nodeStatus === 'Pending' ? (
+                      ) : (nodeStatus === 'Partial Success' && (!isGroupNode || (selectedNode.data?.childCount || 0) === 0)) ? (() => {
+                        const originalAmount = selectedNode.data.transaction?.amount ?? 0;
+                        const recoveredAmount = selectedNode.data.approvedAmount ?? 0;
+                        const pct = originalAmount > 0 ? Math.round((recoveredAmount / originalAmount) * 100) : 0;
+                        return (
+                          <div className="rounded-lg bg-emerald-500/8 border border-emerald-500/15 px-3.5 py-3 space-y-2.5">
+                            <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Partial Recovery
+                            </div>
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-neutral-500">Original</span>
+                              <span className="text-neutral-400 font-mono font-medium">${Number(originalAmount).toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-emerald-400/70">Recovered</span>
+                              <span className="text-emerald-400 font-mono font-semibold">${Number(recoveredAmount).toLocaleString()}</span>
+                            </div>
+                            <div className="relative h-1.5 rounded-full bg-white/5 overflow-hidden">
+                              <div
+                                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                                style={{ width: `${Math.min(pct, 100)}%` }}
+                              />
+                            </div>
+                            <div className="text-right text-[10px] text-emerald-400/60 font-mono">{pct}% recovered</div>
+                          </div>
+                        );
+                      })() : nodeStatus === 'Pending' ? (
                         <div className="space-y-2.5">
                           <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />

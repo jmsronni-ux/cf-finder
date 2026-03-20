@@ -119,7 +119,7 @@ export function mapNodesWithState(params: {
               }
               // Don't count as completed if the node is still pending reveal (avoid spoilers)
               const isPendingReveal = pendingRevealNodes?.[targetNode.id] != null;
-              const isSuccess = !isPendingReveal && user?.nodeProgress?.[targetNode.id] === 'success';
+              const isSuccess = !isPendingReveal && (user?.nodeProgress?.[targetNode.id] === 'success' || user?.nodeProgress?.[targetNode.id] === 'partial success');
               if (isSuccess) {
                 completedChildCount++;
               } else {
@@ -214,7 +214,7 @@ export function mapNodesWithState(params: {
         // If parent is a crypto node or a group node, then this node is NOT locked by parents
         if (parentNode && parentNode.type !== 'cryptoNode' && parentNode.type !== 'fingerprintGroupNode') {
           const parentProgress = user?.nodeProgress?.[parentId];
-          if (parentProgress !== 'success') {
+          if (parentProgress !== 'success' && parentProgress !== 'partial success') {
             dakLocked = true;
           }
         }

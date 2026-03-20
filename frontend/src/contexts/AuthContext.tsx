@@ -34,7 +34,7 @@ interface User {
   walletVerified?: boolean;
   levelTemplate?: string;
   nodeProgress?: {
-    [nodeId: string]: 'pending' | 'success' | 'fail';
+    [nodeId: string]: 'pending' | 'success' | 'fail' | 'partial success';
   };
 }
 

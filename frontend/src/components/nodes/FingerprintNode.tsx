@@ -31,6 +31,7 @@ interface FingerprintNodeProps {
       amount: number;
       currency: string;
       status: string;
+      partialAmount?: number;
     };
     handles?: {
       target: {
@@ -246,6 +247,9 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     if (data.nodeProgressStatus === 'reported') {
       return 'border-orange-500/60 bg-orange-950 glow-orange';
     }
+    if (data.nodeProgressStatus === 'partial success') {
+      return 'border-teal-500/60 bg-teal-950 glow-teal';
+    }
     if (data.nodeProgressStatus === 'pending_reveal') {
       return 'border-purple-500/60 bg-purple-950/80 sealed-node';
     }
@@ -259,6 +263,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       if (status === 'Pending') return 'border-amber-500/60 bg-amber-950 glow-yellow';
       if (status === 'Cold Wallet') return 'border-sky-500/60 bg-sky-950 glow-blue';
       if (status === 'Reported') return 'border-orange-500/60 bg-orange-950 glow-orange';
+      if (status === 'Partial Success') return 'border-teal-500/60 bg-teal-950 glow-teal';
     }
 
     // Regular user: awaiting key generation (amber)
@@ -298,6 +303,9 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     if (data.nodeProgressStatus === 'fail') {
       return 'border-red-500 bg-[#4E1817] text-red-500';
     }
+    if (data.nodeProgressStatus === 'partial success') {
+      return 'border-teal-500 bg-[#0f3a3a] glow-teal text-teal-500';
+    }
 
     if (status === 'Success') {
       return 'border-green-500 bg-[#1F582F] glow-green text-green-500';
@@ -309,6 +317,8 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       return 'border-blue-500 bg-[#172554] glow-blue text-blue-500';
     } else if (status === 'Reported') {
       return 'border-orange-500 bg-[#431407] glow-orange text-orange-500';
+    } else if (status === 'Partial Success') {
+      return 'border-teal-500 bg-[#0f3a3a] glow-teal text-teal-500';
     }
 
     return 'border-gray-500 bg-gray-600/40';
@@ -336,6 +346,9 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     if (data.nodeProgressStatus === 'fail') {
       return 'border-b-red-500';
     }
+    if (data.nodeProgressStatus === 'partial success') {
+      return 'border-b-teal-500';
+    }
 
     if (status === 'Success') {
       return 'border-b-green-500';
@@ -347,6 +360,8 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
       return 'border-b-blue-500';
     } else if (status === 'Reported') {
       return 'border-b-orange-500';
+    } else if (status === 'Partial Success') {
+      return 'border-b-teal-500';
     }
 
     return 'border-b-gray-500';
@@ -709,6 +724,73 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
             type="source"
             position={getPosition(handles.source.position)}
           />
+        </div>
+      );
+    }
+
+    // ── NORMAL DAK NODE — PARTIAL SUCCESS: use hexagon ──
+    const isPartialSuccess = data.nodeProgressStatus === 'partial success'
+      || (data.isAdmin && (data.effectiveStatus || data.transaction?.status) === 'Partial Success');
+
+    if (isPartialSuccess) {
+      return (
+        <div
+          ref={rootRef}
+          className={`relative cursor-pointer border rounded-xl size-20 flex flex-col items-center justify-center text-center transition-all duration-200 border-emerald-500/60 bg-emerald-950 glow-green overflow-hidden`}
+        >
+          <Handle type="target" position={getPosition(handles.target.position)} />
+
+          {/* Diagonal stripe overlay */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" preserveAspectRatio="none">
+            <defs>
+              <pattern id={`partialStripes-${id}`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width="2" height="6" fill="rgba(16,185,129,0.12)" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill={`url(#partialStripes-${id})`} />
+          </svg>
+
+          <div className="relative z-10 flex flex-col items-center justify-center gap-0.5 h-full">
+            {data.isVisible && (
+              <HyperText
+                key={`${id}-${data.isVisible}`}
+                className="text-[1.05rem] font-semibold py-0 pointer-events-none text-white"
+                as="span"
+                duration={2000}
+                animateOnHover={false}
+                startOnView={false}
+                delay={400}
+              >
+                {`${(data.approvedAmount ?? data.transaction?.partialAmount ?? data.transaction?.amount ?? 0).toFixed(0)}`}
+              </HyperText>
+            )}
+            <span className="text-white/50 text-[0.6rem] font-mono">
+              {data.transaction?.transaction.slice(0, 4)}…{data.transaction?.transaction.slice(-4)}
+            </span>
+            {data.withdrawn && (
+              <div className="absolute -top-1 -right-1">
+                <CheckCircle className="text-emerald-400" size={15} />
+              </div>
+            )}
+          </div>
+
+          <Handle type="source" position={getPosition(handles.source.position)} />
+          {/* Admin comment bubble */}
+          {data.selected && data.adminComment?.comment && (
+            <div
+              className={`absolute top-full mt-4 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-1 duration-200`}
+            >
+              <div
+                className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-emerald-950 border-l border-t border-emerald-500/40"
+              />
+              <div
+                className="relative max-w-[200px] w-max px-2.5 py-1.5 rounded-md text-[9px] leading-snug backdrop-blur-sm border shadow-lg bg-emerald-950/90 border-emerald-500/40 text-emerald-200 shadow-emerald-500/10"
+              >
+                <span className="text-[7px] uppercase tracking-widest opacity-50 block mb-0.5">Note</span>
+                <span className="italic">"{data.adminComment.comment}"</span>
+              </div>
+            </div>
+          )}
         </div>
       );
     }

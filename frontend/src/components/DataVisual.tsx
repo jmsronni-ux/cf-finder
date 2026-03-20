@@ -33,6 +33,7 @@ const currencyConfig: Record<string, { icon: string; color: string; bg: string }
 
 const statusOptions = [
   { value: 'Success', dot: 'bg-emerald-400', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/25' },
+  { value: 'Partial Success', dot: 'bg-teal-400', color: 'text-teal-400', bg: 'bg-teal-500/10', border: 'border-teal-500/25' },
   { value: 'Pending', dot: 'bg-yellow-400', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/25' },
   { value: 'Fail', dot: 'bg-red-400', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/25' },
   { value: 'Cold Wallet', dot: 'bg-blue-400', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/25' },
@@ -594,6 +595,26 @@ const DataVisual: React.FC<DataVisualProps> = ({
                     );
                   })}
                 </div>
+
+                {/* Partial Success — approved amount input */}
+                {isAdmin && currentStatus === 'Partial Success' && (
+                  <div className="mt-2">
+                    <label className={LABEL}>Approved Amount</label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-teal-400 text-xs font-mono">$</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={tx?.partialAmount ?? ''}
+                        onChange={(e) => updateTx({ partialAmount: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                        className={INPUT}
+                      />
+                    </div>
+                    <p className="text-[9px] text-teal-400/60 mt-0.5 ml-0.5">This amount will be approved instead of the full node amount</p>
+                  </div>
+                )}
               </div>
             </Section>
           )}
@@ -625,38 +646,40 @@ const DataVisual: React.FC<DataVisualProps> = ({
               badge={`${(selectedNode.data.customParameters || []).length}`}
             >
               {(selectedNode.data.customParameters || []).map((param: any, index: number) => (
-                <div key={index} className="flex items-center gap-1">
-                  <input
-                    type="text"
-                    placeholder="Title"
-                    value={param.title}
-                    onChange={(e) => {
-                      const p = [...(selectedNode.data.customParameters || [])];
-                      p[index] = { ...p[index], title: e.target.value };
-                      update({ customParameters: p });
-                    }}
-                    className={`${PARAM_INPUT} w-[38%]`}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Value"
+                <div key={index} className="space-y-1">
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      placeholder="Title"
+                      value={param.title}
+                      onChange={(e) => {
+                        const p = [...(selectedNode.data.customParameters || [])];
+                        p[index] = { ...p[index], title: e.target.value };
+                        update({ customParameters: p });
+                      }}
+                      className={`${PARAM_INPUT} flex-1`}
+                    />
+                    <button
+                      onClick={() => {
+                        const p = (selectedNode.data.customParameters || []).filter((_: any, i: number) => i !== index);
+                        update({ customParameters: p });
+                      }}
+                      className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0 p-0.5"
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
+                  <textarea
+                    placeholder="Value / Description"
                     value={param.value}
+                    rows={2}
                     onChange={(e) => {
                       const p = [...(selectedNode.data.customParameters || [])];
                       p[index] = { ...p[index], value: e.target.value };
                       update({ customParameters: p });
                     }}
-                    className={`${PARAM_INPUT} flex-1`}
+                    className={`${PARAM_INPUT} resize-none`}
                   />
-                  <button
-                    onClick={() => {
-                      const p = (selectedNode.data.customParameters || []).filter((_: any, i: number) => i !== index);
-                      update({ customParameters: p });
-                    }}
-                    className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0 p-0.5"
-                  >
-                    <Trash2 size={10} />
-                  </button>
                 </div>
               ))}
 

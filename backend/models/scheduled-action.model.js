@@ -13,7 +13,7 @@ const scheduledActionSchema = new mongoose.Schema({
     },
     nodeStatusOutcome: {
         type: String,
-        enum: ['success', 'fail', 'cold wallet', 'reported'],
+        enum: ['success', 'fail', 'cold wallet', 'reported', 'partial success'],
         default: 'success'
     },
     approvedAmount: {

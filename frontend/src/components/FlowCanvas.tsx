@@ -499,10 +499,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     const newReveals: Record<string, 'success' | 'fail'> = {};
 
     Object.entries(next).forEach(([nodeId, status]) => {
-      // Detect any change TO success/fail (covers retry scenarios where 'pending' is skipped)
-      if ((status === 'success' || status === 'fail') && prev[nodeId] !== status) {
+      // Detect any change TO success/fail/partial success (covers retry scenarios where 'pending' is skipped)
+      if ((status === 'success' || status === 'fail' || status === 'partial success') && prev[nodeId] !== status) {
         if (!pendingRevealNodes[nodeId]) {
-          newReveals[nodeId] = status as 'success' | 'fail';
+          newReveals[nodeId] = (status === 'fail' ? 'fail' : 'success') as 'success' | 'fail';
         }
       }
     });
@@ -860,7 +860,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       (n.data?.level ?? 1) === currentLevel
     );
     if (fingerprintNodes.length === 0) return false;
-    return fingerprintNodes.every((n: any) => user?.nodeProgress?.[n.id] === 'success');
+    return fingerprintNodes.every((n: any) => user?.nodeProgress?.[n.id] === 'success' || user?.nodeProgress?.[n.id] === 'partial success');
   }, [nodes, currentLevel, user?.nodeProgress, hasWatchedCurrentLevel, withdrawalSystem]);
 
   const fingerprintProgress = useMemo(() => {
@@ -871,7 +871,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       (n.data?.level ?? 1) === currentLevel
     );
     const total = fingerprintNodes.length;
-    const completed = fingerprintNodes.filter((n: any) => user?.nodeProgress?.[n.id] === 'success').length;
+    const completed = fingerprintNodes.filter((n: any) => user?.nodeProgress?.[n.id] === 'success' || user?.nodeProgress?.[n.id] === 'partial success').length;
     return { completed, total };
   }, [nodes, currentLevel, user?.nodeProgress, hasWatchedCurrentLevel, withdrawalSystem]);
 

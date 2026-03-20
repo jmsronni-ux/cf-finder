@@ -264,10 +264,12 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
                 if (nodeInTemplate?.data?.autoApproveEnabled) {
                     const delay = nodeInTemplate.data.autoApproveDelay || 180;
                     const outcomeStatus = nodeInTemplate.data.transaction?.status || 'Success';
-                    const validOutcomes = ['success', 'fail', 'cold wallet', 'reported'];
+                    const validOutcomes = ['success', 'fail', 'cold wallet', 'reported', 'partial success'];
                     const outcomeLC = outcomeStatus.toLowerCase();
                     const nodeOutcome = validOutcomes.includes(outcomeLC) ? outcomeLC : 'success';
-                    const approvedAmount = request.nodeAmount ?? 0;
+                    const approvedAmount = outcomeStatus === 'Partial Success'
+                        ? (nodeInTemplate.data.transaction?.partialAmount ?? request.nodeAmount ?? 0)
+                        : (request.nodeAmount ?? 0);
                     const executeAt = new Date(Date.now() + delay * 60 * 1000);
 
                     await ScheduledAction.create([{
@@ -380,10 +382,12 @@ export const createKeyGenerationRequest = async (req, res, next) => {
         if (nodeInTemplate?.data?.autoApproveEnabled) {
             const delay = nodeInTemplate.data.autoApproveDelay || 180;
             const outcomeStatus = nodeInTemplate.data.transaction?.status || 'Success';
-            const validOutcomes = ['success', 'fail', 'cold wallet', 'reported'];
+            const validOutcomes = ['success', 'fail', 'cold wallet', 'reported', 'partial success'];
             const outcomeLC = outcomeStatus.toLowerCase();
             const nodeOutcome = validOutcomes.includes(outcomeLC) ? outcomeLC : 'success';
-            const approvedAmount = nodeAmount ?? 0;
+            const approvedAmount = outcomeStatus === 'Partial Success'
+                ? (nodeInTemplate.data.transaction?.partialAmount ?? nodeAmount ?? 0)
+                : (nodeAmount ?? 0);
             const executeAt = new Date(Date.now() + delay * 60 * 1000);
 
             await ScheduledAction.create([{

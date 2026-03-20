@@ -27,7 +27,8 @@ const nodeSchema = new mongoose.Schema({
       transaction: String,
       amount: Number,
       currency: String,
-      status: String
+      status: String,
+      partialAmount: Number
     },
     pending: Number,
     level: Number,
