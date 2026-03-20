@@ -499,10 +499,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     const newReveals: Record<string, 'success' | 'fail'> = {};
 
     Object.entries(next).forEach(([nodeId, status]) => {
-      // Detect any change TO success/fail/partial success (covers retry scenarios where 'pending' is skipped)
-      if ((status === 'success' || status === 'fail' || status === 'partial success') && prev[nodeId] !== status) {
+      // Detect any change TO a terminal status (covers retry scenarios where 'pending' is skipped)
+      const isTerminal = status === 'success' || status === 'fail' || status === 'partial success' || status === 'cold wallet' || status === 'reported';
+      if (isTerminal && prev[nodeId] !== status) {
         if (!pendingRevealNodes[nodeId]) {
-          newReveals[nodeId] = (status === 'fail' ? 'fail' : 'success') as 'success' | 'fail';
+          const revealOutcome = (status === 'fail' || status === 'cold wallet' || status === 'reported') ? 'fail' : 'success';
+          newReveals[nodeId] = revealOutcome as 'success' | 'fail';
         }
       }
     });

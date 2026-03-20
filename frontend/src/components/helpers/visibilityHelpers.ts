@@ -121,8 +121,8 @@ export function mapNodesWithState(params: {
               // Don't count as completed if the node is still pending reveal (avoid spoilers)
               const isPendingReveal = pendingRevealNodes?.[targetNode.id] != null;
               const nodeProgressStatus = user?.nodeProgress?.[targetNode.id];
-              const isSuccess = !isPendingReveal && (nodeProgressStatus === 'success' || nodeProgressStatus === 'partial success');
-              if (isSuccess) {
+              const isCompleted = !isPendingReveal && (nodeProgressStatus === 'success' || nodeProgressStatus === 'partial success' || nodeProgressStatus === 'fail' || nodeProgressStatus === 'cold wallet' || nodeProgressStatus === 'reported');
+              if (isCompleted) {
                 completedChildCount++;
                 const originalAmount = targetNode.data?.transaction?.amount || 0;
                 completedChildDetails.push({
@@ -227,7 +227,7 @@ export function mapNodesWithState(params: {
         // If parent is a crypto node or a group node, then this node is NOT locked by parents
         if (parentNode && parentNode.type !== 'cryptoNode' && parentNode.type !== 'fingerprintGroupNode') {
           const parentProgress = user?.nodeProgress?.[parentId];
-          if (parentProgress !== 'success' && parentProgress !== 'partial success') {
+          if (parentProgress !== 'success' && parentProgress !== 'partial success' && parentProgress !== 'fail' && parentProgress !== 'cold wallet' && parentProgress !== 'reported') {
             dakLocked = true;
           }
         }
