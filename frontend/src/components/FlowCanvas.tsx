@@ -349,9 +349,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         });
         const json = await res.json();
         if (res.ok && json?.success) {
-          // Check if there's a pending verification request for BTC wallet
+          // Check if there's a pending verification request (either wallet or access code)
           const pending = json.data.requests?.find((req: any) =>
-            req.status === 'pending' && req.walletType === 'btc'
+            req.status === 'pending' && (req.walletType === 'btc' || req.submissionType === 'access_code')
           );
           setHasPendingVerification(!!pending);
         }

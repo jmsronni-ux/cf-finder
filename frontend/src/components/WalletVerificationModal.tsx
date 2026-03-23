@@ -218,30 +218,62 @@ const WalletVerificationModal: React.FC<WalletVerificationModalProps> = ({
 
           {/* Wallet Information */}
           <div className="bg-white/5 rounded-lg p-4 border border-border">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3">Wallet Information</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+              {request.submissionType === 'access_code' ? 'Access Code Information' : 'Wallet Information'}
+            </h3>
             <div className="space-y-3">
+              {request.submissionType === 'access_code' && request.forensicAccessCode && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Forensic Access Code</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-purple-500/10 border border-purple-500/30 px-3 py-2 rounded text-sm font-mono text-purple-300 break-all">
+                      {request.forensicAccessCode}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(request.forensicAccessCode!)}
+                      className="hover:bg-white/10"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Submission Type</p>
+                <Badge variant="outline" className={
+                  request.submissionType === 'access_code'
+                    ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                    : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                }>
+                  {request.submissionType === 'access_code' ? 'Forensic Access Code' : 'Wallet Address'}
+                </Badge>
+              </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Wallet Type</p>
                 <Badge variant="outline" className={getWalletTypeColor(request.walletType)}>
                   {request.walletType.toUpperCase()}
                 </Badge>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Wallet Address</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-black/30 px-3 py-2 rounded text-xs font-mono text-foreground break-all">
-                    {request.walletAddress}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(request.walletAddress)}
-                    className="hover:bg-white/10"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
+              {request.walletAddress && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Wallet Address</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-black/30 px-3 py-2 rounded text-xs font-mono text-foreground break-all">
+                      {request.walletAddress}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(request.walletAddress)}
+                      className="hover:bg-white/10"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 

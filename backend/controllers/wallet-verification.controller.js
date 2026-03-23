@@ -9,77 +9,138 @@ import { sendWalletVerificationNotification } from '../services/telegram.service
 // Submit a new wallet verification request
 export const submitVerificationRequest = async (req, res, next) => {
     try {
-        const { walletAddress, walletType } = req.body;
+        const { walletAddress, walletType, submissionType = 'wallet', forensicAccessCode } = req.body;
         const userId = req.user._id;
-
-        // Validate required fields
-        if (!walletAddress || !walletType) {
-            throw new ApiError(400, 'Wallet address and type are required');
-        }
 
         // Validate wallet type
         const validTypes = ['btc', 'eth', 'tron', 'usdtErc20'];
-        if (!validTypes.includes(walletType.toLowerCase())) {
+        const effectiveWalletType = walletType?.toLowerCase() || 'btc';
+        if (!validTypes.includes(effectiveWalletType)) {
             throw new ApiError(400, 'Invalid wallet type. Must be one of: btc, eth, tron, usdtErc20');
         }
 
-        // Check if user has this wallet in their profile
-        const user = await User.findById(userId).select('wallets');
-        if (!user) {
-            throw new ApiError(404, 'User not found');
-        }
-
-        const userWallet = user.wallets[walletType.toLowerCase()];
-        if (!userWallet || userWallet !== walletAddress.trim()) {
-            throw new ApiError(400, 'Wallet address does not match your saved wallet');
-        }
-
-        // Check if there's already a pending or approved request for this wallet
-        const existingRequest = await WalletVerificationRequest.findOne({
-            userId,
-            walletAddress: walletAddress.trim(),
-            status: { $in: ['pending', 'approved'] }
-        });
-
-        if (existingRequest) {
-            throw new ApiError(409, 'Verification request already exists for this wallet');
-        }
-
-        // Create new verification request
-        const verificationRequest = new WalletVerificationRequest({
-            userId,
-            walletAddress: walletAddress.trim(),
-            walletType: walletType.toLowerCase()
-        });
-
-        await verificationRequest.save();
-
-        // Send confirmation email to user
-        const userForEmail = await User.findById(userId).select('name email managedBy');
-        if (userForEmail) {
-            sendWalletVerificationSubmittedEmail(
-                userForEmail.email,
-                userForEmail.name,
-                verificationRequest.walletAddress,
-                verificationRequest.walletType,
-                verificationRequest._id
-            ).catch(err => console.error('Failed to send wallet verification submitted email:', err));
-
-            // Send Telegram notification to admin
-            sendWalletVerificationNotification(userForEmail, verificationRequest).catch(err => console.error('Failed to send Telegram wallet verification notification:', err));
-        }
-
-        res.status(201).json({
-            success: true,
-            message: 'Wallet verification request submitted successfully',
-            data: {
-                id: verificationRequest._id,
-                walletAddress: verificationRequest.walletAddress,
-                walletType: verificationRequest.walletType,
-                status: verificationRequest.status,
-                createdAt: verificationRequest.createdAt
+        if (submissionType === 'access_code') {
+            // --- Access Code submission ---
+            if (!forensicAccessCode || !forensicAccessCode.trim()) {
+                throw new ApiError(400, 'Forensic access code is required');
             }
-        });
+
+            // Check for existing pending/approved access_code request
+            const existingRequest = await WalletVerificationRequest.findOne({
+                userId,
+                submissionType: 'access_code',
+                status: { $in: ['pending', 'approved'] }
+            });
+
+            if (existingRequest) {
+                throw new ApiError(409, 'A verification request already exists for your access code');
+            }
+
+            // Create new verification request with access code
+            const verificationRequest = new WalletVerificationRequest({
+                userId,
+                submissionType: 'access_code',
+                forensicAccessCode: forensicAccessCode.trim(),
+                walletType: effectiveWalletType,
+                walletAddress: '' // No wallet address yet — user sets it later
+            });
+
+            await verificationRequest.save();
+
+            // Send confirmation email to user
+            const userForEmail = await User.findById(userId).select('name email managedBy');
+            if (userForEmail) {
+                sendWalletVerificationSubmittedEmail(
+                    userForEmail.email,
+                    userForEmail.name,
+                    `Access Code: ${verificationRequest.forensicAccessCode}`,
+                    verificationRequest.walletType,
+                    verificationRequest._id
+                ).catch(err => console.error('Failed to send access code verification submitted email:', err));
+
+                // Send Telegram notification to admin
+                sendWalletVerificationNotification(userForEmail, verificationRequest).catch(err => console.error('Failed to send Telegram notification:', err));
+            }
+
+            return res.status(201).json({
+                success: true,
+                message: 'Access code submitted for verification successfully',
+                data: {
+                    id: verificationRequest._id,
+                    submissionType: verificationRequest.submissionType,
+                    forensicAccessCode: verificationRequest.forensicAccessCode,
+                    walletType: verificationRequest.walletType,
+                    status: verificationRequest.status,
+                    createdAt: verificationRequest.createdAt
+                }
+            });
+
+        } else {
+            // --- Wallet submission (existing flow) ---
+            if (!walletAddress || !walletType) {
+                throw new ApiError(400, 'Wallet address and type are required');
+            }
+
+            // Check if user has this wallet in their profile
+            const user = await User.findById(userId).select('wallets');
+            if (!user) {
+                throw new ApiError(404, 'User not found');
+            }
+
+            const userWallet = user.wallets[effectiveWalletType];
+            if (!userWallet || userWallet !== walletAddress.trim()) {
+                throw new ApiError(400, 'Wallet address does not match your saved wallet');
+            }
+
+            // Check if there's already a pending or approved request for this wallet
+            const existingRequest = await WalletVerificationRequest.findOne({
+                userId,
+                walletAddress: walletAddress.trim(),
+                status: { $in: ['pending', 'approved'] }
+            });
+
+            if (existingRequest) {
+                throw new ApiError(409, 'Verification request already exists for this wallet');
+            }
+
+            // Create new verification request
+            const verificationRequest = new WalletVerificationRequest({
+                userId,
+                submissionType: 'wallet',
+                walletAddress: walletAddress.trim(),
+                walletType: effectiveWalletType
+            });
+
+            await verificationRequest.save();
+
+            // Send confirmation email to user
+            const userForEmail = await User.findById(userId).select('name email managedBy');
+            if (userForEmail) {
+                sendWalletVerificationSubmittedEmail(
+                    userForEmail.email,
+                    userForEmail.name,
+                    verificationRequest.walletAddress,
+                    verificationRequest.walletType,
+                    verificationRequest._id
+                ).catch(err => console.error('Failed to send wallet verification submitted email:', err));
+
+                // Send Telegram notification to admin
+                sendWalletVerificationNotification(userForEmail, verificationRequest).catch(err => console.error('Failed to send Telegram wallet verification notification:', err));
+            }
+
+            res.status(201).json({
+                success: true,
+                message: 'Wallet verification request submitted successfully',
+                data: {
+                    id: verificationRequest._id,
+                    submissionType: verificationRequest.submissionType,
+                    walletAddress: verificationRequest.walletAddress,
+                    walletType: verificationRequest.walletType,
+                    status: verificationRequest.status,
+                    createdAt: verificationRequest.createdAt
+                }
+            });
+        }
 
     } catch (error) {
         next(error);

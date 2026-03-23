@@ -1343,27 +1343,55 @@ const AdminVerifications: React.FC = () => {
                                   )}
                                 </div>
 
-                                {/* Wallet Address */}
-                                <div className="flex flex-row items-center justify-between bg-background/50 border border-border rounded-lg p-3">
-                                  <div className="flex flex-col flex-1 min-w-0">
-                                    <p className="text-xs text-muted-foreground mb-1">Wallet Address:</p>
-                                    <p className="text-sm font-mono text-foreground break-all">
-                                      {request.walletAddress}
-                                    </p>
+                                {/* Wallet Address or Access Code */}
+                                {request.submissionType === 'access_code' && request.forensicAccessCode ? (
+                                  <div className="flex flex-row items-center justify-between bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+                                    <div className="flex flex-col flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-xs text-purple-400">Forensic Access Code</p>
+                                        <Badge variant="outline" className="text-xs bg-purple-500/20 text-purple-400 border-purple-500/50">
+                                          Access Code
+                                        </Badge>
+                                      </div>
+                                      <p className="text-sm font-mono text-purple-300 break-all">
+                                        {request.forensicAccessCode}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyAddress(request.forensicAccessCode!);
+                                        }}
+                                        className="p-1.5 hover:bg-background/50 rounded transition-colors"
+                                        title="Copy access code"
+                                      >
+                                        <Copy className="w-3.5 h-3.5 text-purple-400 hover:text-purple-300" />
+                                      </button>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        copyAddress(request.walletAddress);
-                                      }}
-                                      className="p-1.5 hover:bg-background/50 rounded transition-colors"
-                                      title="Copy wallet address"
-                                    >
-                                      <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-                                    </button>
+                                ) : (
+                                  <div className="flex flex-row items-center justify-between bg-background/50 border border-border rounded-lg p-3">
+                                    <div className="flex flex-col flex-1 min-w-0">
+                                      <p className="text-xs text-muted-foreground mb-1">Wallet Address:</p>
+                                      <p className="text-sm font-mono text-foreground break-all">
+                                        {request.walletAddress}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyAddress(request.walletAddress);
+                                        }}
+                                        className="p-1.5 hover:bg-background/50 rounded transition-colors"
+                                        title="Copy wallet address"
+                                      >
+                                        <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
+                                )}
 
                                 {/* Blockchain Data Section */}
                                 {blockchainData && (

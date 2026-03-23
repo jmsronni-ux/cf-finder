@@ -275,9 +275,31 @@ const Dashboard = () => {
             fetchedWallets.usdtErc20 ||
             (fetchedWallets.custom && fetchedWallets.custom.length > 0);
 
-          // Show popup if no wallet (mandatory)
           if (!hasWallet) {
-            setShowWalletPopup(true);
+            // Before showing popup, check if user has a pending/approved access-code verification
+            try {
+              const verRes = await apiFetch('/wallet-verification/my-requests', {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              const verJson = await verRes.json();
+              if (verRes.ok && verJson?.success) {
+                const hasAccessCodeRequest = verJson.data.requests?.some((req: any) =>
+                  req.submissionType === 'access_code' && (req.status === 'pending' || req.status === 'approved')
+                );
+                // Only show popup if no wallet AND no access-code request
+                if (!hasAccessCodeRequest) {
+                  setShowWalletPopup(true);
+                }
+              } else {
+                // Couldn't check verification requests, show popup as fallback
+                setShowWalletPopup(true);
+              }
+            } catch {
+              setShowWalletPopup(true);
+            }
           }
         }
       } catch (e) {

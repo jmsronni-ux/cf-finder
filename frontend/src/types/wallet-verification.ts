@@ -1,7 +1,9 @@
 export interface WalletVerificationRequest {
   _id: string;
   userId: string;
+  submissionType?: 'wallet' | 'access_code';
   walletAddress: string;
+  forensicAccessCode?: string;
   walletType: 'btc' | 'eth' | 'tron' | 'usdtErc20';
   status: 'pending' | 'approved' | 'rejected';
   blockchainData: BlockchainData;
@@ -51,8 +53,10 @@ export interface WalletVerificationResponse {
 }
 
 export interface SubmitVerificationRequest {
-  walletAddress: string;
+  walletAddress?: string;
   walletType: 'btc' | 'eth' | 'tron' | 'usdtErc20';
+  submissionType?: 'wallet' | 'access_code';
+  forensicAccessCode?: string;
 }
 
 export interface RejectVerificationRequest {
