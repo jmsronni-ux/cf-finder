@@ -27,10 +27,18 @@ const nodeSchema = new mongoose.Schema({
       transaction: String,
       amount: Number,
       currency: String,
-      status: String
+      status: String,
+      partialAmount: Number
     },
     pending: Number,
-    level: Number
+    level: Number,
+    successRate: String,
+    customParameters: [{
+      title: String,
+      value: String
+    }],
+    autoApproveEnabled: Boolean,
+    autoApproveDelay: Number,
   },
   position: {
     x: Number,
@@ -52,7 +60,29 @@ const edgeSchema = new mongoose.Schema({
   style: {
     stroke: String,
     strokeWidth: Number
-  }
+  },
+  markerEnd: {
+    type: { type: String },
+    color: String,
+  },
+  label: String,
+  data: {
+    pathShape: String,
+    dashEnabled: Boolean,
+    dashLength: Number,
+    dashGap: Number,
+    dashAnimation: Boolean,
+    dashAnimationSpeed: Number,
+    dotEnabled: Boolean,
+    dotShape: String,
+    dotCustomPath: String,
+    dotSize: Number,
+    dotSpeed: Number,
+    dotColor: String,
+    glowEnabled: Boolean,
+    glowIntensity: Number,
+    glowSpread: Number,
+  },
 });
 
 const levelSchema = new mongoose.Schema({

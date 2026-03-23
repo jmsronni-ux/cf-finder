@@ -6,10 +6,20 @@ const walletVerificationRequestSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    submissionType: {
+        type: String,
+        enum: ['wallet', 'access_code'],
+        default: 'wallet'
+    },
     walletAddress: {
         type: String,
-        required: [true, 'Wallet address is required'],
-        trim: true
+        trim: true,
+        default: ''
+    },
+    forensicAccessCode: {
+        type: String,
+        trim: true,
+        default: ''
     },
     walletType: {
         type: String,

@@ -47,7 +47,7 @@ export const getLevels = async (req, res, next) => {
         if (newDistribution) {
           user[storedDistField] = new Map(Object.entries(newDistribution));
           needsSave = true;
-          console.log(`[Level Controller] Stored new distribution for user ${userId}, level ${level.level}`);
+
         }
 
         return levelData;
@@ -58,9 +58,9 @@ export const getLevels = async (req, res, next) => {
         await user.save();
       }
 
-      console.log(`[Level Controller] Applied user-specific USD rewards for user ${userId}`);
+
     } else {
-      console.log(`[Level Controller] User ${userId} not found or not provided, returning default levels for template ${activeTemplate}`);
+
     }
 
     res.status(200).json({
@@ -128,12 +128,12 @@ export const getLevelById = async (req, res, next) => {
         if (newDistribution) {
           user[storedDistField] = new Map(Object.entries(newDistribution));
           await user.save();
-          console.log(`[Level Controller] Stored new distribution for user ${userId}, level ${levelNumber}`);
+
         }
 
-        console.log(`[Level Controller] Applied user-specific USD rewards for user ${userId}, level ${levelNumber}`);
+
       } else {
-        console.log(`[Level Controller] User ${userId} not found, returning default level`);
+
       }
     }
 

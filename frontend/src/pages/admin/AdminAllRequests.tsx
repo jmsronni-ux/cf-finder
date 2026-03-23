@@ -29,7 +29,12 @@ import {
   Coins,
   Copy,
   Check,
-  Users
+  Users,
+  KeyRound,
+  Timer,
+  FileText,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
@@ -145,11 +150,56 @@ interface WithdrawRequestData {
   networkRewardsAddedToBalance?: number;
 }
 
+interface ScheduledActionInfo {
+  _id: string;
+  actionType: 'approve' | 'reject';
+  nodeStatusOutcome: string;
+  approvedAmount: number | null;
+  executeAt: string;
+  scheduledBy: string;
+}
+
+interface KeyGenRequestData {
+  _id: string;
+  userId: {
+    _id: string;
+    name: string;
+    email: string;
+    tier: number;
+  };
+  level: number;
+  nodeId?: string;
+  nodeAmount?: number;
+  keysCount: number;
+  directAccessKeyPrice: number;
+  totalCost: number;
+  status: 'pending' | 'approved' | 'rejected';
+  nodeStatus?: 'pending' | 'success' | 'fail' | 'partial success' | 'cold wallet' | 'reported';
+  approvedAmount: number | null;
+  adminComment: string;
+  createdAt: string;
+  processedAt: string | null;
+  scheduledAction?: ScheduledActionInfo;
+}
+
+interface KeyGenGroup {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userTier: number;
+  requests: KeyGenRequestData[];
+  totalKeys: number;
+  totalCost: number;
+  statusSummary: { pending: number; approved: number; rejected: number };
+  latestDate: string;
+}
+
 type UnifiedRequest =
   | { type: 'registration'; data: RegistrationRequestData }
   | { type: 'tier'; data: TierRequestData }
   | { type: 'topup'; data: TopupRequestData }
-  | { type: 'withdraw'; data: WithdrawRequestData };
+  | { type: 'withdraw'; data: WithdrawRequestData }
+  | { type: 'keygen-group'; data: KeyGenGroup };
 
 const PAGE_SIZE = 20;
 const TIER_NAMES: { [key: number]: string } = {
@@ -169,6 +219,29 @@ const NETWORKS = [
   { key: 'SOL', name: 'Solana', icon: '◎', color: 'text-purple-500' }
 ];
 
+
+function formatDelayMinutes(mins: number): string {
+  if (mins === 0) return 'Now';
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+function getKeygenExecuteAtFromMinutes(mins: number): Date | null {
+  if (mins === 0) return null;
+  return new Date(Date.now() + mins * 60 * 1000);
+}
+
+function formatCountdown(executeAt: string): string {
+  const diff = new Date(executeAt).getTime() - Date.now();
+  if (diff <= 0) return 'Executing soon...';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 const AdminAllRequests: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
@@ -178,21 +251,24 @@ const AdminAllRequests: React.FC = () => {
   const [tierRequests, setTierRequests] = useState<TierRequestData[]>([]);
   const [topupRequests, setTopupRequests] = useState<TopupRequestData[]>([]);
   const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequestData[]>([]);
+  const [keygenRequests, setKeygenRequests] = useState<KeyGenRequestData[]>([]);
 
   // Loading states
   const [isLoadingRegistration, setIsLoadingRegistration] = useState(true);
   const [isLoadingTier, setIsLoadingTier] = useState(true);
   const [isLoadingTopup, setIsLoadingTopup] = useState(true);
   const [isLoadingWithdraw, setIsLoadingWithdraw] = useState(true);
+  const [isLoadingKeygen, setIsLoadingKeygen] = useState(true);
 
   // Fetching more states
   const [isFetchingMoreRegistration, setIsFetchingMoreRegistration] = useState(false);
   const [isFetchingMoreTier, setIsFetchingMoreTier] = useState(false);
   const [isFetchingMoreTopup, setIsFetchingMoreTopup] = useState(false);
   const [isFetchingMoreWithdraw, setIsFetchingMoreWithdraw] = useState(false);
+  const [isFetchingMoreKeygen, setIsFetchingMoreKeygen] = useState(false);
 
   // Filters
-  const [typeFilter, setTypeFilter] = useState<'all' | 'registration' | 'tier' | 'topup' | 'withdraw'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -202,16 +278,19 @@ const AdminAllRequests: React.FC = () => {
   const [tierPage, setTierPage] = useState(1);
   const [topupPage, setTopupPage] = useState(1);
   const [withdrawPage, setWithdrawPage] = useState(1);
+  const [keygenPage, setKeygenPage] = useState(1);
 
   const [registrationHasMore, setRegistrationHasMore] = useState(true);
   const [tierHasMore, setTierHasMore] = useState(true);
   const [topupHasMore, setTopupHasMore] = useState(true);
   const [withdrawHasMore, setWithdrawHasMore] = useState(true);
+  const [keygenHasMore, setKeygenHasMore] = useState(true);
 
   const [registrationTotalCount, setRegistrationTotalCount] = useState(0);
   const [tierTotalCount, setTierTotalCount] = useState(0);
   const [topupTotalCount, setTopupTotalCount] = useState(0);
   const [withdrawTotalCount, setWithdrawTotalCount] = useState(0);
+  const [keygenTotalCount, setKeygenTotalCount] = useState(0);
 
   // Processing states
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -244,6 +323,14 @@ const AdminAllRequests: React.FC = () => {
     initialIsSubAdmin?: boolean;
     initialManagedBy?: string | null;
   } | null>(null);
+
+  // Keygen-specific admin states
+  const [keygenApprovalAmounts, setKeygenApprovalAmounts] = useState<Record<string, string>>({});
+  const [keygenAdminComments, setKeygenAdminComments] = useState<Record<string, string>>({});
+  const [keygenDelaySelections, setKeygenDelaySelections] = useState<Record<string, number>>({});
+  const [keygenOutcomeSelections, setKeygenOutcomeSelections] = useState<Record<string, string>>({});
+
+  const [expandedKeygenGroups, setExpandedKeygenGroups] = useState<Set<string>>(new Set());
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -630,6 +717,243 @@ const AdminAllRequests: React.FC = () => {
     }
   }, [PAGE_SIZE, token, statusFilter, debouncedSearch, typeFilter]);
 
+  // Fetch Keygen Requests
+  const fetchKeygenRequests = useCallback(async (requestedPage = 1, append = false) => {
+    if (!token) return;
+    if (typeFilter !== 'all' && typeFilter !== 'keygen') return;
+
+    if (append) {
+      setIsFetchingMoreKeygen(true);
+    } else {
+      setIsLoadingKeygen(true);
+      setKeygenHasMore(true);
+    }
+
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      params.set('limit', String(PAGE_SIZE));
+      params.set('page', String(requestedPage));
+
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+
+      const res = await apiFetch(`/key-generation/admin/all?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        const incomingRequests: KeyGenRequestData[] = json.data.requests || [];
+        const pagination = json.data.pagination || json.pagination;
+
+        setKeygenRequests(prev => append ? [...prev, ...incomingRequests] : incomingRequests);
+
+        setKeygenTotalCount(prevTotal => {
+          if (pagination && typeof pagination.total === 'number') return pagination.total;
+          return append ? prevTotal : incomingRequests.length;
+        });
+
+        const hasMoreResults = pagination && typeof pagination.totalPages === 'number'
+          ? requestedPage < Math.max(pagination.totalPages, 1)
+          : incomingRequests.length === PAGE_SIZE;
+        setKeygenHasMore(hasMoreResults);
+        setKeygenPage(requestedPage);
+      }
+    } catch (e) {
+      toast.error('Failed to fetch key generation requests');
+    } finally {
+      if (append) {
+        setIsFetchingMoreKeygen(false);
+      } else {
+        setIsLoadingKeygen(false);
+      }
+    }
+  }, [PAGE_SIZE, token, statusFilter, debouncedSearch, typeFilter]);
+
+  // Keygen countdown timer
+  useEffect(() => {
+    const hasScheduled = keygenRequests.some(r => r.scheduledAction);
+    if (!hasScheduled) return;
+    const interval = setInterval(() => {
+      setKeygenRequests(prev => [...prev]);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [keygenRequests]);
+
+  // Keygen Action Handlers
+  const handleKeygenAction = async (id: string, nodeAmount?: number) => {
+    const outcome = keygenOutcomeSelections[id] || 'success';
+    const isFail = outcome === 'fail';
+    const isPartial = outcome === 'partial success';
+    const isSuccess = outcome === 'success';
+
+    let amount = 0;
+    if (isFail) {
+      amount = 0;
+    } else if (isPartial) {
+      amount = parseFloat(keygenApprovalAmounts[id] || '0');
+      if (isNaN(amount) || amount <= 0) {
+        toast.error('Enter a valid partial amount');
+        return;
+      }
+    } else {
+      // success, cold wallet, reported — use full node amount
+      amount = nodeAmount ?? 0;
+    }
+
+    const actionType = isFail ? 'reject' : 'approve';
+    const delayMins = keygenDelaySelections[id] || 0;
+
+    if (delayMins > 0) {
+      const executeAt = getKeygenExecuteAtFromMinutes(delayMins);
+      if (!executeAt) {
+        toast.error('Invalid delay');
+        return;
+      }
+      await handleKeygenSchedule(id, actionType, outcome, amount, executeAt);
+      return;
+    }
+
+    setProcessingId(id);
+    try {
+      const endpoint = isFail ? 'reject' : 'approve';
+      const res = await apiFetch(`/key-generation/admin/${id}/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          approvedAmount: amount,
+          adminComment: keygenAdminComments[id] || '',
+          nodeStatusOutcome: outcome
+        })
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        toast.success(`Node marked as ${outcome.toUpperCase()}${isPartial ? ` ($${amount})` : isSuccess ? ` ($${amount})` : ''}`);
+        fetchKeygenRequests(1, false);
+      } else {
+        toast.error(json?.message || 'Action failed');
+      }
+    } catch (e) {
+      toast.error('Action failed');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleKeygenReject = async (id: string) => {
+    const delayMins = keygenDelaySelections[id] || 0;
+
+    if (delayMins > 0) {
+      const executeAt = getKeygenExecuteAtFromMinutes(delayMins);
+      if (!executeAt) {
+        toast.error('Invalid delay');
+        return;
+      }
+      await handleKeygenSchedule(id, 'reject', 'fail', 0, executeAt);
+      return;
+    }
+
+    setProcessingId(id);
+    try {
+      const res = await apiFetch(`/key-generation/admin/${id}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ adminComment: keygenAdminComments[id] || '' })
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        toast.success('Request rejected and cost refunded');
+        fetchKeygenRequests(1, false);
+      } else {
+        toast.error(json?.message || 'Rejection failed');
+      }
+    } catch (e) {
+      toast.error('Rejection failed');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleKeygenSchedule = async (
+    requestId: string,
+    actionType: 'approve' | 'reject',
+    outcome: string,
+    amount: number,
+    executeAt: Date
+  ) => {
+    setProcessingId(requestId);
+    try {
+      const res = await apiFetch(`/key-generation/admin/${requestId}/schedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          actionType,
+          nodeStatusOutcome: outcome,
+          approvedAmount: amount,
+          adminComment: keygenAdminComments[requestId] || '',
+          executeAt: executeAt.toISOString()
+        })
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        toast.success(`${actionType === 'approve' ? 'Approval' : 'Rejection'} scheduled for ${executeAt.toLocaleString()}`);
+        setKeygenDelaySelections(prev => ({ ...prev, [requestId]: 0 }));
+        fetchKeygenRequests(1, false);
+      } else {
+        toast.error(json?.message || 'Scheduling failed');
+      }
+    } catch (e) {
+      toast.error('Scheduling failed');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleKeygenCancelScheduled = async (scheduledActionId: string) => {
+    setProcessingId(scheduledActionId);
+    try {
+      const res = await apiFetch(`/key-generation/admin/scheduled/${scheduledActionId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        toast.success('Scheduled action cancelled');
+        fetchKeygenRequests(1, false);
+      } else {
+        toast.error(json?.message || 'Cancel failed');
+      }
+    } catch (e) {
+      toast.error('Cancel failed');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const toggleKeygenGroup = (userId: string) => {
+    setExpandedKeygenGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
   // Effect to fetch data when filters change
   useEffect(() => {
     if (!user?.isAdmin && !user?.isSubAdmin) return;
@@ -666,7 +990,15 @@ const AdminAllRequests: React.FC = () => {
       setWithdrawTotalCount(0);
       fetchWithdrawRequests(1, false);
     }
-  }, [user?.isAdmin, user?.isSubAdmin, typeFilter, statusFilter, debouncedSearch, fetchRegistrationRequests, fetchTierRequests, fetchTopupRequests, fetchWithdrawRequests]);
+
+    if (typeFilter === 'all' || typeFilter === 'keygen') {
+      setKeygenRequests([]);
+      setKeygenPage(1);
+      setKeygenHasMore(true);
+      setKeygenTotalCount(0);
+      fetchKeygenRequests(1, false);
+    }
+  }, [user?.isAdmin, user?.isSubAdmin, typeFilter, statusFilter, debouncedSearch, fetchRegistrationRequests, fetchTierRequests, fetchTopupRequests, fetchWithdrawRequests, fetchKeygenRequests]);
 
   // Infinite scroll
   useEffect(() => {
@@ -696,6 +1028,11 @@ const AdminAllRequests: React.FC = () => {
             fetchWithdrawRequests(withdrawPage + 1, true);
           }
         }
+        if (typeFilter === 'all' || typeFilter === 'keygen') {
+          if (!isLoadingKeygen && keygenHasMore && !isFetchingMoreKeygen) {
+            fetchKeygenRequests(keygenPage + 1, true);
+          }
+        }
       }
     }, { rootMargin: '200px' });
 
@@ -710,22 +1047,27 @@ const AdminAllRequests: React.FC = () => {
     isLoadingTier,
     isLoadingTopup,
     isLoadingWithdraw,
+    isLoadingKeygen,
     registrationHasMore,
     tierHasMore,
     topupHasMore,
     withdrawHasMore,
+    keygenHasMore,
     isFetchingMoreRegistration,
     isFetchingMoreTier,
     isFetchingMoreTopup,
     isFetchingMoreWithdraw,
+    isFetchingMoreKeygen,
     registrationPage,
     tierPage,
     topupPage,
     withdrawPage,
+    keygenPage,
     fetchRegistrationRequests,
     fetchTierRequests,
     fetchTopupRequests,
-    fetchWithdrawRequests
+    fetchWithdrawRequests,
+    fetchKeygenRequests
   ]);
 
   // Get unified requests
@@ -756,11 +1098,51 @@ const AdminAllRequests: React.FC = () => {
       });
     }
 
+    // Group keygen requests by user
+    if (typeFilter === 'all' || typeFilter === 'keygen') {
+      const groupMap = new Map<string, KeyGenRequestData[]>();
+      keygenRequests.forEach(req => {
+        const uid = req.userId?._id || 'unknown';
+        if (!groupMap.has(uid)) groupMap.set(uid, []);
+        groupMap.get(uid)!.push(req);
+      });
+
+      groupMap.forEach((reqs, uid) => {
+        const sorted = [...reqs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const first = sorted[0];
+        const statusSummary = { pending: 0, approved: 0, rejected: 0 };
+        let totalKeys = 0;
+        let totalCost = 0;
+        sorted.forEach(r => {
+          statusSummary[r.status]++;
+          totalKeys += r.keysCount;
+          totalCost += r.totalCost;
+        });
+
+        requests.push({
+          type: 'keygen-group',
+          data: {
+            userId: uid,
+            userName: first.userId?.name || 'Unknown',
+            userEmail: first.userId?.email || '',
+            userTier: first.userId?.tier || 0,
+            requests: sorted,
+            totalKeys,
+            totalCost,
+            statusSummary,
+            latestDate: sorted[0].createdAt,
+          }
+        });
+      });
+    }
+
     // Sort by creation date (newest first)
     return requests.sort((a, b) => {
-      const dateA = new Date(a.data.createdAt).getTime();
-      const dateB = new Date(b.data.createdAt).getTime();
-      return dateB - dateA;
+      const getDate = (r: UnifiedRequest) => {
+        if (r.type === 'keygen-group') return new Date(r.data.latestDate).getTime();
+        return new Date(r.data.createdAt).getTime();
+      };
+      return getDate(b) - getDate(a);
     });
   };
 
@@ -769,13 +1151,15 @@ const AdminAllRequests: React.FC = () => {
     (typeFilter === 'all' || typeFilter === 'registration' ? registrationTotalCount : 0) +
     (typeFilter === 'all' || typeFilter === 'tier' ? tierTotalCount : 0) +
     (typeFilter === 'all' || typeFilter === 'topup' ? topupTotalCount : 0) +
-    (typeFilter === 'all' || typeFilter === 'withdraw' ? withdrawTotalCount : 0);
+    (typeFilter === 'all' || typeFilter === 'withdraw' ? withdrawTotalCount : 0) +
+    (typeFilter === 'all' || typeFilter === 'keygen' ? keygenTotalCount : 0);
 
   const isLoading =
     (typeFilter === 'all' || typeFilter === 'registration' ? isLoadingRegistration : false) ||
     (typeFilter === 'all' || typeFilter === 'tier' ? isLoadingTier : false) ||
     (typeFilter === 'all' || typeFilter === 'topup' ? isLoadingTopup : false) ||
-    (typeFilter === 'all' || typeFilter === 'withdraw' ? isLoadingWithdraw : false);
+    (typeFilter === 'all' || typeFilter === 'withdraw' ? isLoadingWithdraw : false) ||
+    (typeFilter === 'all' || typeFilter === 'keygen' ? isLoadingKeygen : false);
 
   const isInitialLoading = isLoading && unifiedRequests.length === 0;
 
@@ -816,6 +1200,8 @@ const AdminAllRequests: React.FC = () => {
         return 'border-l-green-500';
       case 'withdraw':
         return 'border-l-orange-500';
+      case 'keygen-group':
+        return 'border-l-yellow-500';
       default:
         return 'border-l-gray-500';
     }
@@ -831,6 +1217,8 @@ const AdminAllRequests: React.FC = () => {
         return 'bg-green-500/15 border-green-500/20 text-green-500';
       case 'withdraw':
         return 'bg-orange-500/15 border-orange-500/20 text-orange-500';
+      case 'keygen-group':
+        return 'bg-yellow-500/15 border-yellow-500/20 text-yellow-500';
       default:
         return 'bg-gray-500/15 border-gray-500/20 text-gray-500';
     }
@@ -846,6 +1234,8 @@ const AdminAllRequests: React.FC = () => {
         return <Coins className="w-6 h-6 text-green-500" />;
       case 'withdraw':
         return <Wallet className="w-6 h-6 text-orange-500" />;
+      case 'keygen-group':
+        return <KeyRound className="w-6 h-6 text-yellow-500" />;
       default:
         return <User className="w-6 h-6" />;
     }
@@ -856,7 +1246,8 @@ const AdminAllRequests: React.FC = () => {
       registration: { text: 'Registration', color: 'bg-blue-500/20 text-blue-500 border-blue-500/50' },
       tier: { text: 'Level', color: 'bg-purple-500/20 text-purple-500 border-purple-500/50' },
       topup: { text: 'Top-Up', color: 'bg-green-500/20 text-green-500 border-green-500/50' },
-      withdraw: { text: 'Withdrawal', color: 'bg-orange-500/20 text-orange-500 border-orange-500/50' }
+      withdraw: { text: 'Withdrawal', color: 'bg-orange-500/20 text-orange-500 border-orange-500/50' },
+      'keygen-group': { text: 'Key Generation', color: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50' }
     };
     return badges[type as keyof typeof badges] || badges.registration;
   };
@@ -1411,7 +1802,7 @@ const AdminAllRequests: React.FC = () => {
             {/* Filter & Search Section */}
             <div className="flex items-center gap-4 mt-10 mb-6 justify-between">
               <MagicBadge title="Requests" />
-              <Select value={typeFilter} onValueChange={(value: 'all' | 'registration' | 'tier' | 'topup' | 'withdraw') => setTypeFilter(value)}>
+              <Select value={typeFilter} onValueChange={(value: 'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen') => setTypeFilter(value)}>
                 <SelectTrigger className="w-[220px] bg-background/50 border-border">
                   <SelectValue />
                 </SelectTrigger>
@@ -1421,6 +1812,7 @@ const AdminAllRequests: React.FC = () => {
                   <SelectItem value="tier">Level</SelectItem>
                   <SelectItem value="topup">Top-Up</SelectItem>
                   <SelectItem value="withdraw">Withdrawal</SelectItem>
+                  <SelectItem value="keygen">Key Generation</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1448,6 +1840,315 @@ const AdminAllRequests: React.FC = () => {
                   const typeColor = getTypeColor(request.type);
                   const typeIcon = getTypeIcon(request.type);
 
+                  // ── Keygen Group Accordion Card ──
+                  if (request.type === 'keygen-group') {
+                    const group = request.data;
+                    const isExpanded = expandedKeygenGroups.has(group.userId);
+
+                    return (
+                      <Card key={`keygen-group-${group.userId}`} className={`${typeColor} border border-border rounded-xl transition-colors overflow-hidden`}>
+                        <div className="flex items-stretch">
+                          {/* Type Bar */}
+                          <div className={`flex flex-col items-center justify-center w-[100px] self-stretch ${getTypeBarColor(request.type)} border rounded-l-2xl p-3 gap-2`}>
+                            {typeIcon}
+                            <span className="text-xs font-medium text-center leading-tight">{typeBadge.text}</span>
+                          </div>
+
+                          <CardContent className="p-0 flex-1">
+                            {/* Header — click to expand/collapse */}
+                            <button
+                              onClick={() => toggleKeygenGroup(group.userId)}
+                              className="w-full text-left p-6 hover:bg-white/5 transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 space-y-3">
+                                  {/* Name + status */}
+                                  <div className="flex items-center gap-3">
+                                    <h3 className="text-lg font-bold">{group.userName}</h3>
+                                    {group.statusSummary.pending > 0 && (
+                                      <Badge className="bg-yellow-500/15 text-yellow-500 border-yellow-500/30 flex items-center gap-1">
+                                        {getStatusIcon('pending')}
+                                        {group.statusSummary.pending} Pending
+                                      </Badge>
+                                    )}
+                                    {group.statusSummary.approved > 0 && (
+                                      <Badge className="bg-green-500/15 text-green-500 border-green-500/30 text-xs">
+                                        {group.statusSummary.approved} Approved
+                                      </Badge>
+                                    )}
+                                    {group.statusSummary.rejected > 0 && (
+                                      <Badge className="bg-red-500/15 text-red-500 border-red-500/30 text-xs">
+                                        {group.statusSummary.rejected} Rejected
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {/* Email */}
+                                  <p className="text-sm text-muted-foreground">{group.userEmail}</p>
+
+                                  {/* Info grid - matching other card styles */}
+                                  <div className="flex items-center gap-6 text-sm">
+                                    <div className="flex items-center gap-1.5">
+                                      <KeyRound className="w-4 h-4 text-yellow-500" />
+                                      <span className="text-muted-foreground">Total Keys</span>
+                                      <span className="font-semibold text-yellow-500">{group.totalKeys}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <DollarSign className="w-4 h-4 text-green-500" />
+                                      <span className="text-muted-foreground">Total Cost</span>
+                                      <span className="font-semibold text-green-500">${group.totalCost.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <FileText className="w-4 h-4 text-yellow-500" />
+                                      <span className="text-muted-foreground">Requests</span>
+                                      <span className="font-semibold">{group.requests.length}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Chevron */}
+                                <div className="pt-1">
+                                  {isExpanded ? (
+                                    <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+
+                            {/* Expanded individual requests */}
+                            {isExpanded && (
+                              <div className="border-t border-border">
+                                {group.requests.map((req, idx) => (
+                                  <div key={req._id} className={`px-5 py-4 ${idx !== group.requests.length - 1 ? 'border-b border-dashed border-border/60' : ''}`}>
+                                    {/* Compact info row */}
+                                    <div className="flex items-center justify-between gap-3 mb-2">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        {req.nodeAmount != null && (
+                                          <>
+                                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Node Amt</span>
+                                            <span className="text-sm font-bold text-yellow-500">${req.nodeAmount}</span>
+                                            <span className="text-xs text-muted-foreground">·</span>
+                                          </>
+                                        )}
+                                        <span className="text-sm font-medium">{req.keysCount} keys</span>
+                                        <span className="text-xs text-muted-foreground">×</span>
+                                        <span className="text-xs text-muted-foreground">${req.directAccessKeyPrice}/ea</span>
+                                        <span className="text-xs text-muted-foreground">→</span>
+                                        <span className="text-sm font-semibold text-green-500">${req.totalCost.toFixed(2)}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                        <Badge className={`${getStatusColor(req.status)} text-xs`}>
+                                          {req.status}
+                                        </Badge>
+                                        {req.scheduledAction && (() => {
+                                          const sa = req.scheduledAction!;
+                                          const outcomeColors: Record<string, string> = {
+                                            'success': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+                                            'partial success': 'bg-emerald-500/15 text-emerald-300 border-emerald-400/25',
+                                            'fail': 'bg-red-500/20 text-red-400 border-red-500/30',
+                                            'cold wallet': 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+                                            'reported': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+                                          };
+                                          const color = outcomeColors[sa.nodeStatusOutcome] || outcomeColors['success'];
+                                          return (
+                                            <Badge className={`${color} text-[10px] gap-1 border`}>
+                                              <Timer className="w-2.5 h-2.5" />
+                                              {sa.nodeStatusOutcome?.replace(/^\w/, (c: string) => c.toUpperCase())} · {formatCountdown(sa.executeAt)}
+                                              {sa.actionType === 'approve' && sa.approvedAmount != null && (
+                                                <span className="opacity-70"> · ${sa.approvedAmount}</span>
+                                              )}
+                                            </Badge>
+                                          );
+                                        })()}
+                                        <span className="text-xs text-muted-foreground">{new Date(req.createdAt).toLocaleDateString()}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Admin actions for pending */}
+                                    {req.status === 'pending' && (
+                                      <div className="space-y-2.5 mt-3">
+                                        {/* Scheduled action banner */}
+                                        {req.scheduledAction && (() => {
+                                          const sa = req.scheduledAction!;
+                                          const outcomeMap: Record<string, { label: string; bg: string; text: string; border: string; dot: string }> = {
+                                            'success': { label: 'Success', bg: 'bg-emerald-500/8', text: 'text-emerald-400', border: 'border-emerald-500/20', dot: 'bg-emerald-400' },
+                                            'partial success': { label: 'Partial Success', bg: 'bg-emerald-500/6', text: 'text-emerald-300', border: 'border-emerald-400/15', dot: 'bg-emerald-300' },
+                                            'fail': { label: 'Fail', bg: 'bg-red-500/8', text: 'text-red-400', border: 'border-red-500/20', dot: 'bg-red-400' },
+                                            'cold wallet': { label: 'Cold Wallet', bg: 'bg-sky-500/8', text: 'text-sky-400', border: 'border-sky-500/20', dot: 'bg-sky-400' },
+                                            'reported': { label: 'Reported', bg: 'bg-orange-500/8', text: 'text-orange-400', border: 'border-orange-500/20', dot: 'bg-orange-400' },
+                                          };
+                                          const style = outcomeMap[sa.nodeStatusOutcome] || outcomeMap['success'];
+                                          return (
+                                            <div className={`flex items-center justify-between ${style.bg} border ${style.border} rounded-lg px-3 py-2.5`}>
+                                              <div className="flex items-center gap-3">
+                                                <div className="relative flex-shrink-0">
+                                                  <div className={`w-2 h-2 ${style.dot} rounded-full`} />
+                                                  <div className={`absolute inset-0 w-2 h-2 ${style.dot} rounded-full animate-ping opacity-40`} />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                  <div className="flex items-center gap-2">
+                                                    <span className={`text-xs font-semibold ${style.text}`}>
+                                                      Scheduled → {style.label}
+                                                    </span>
+                                                    {sa.actionType === 'approve' && sa.approvedAmount != null && (
+                                                      <span className={`text-[10px] ${style.text} opacity-70 font-mono`}>
+                                                        ${sa.approvedAmount}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <span className="text-[10px] text-muted-foreground">
+                                                    Fires in {formatCountdown(sa.executeAt)} · {new Date(sa.executeAt).toLocaleString()}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-6 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                                onClick={() => handleKeygenCancelScheduled(sa._id)}
+                                                disabled={processingId === sa._id}
+                                              >
+                                                Cancel
+                                              </Button>
+                                            </div>
+                                          );
+                                        })()}
+
+                                        {/* Status outcome selector */}
+                                        <div className="flex items-center gap-2">
+                                          {[
+                                            { value: 'success', label: 'Success', color: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' },
+                                            { value: 'partial success', label: 'Partial', color: 'bg-emerald-500/10 border-emerald-400/25 text-emerald-300' },
+                                            { value: 'fail', label: 'Fail', color: 'bg-red-500/15 border-red-500/30 text-red-400' },
+                                            { value: 'cold wallet', label: 'Cold', color: 'bg-sky-500/15 border-sky-500/30 text-sky-400' },
+                                            { value: 'reported', label: 'Reported', color: 'bg-orange-500/15 border-orange-500/30 text-orange-400' },
+                                          ].map((opt) => {
+                                            const selected = (keygenOutcomeSelections[req._id] || 'success') === opt.value;
+                                            return (
+                                              <button
+                                                key={opt.value}
+                                                onClick={() => setKeygenOutcomeSelections(prev => ({ ...prev, [req._id]: opt.value }))}
+                                                className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-all ${
+                                                  selected ? opt.color : 'bg-transparent border-white/10 text-muted-foreground/60 hover:border-white/20'
+                                                }`}
+                                              >
+                                                {opt.label}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+
+                                        {/* Inputs row — amount only for partial success */}
+                                        <div className="flex items-end gap-2">
+                                          {(keygenOutcomeSelections[req._id] || 'success') === 'partial success' && (
+                                            <Input
+                                              type="number"
+                                              placeholder="Partial amount ($)"
+                                              value={keygenApprovalAmounts[req._id] || ''}
+                                              onChange={(e) => setKeygenApprovalAmounts(prev => ({ ...prev, [req._id]: e.target.value }))}
+                                              className="h-8 w-32 bg-background/50 border-emerald-500/20 text-sm"
+                                            />
+                                          )}
+                                          <Input
+                                            placeholder="Comment..."
+                                            value={keygenAdminComments[req._id] || ''}
+                                            onChange={(e) => setKeygenAdminComments(prev => ({ ...prev, [req._id]: e.target.value }))}
+                                            className="h-8 flex-1 bg-background/50 border-border text-sm"
+                                          />
+                                        </div>
+
+                                        {/* Slider + action button */}
+                                        <div className="flex items-center gap-3">
+                                          {/* Time slider with presets */}
+                                          <div className="flex flex-col min-w-0 flex-1 gap-1.5">
+                                            {/* Preset buttons row */}
+                                            <div className="flex items-center gap-1">
+                                              {[
+                                                { mins: 0, label: 'Now' },
+                                                { mins: 30, label: '30m' },
+                                                { mins: 60, label: '1h' },
+                                                { mins: 180, label: '3h' },
+                                                { mins: 360, label: '6h' },
+                                                { mins: 720, label: '12h' },
+                                                { mins: 1440, label: '24h' },
+                                              ].map((tick) => {
+                                                const currentVal = keygenDelaySelections[req._id] || 0;
+                                                const isActive = currentVal === tick.mins;
+                                                return (
+                                                  <button
+                                                    key={tick.mins}
+                                                    onClick={() => setKeygenDelaySelections(prev => ({ ...prev, [req._id]: tick.mins }))}
+                                                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                                                      isActive
+                                                        ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/40'
+                                                        : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-white/5 border border-transparent'
+                                                    }`}
+                                                  >
+                                                    {tick.label}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                            {/* Slider + value label */}
+                                            <div className="flex items-center gap-2">
+                                              <input
+                                                type="range"
+                                                min={0}
+                                                max={1440}
+                                                step={5}
+                                                value={keygenDelaySelections[req._id] || 0}
+                                                onChange={(e) => setKeygenDelaySelections(prev => ({ ...prev, [req._id]: parseInt(e.target.value) }))}
+                                                className="flex-1 h-1.5 accent-yellow-500 cursor-pointer"
+                                                style={{ colorScheme: 'dark' }}
+                                              />
+                                              <span className="text-[10px] text-yellow-500 font-medium whitespace-nowrap w-8 tabular-nums">
+                                                {formatDelayMinutes(keygenDelaySelections[req._id] || 0)}
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          {/* Single action button */}
+                                          <Button
+                                            onClick={() => handleKeygenAction(req._id, req.nodeAmount ?? undefined)}
+                                            disabled={processingId === req._id}
+                                            className={`flex items-center gap-2 flex-shrink-0 ${
+                                              (keygenOutcomeSelections[req._id] || 'success') === 'fail'
+                                                ? 'bg-red-600/50 hover:bg-red-700 text-white border border-red-600'
+                                                : 'bg-green-600/50 hover:bg-green-700 text-white border border-green-600'
+                                            }`}
+                                          >
+                                            {processingId === req._id ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (keygenOutcomeSelections[req._id] || 'success') === 'fail' ? (
+                                              <XCircle className="w-4 h-4" />
+                                            ) : (
+                                              <CheckCircle className="w-4 h-4" />
+                                            )}
+                                            Apply
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Already processed */}
+                                    {req.status !== 'pending' && req.approvedAmount != null && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        Approved: <span className="text-green-500 font-medium">${req.approvedAmount}</span>
+                                        {req.adminComment && <> · {req.adminComment}</>}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </div>
+                      </Card>
+                    );
+                  }
+
+                  // ── All other request types ──
                   return (
                     <Card key={`${request.type}-${request.data._id}`} className={`${typeColor} border border-border rounded-xl transition-colors overflow-hidden`}>
                       <div className="flex items-stretch">

@@ -3,6 +3,7 @@ import { authMiddleware as authenticate } from "../middlewares/auth.middleware.j
 import User from "../models/user.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import mongoose from "mongoose";
+import { transferBalance } from "../controllers/balance.controller.js";
 
 const balanceRouter = express.Router();
 
@@ -51,13 +52,13 @@ balanceRouter.post("/withdraw", authenticate, async (req, res, next) => {
             throw new ApiError(404, "User not found");
         }
         
-        // Check if user has sufficient balance
-        if (user.balance < amount) {
-            throw new ApiError(400, `Insufficient balance. Available: ${user.balance}, Requested: ${amount}`);
+        // Check if user has sufficient available balance
+        if (user.availableBalance < amount) {
+            throw new ApiError(400, `Insufficient available balance. Available: ${user.availableBalance}, Requested: ${amount}`);
         }
         
-        // Deduct balance
-        user.balance -= amount;
+        // Deduct available balance
+        user.availableBalance -= amount;
         await user.save({ session });
         
         await session.commitTransaction();
@@ -68,7 +69,7 @@ balanceRouter.post("/withdraw", authenticate, async (req, res, next) => {
             data: {
                 amount,
                 wallet,
-                remainingBalance: user.balance
+                remainingBalance: user.availableBalance
             }
         });
         
@@ -79,5 +80,8 @@ balanceRouter.post("/withdraw", authenticate, async (req, res, next) => {
         session.endSession();
     }
 });
+
+// Transfer funds between balances
+balanceRouter.post("/transfer", authenticate, transferBalance);
 
 export default balanceRouter;

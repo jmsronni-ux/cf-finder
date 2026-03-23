@@ -22,6 +22,7 @@ import topupRequestRouter from './routes/topup-request.routes.js';
 import withdrawRequestRouter from './routes/withdraw-request.routes.js';
 import tierRequestRouter from './routes/tier-request.routes.js';
 import globalSettingsRouter from './routes/global-settings.routes.js';
+import keyGenerationRouter from './routes/key-generation.routes.js';
 import registrationRequestRouter from './routes/registration-request.routes.js';
 import walletVerificationRouter from './routes/wallet-verification.routes.js';
 import additionalVerificationRouter from './routes/additional-verification.routes.js';
@@ -38,12 +39,7 @@ const __dirname = path.dirname(__filename);
 
 var app = express();
 
-// Debug environment variables
-console.log('Environment check:');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
-console.log('MONGO_URI exists:', !!process.env.MONGO_URI);
-console.log('PORT:', process.env.PORT);
+
 
 connectDB();
 
@@ -76,28 +72,20 @@ const productionOrigins = FRONTEND_URL
 
 const allowedOrigins = [...localhostOrigins, ...productionOrigins];
 
-console.log('CORS Configuration:');
-console.log('NODE_ENV:', NODE_ENV);
-console.log('FRONTEND_URL:', FRONTEND_URL);
-console.log('Allowed Origins:', allowedOrigins);
+
 
 app.use(cors({
   origin: (origin, callback) => {
-    console.log('CORS Request from origin:', origin);
-
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log('No origin, allowing request');
       return callback(null, true);
     }
 
     // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
-      console.log('✅ Origin allowed:', origin);
       callback(null, true);
     } else {
-      console.log('❌ Origin blocked:', origin);
-      console.log('Allowed origins:', allowedOrigins);
+      console.error('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -137,6 +125,7 @@ app.use('/topup-request', topupRequestRouter);
 app.use('/withdraw-request', withdrawRequestRouter);
 app.use('/tier-request', tierRequestRouter);
 app.use('/global-settings', globalSettingsRouter);
+app.use('/key-generation', keyGenerationRouter);
 app.use('/registration-request', registrationRequestRouter);
 app.use('/wallet-verification', walletVerificationRouter);
 app.use('/additional-verification', additionalVerificationRouter);

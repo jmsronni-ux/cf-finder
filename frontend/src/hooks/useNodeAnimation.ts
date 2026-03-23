@@ -41,29 +41,45 @@ export const useNodeAnimation = (
     let initialVisibleNodes: string[] = [];
     let nodesToAnimate: any[] = [];
     
+    // Helper: is this a top-level crypto node (connected to account/center)?
+    const topLevelCryptoIds = new Set<string>();
+    const childCryptoIds = new Set<string>();
+    nodes.forEach((node: any) => {
+      if (node.type === 'cryptoNode') {
+        // Top-level crypto nodes have simple IDs (btc, eth, etc.)
+        // Child crypto nodes have IDs containing '-crypto-'
+        if (node.id.includes('-crypto-')) {
+          childCryptoIds.add(node.id);
+        } else {
+          topLevelCryptoIds.add(node.id);
+        }
+      }
+    });
+
     if (isFirstLevel) {
-      // Level 1: Show crypto nodes and center first
+      // Level 1: Show top-level crypto nodes and center first
       const cryptoNodes = nodes.filter(
-        (node: any) => node.type === 'cryptoNode' || node.id === 'center'
+        (node: any) => topLevelCryptoIds.has(node.id) || node.id === 'center'
       );
       initialVisibleNodes = cryptoNodes.map((node: any) => node.id);
       
-      // Then animate level 1 fingerprint nodes
+      // Then animate level 1 fingerprint nodes + child crypto nodes
       nodesToAnimate = nodes.filter((node: any) => 
-        node.type === 'fingerprintNode' && (node.data?.level ?? 1) === 1
+        ((node.type === 'fingerprintNode' || node.type === 'fingerprintGroupNode' || childCryptoIds.has(node.id))
+          && (node.data?.level ?? 1) === 1)
       );
     } else {
       // Level 2+: All previous level nodes should already be visible
-      // We need to mark them as visible in the animation state
       const previousLevelNodes = nodes.filter((node: any) => {
         const nodeLevel = node.data?.level ?? 1;
-        return nodeLevel < currentLevel || node.type === 'cryptoNode' || node.id === 'center';
+        return nodeLevel < currentLevel || topLevelCryptoIds.has(node.id) || node.id === 'center';
       });
       initialVisibleNodes = previousLevelNodes.map((node: any) => node.id);
       
-      // Only animate new fingerprint nodes from current level
+      // Animate new fingerprint/group/child-crypto nodes from current level
       nodesToAnimate = nodes.filter((node: any) => 
-        node.type === 'fingerprintNode' && (node.data?.level ?? 1) === currentLevel
+        ((node.type === 'fingerprintNode' || node.type === 'fingerprintGroupNode' || childCryptoIds.has(node.id))
+          && (node.data?.level ?? 1) === currentLevel)
       );
     }
 

@@ -8,13 +8,15 @@ import { Tabs, TabsContent } from '../../components/ui/tabs';
 import NetworkRewardsTab from '../../components/admin/NetworkRewardsTab';
 import ConversionRatesTab from '../../components/admin/ConversionRatesTab';
 import WalletSettingsTab from '../../components/admin/WalletSettingsTab';
+import WithdrawalSystemTab from '../../components/admin/WithdrawalSystemTab';
+import GeneralSettingsTab from '../../components/admin/GeneralSettingsTab';
 import MagicBadge from '../../components/ui/magic-badge';
-import { Coins, DollarSign, Wallet } from 'lucide-react';
+import { Coins, DollarSign, Wallet, KeyRound, Settings } from 'lucide-react';
 
 const AdminGlobalSettings: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'network-rewards' | 'conversion-rates' | 'wallet-settings'>('network-rewards');
+  const [activeTab, setActiveTab] = useState<'general' | 'network-rewards' | 'conversion-rates' | 'wallet-settings' | 'withdrawal-system'>('general');
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -51,7 +53,18 @@ const AdminGlobalSettings: React.FC = () => {
             <MagicBadge title="Settings Menu" className="mb-6" />
 
             {/* Settings Tabs */}
-            <div className="flex gap-2 border-b border-border pb-2 mb-6">
+            <div className="flex gap-2 border-b border-border pb-2 mb-6 overflow-x-auto">
+              <button
+                onClick={() => setActiveTab('general')}
+                className={`px-4 py-2 rounded-t-lg transition-colors flex items-center gap-2 whitespace-nowrap ${
+                  activeTab === 'general'
+                    ? 'bg-slate-500/20 text-slate-300 border-b-2 border-slate-400'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Settings className="w-4 h-4" />
+                General
+              </button>
               <button
                 onClick={() => setActiveTab('network-rewards')}
                 className={`px-4 py-2 rounded-t-lg transition-colors flex items-center gap-2 ${
@@ -85,10 +98,25 @@ const AdminGlobalSettings: React.FC = () => {
                 <Wallet className="w-4 h-4" />
                 Wallet Settings
               </button>
+              <button
+                onClick={() => setActiveTab('withdrawal-system')}
+                className={`px-4 py-2 rounded-t-lg transition-colors flex items-center gap-2 ${
+                  activeTab === 'withdrawal-system'
+                    ? 'bg-orange-500/20 text-orange-500 border-b-2 border-orange-500'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <KeyRound className="w-4 h-4" />
+                Withdrawal System
+              </button>
             </div>
 
             {/* Tab Content */}
             <Tabs value={activeTab} className="w-full">
+              <TabsContent value="general">
+                <GeneralSettingsTab />
+              </TabsContent>
+
               <TabsContent value="network-rewards">
                 <NetworkRewardsTab />
               </TabsContent>
@@ -99,6 +127,10 @@ const AdminGlobalSettings: React.FC = () => {
 
               <TabsContent value="wallet-settings">
                 <WalletSettingsTab />
+              </TabsContent>
+
+              <TabsContent value="withdrawal-system">
+                <WithdrawalSystemTab />
               </TabsContent>
             </Tabs>
           </div>

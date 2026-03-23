@@ -28,27 +28,27 @@ export const PulsatingButton = React.forwardRef<
     },
     ref,
   ) => {
-    // Determine if button should pulse
+    // Determine if button should have subtle ambient glow
     const shouldPulse = variant === "start" || variant === "loading" || variant === "upgradePending" || variant === "verificationPending";
-    
-    // Get variant-specific styles
+
+    // Get variant-specific styles — dark card aesthetic
     const getVariantStyles = () => {
       switch (variant) {
         case "upgrade":
-          return "bg-[#4F1F7B] hover:from-purple-700 hover:bg-purple-800 shadow-lg border border-purple-500";
+          return "bg-[#0c0c0c] hover:bg-purple-500/[0.08] border-purple-500/30 hover:border-purple-500/50";
         case "upgradePending":
-          return "bg-[#251F11] border border-yellow-500/30 cursor-wait";
+          return "bg-[#0c0c0c] border-amber-500/20 cursor-wait";
         case "verificationPending":
-          return "bg-[#251F11] border border-yellow-500/30 cursor-wait";
+          return "bg-[#0c0c0c] border-amber-500/20 cursor-wait";
         case "verifyWallet":
-          return "bg-[#1F4F2B] hover:bg-[#2F6F3B] border border-green-500/50 shadow-lg";
+          return "bg-[#0c0c0c] hover:bg-emerald-500/[0.06] border-emerald-500/25 hover:border-emerald-500/40";
         case "withdraw":
-          return "bg-[#5A4014] hover:bg-yellow-700 border border-yellow-600";
+          return "bg-[#0c0c0c] hover:bg-amber-500/[0.06] border-amber-500/25 hover:border-amber-500/40";
         case "loading":
-          return "bg-[#2F1746] border border-purple-500 cursor-wait";
+          return "bg-[#0c0c0c] border-purple-500/25 cursor-wait";
         case "start":
         default:
-          return "bg-black hover:bg-[#2F1746] border border-purple-500";
+          return "bg-[#0c0c0c] hover:bg-purple-500/[0.06] border-purple-500/25 hover:border-purple-500/40";
       }
     };
 
@@ -57,8 +57,8 @@ export const PulsatingButton = React.forwardRef<
       if (isLoading) {
         return (
           <span className="flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            {typeof children === 'string' ? children : 'Loading...'}
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-400" />
+            <span className="text-neutral-300">{typeof children === 'string' ? children : 'Loading...'}</span>
           </span>
         );
       }
@@ -66,8 +66,8 @@ export const PulsatingButton = React.forwardRef<
       if (variant === "loading") {
         return (
           <span className="flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            {children}
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400/60" />
+            <span className="text-neutral-300">{children}</span>
           </span>
         );
       }
@@ -75,8 +75,11 @@ export const PulsatingButton = React.forwardRef<
       if (variant === "upgradePending") {
         return (
           <span className="flex items-center gap-2">
-            <div className="w-1 h-1 bg-yellow-500 rounded-full animate-ping"></div>
-            <span className="text-sm font-semibold text-yellow-400">
+            <div className="relative flex-shrink-0">
+              <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+              <div className="absolute inset-0 w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping opacity-40" />
+            </div>
+            <span className="text-amber-400/80 text-xs font-medium">
               {children || 'Upgrade Pending'}
             </span>
           </span>
@@ -86,8 +89,11 @@ export const PulsatingButton = React.forwardRef<
       if (variant === "verificationPending") {
         return (
           <span className="flex items-center gap-2">
-            <div className="w-1 h-1 bg-yellow-500 rounded-full animate-ping"></div>
-            <span className="text-sm font-semibold text-yellow-400">
+            <div className="relative flex-shrink-0">
+              <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+              <div className="absolute inset-0 w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping opacity-40" />
+            </div>
+            <span className="text-amber-400/80 text-xs font-medium">
               {children || 'Verification Pending'}
             </span>
           </span>
@@ -96,39 +102,42 @@ export const PulsatingButton = React.forwardRef<
 
       if (variant === "upgrade") {
         return (
-          <span className="flex items-center gap-2 font-semibold ps-4">
-            {children || 'UPGRADE'}
-            <ArrowRight className="w-4 h-4" />
+          <span className="flex items-center gap-2">
+            <span className="text-purple-300/90 text-xs font-medium">{children || 'UPGRADE'}</span>
+            <ArrowRight className="w-3.5 h-3.5 text-purple-400/60" />
           </span>
         );
       }
 
       if (variant === "verifyWallet") {
         return (
-          <span className="flex items-center gap-2 font-semibold">
-            <Wallet className="w-4 h-4" />
-            {children || 'Verify Wallet'}
+          <span className="flex items-center gap-2">
+            <Wallet className="w-3.5 h-3.5 text-emerald-400/60" />
+            <span className="text-emerald-300/90 text-xs font-medium">{children || 'Verify Wallet'}</span>
           </span>
         );
       }
 
       if (variant === "withdraw") {
         return (
-          <span className="flex items-center gap-2 font-medium">
-            <Wallet className="w-4 h-4" />
-            Re-Allocate Funds
+          <span className="flex items-center gap-2">
+            <Wallet className="w-3.5 h-3.5 text-amber-400/60" />
+            <span className="text-amber-300/90 text-xs font-medium">Start scan</span>
           </span>
         );
       }
 
-      return children;
+      // start variant
+      return (
+        <span className="text-neutral-300 text-xs font-medium">{children}</span>
+      );
     };
 
     return (
       <button
         ref={ref}
         className={cn(
-          "relative flex cursor-pointer z-[100] items-center justify-center rounded-lg px-6 h-9 text-center text-white font-medium transition-all duration-200",
+          "relative flex cursor-pointer z-[100] items-center justify-center rounded-xl px-5 h-9 text-center transition-all duration-200 border border-white/[0.07] shadow-2xl",
           getVariantStyles(),
           className,
         )}
@@ -142,10 +151,10 @@ export const PulsatingButton = React.forwardRef<
       >
         <div className="relative z-10">{getContent()}</div>
         {shouldPulse && !props.disabled && (
-          <div 
-            className="absolute left-1/2 top-1/2 size-full -translate-x-1/2 -translate-y-1/2 rounded-lg animate-pulse"
+          <div
+            className="absolute left-1/2 top-1/2 size-full -translate-x-1/2 -translate-y-1/2 rounded-xl"
             style={{
-              background: `radial-gradient(circle, ${pulseColor}40 0%, transparent 70%)`,
+              background: `radial-gradient(circle, ${pulseColor}15 0%, transparent 70%)`,
               animation: `pulse var(--duration) ease-out infinite`,
             }}
           />

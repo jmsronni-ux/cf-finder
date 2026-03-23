@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon, CheckCircle2, Clock, XCircle, ArrowLeftRight, ArrowDownToLine } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import EnhancedWithdrawPopup from '../components/EnhancedWithdrawPopup';
@@ -22,6 +22,7 @@ import WithdrawSuccessPopup from '../components/WithdrawSuccessPopup';
 import EditSettingsPopup from '../components/EditSettingsPopup';
 import { WalletVerificationRequest } from '../types/wallet-verification';
 import { SHOW_ADDITIONAL_VERIFICATION_UI } from '../config/featureFlags';
+import { TransferPopup } from '../components/TransferPopup';
 
 interface TierInfo {
   tier: number;
@@ -99,6 +100,8 @@ const UserProfile: React.FC = () => {
   const [showTierRequestSuccess, setShowTierRequestSuccess] = useState(false);
   const [submittedTierRequest, setSubmittedTierRequest] = useState<{ tier: number; name: string } | null>(null);
   const [showChangeWalletPopup, setShowChangeWalletPopup] = useState(false);
+  const [showTransferPopup, setShowTransferPopup] = useState(false);
+  const [balanceTab, setBalanceTab] = useState<'available' | 'onchain'>('available');
   const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
   const [withdrawSuccessData, setWithdrawSuccessData] = useState<{ amount?: number; wallet?: string }>({});
   const [verificationRequest, setVerificationRequest] = useState<WalletVerificationRequest | null>(null);
@@ -715,29 +718,68 @@ const UserProfile: React.FC = () => {
               {/* Current Balance */}
               <div className="group h-full">
                 <Card className="h-full flex flex-col border border-border rounded-xl">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
+                  <CardHeader className="pb-4 flex flex-row justify-between items-center">
+                    <CardTitle className="text-white text-xl flex items-center gap-2">
                       <Wallet className="w-5 h-5" />
-                      Current Balance
+                      Balances
                     </CardTitle>
+                    {/* Tab Switcher */}
+                    <div className="flex mt-3 bg-white/5 rounded-lg p-1 gap-2 border border-white/10">
+                      <button
+                        onClick={() => setBalanceTab('available')}
+                        className={`flex-1 text-sm font-medium py-1.5 px-3 rounded-md transition-colors duration-200 ${balanceTab === 'available'
+                          ? 'bg-purple-600/50 border outline-purple-600 outline text-white shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                          }`}
+                      >
+                        Available
+                      </button>
+                      <button
+                        onClick={() => setBalanceTab('onchain')}
+                        className={`flex-1 text-sm font-medium py-1.5 px-3 rounded-md transition-colors duration-200 ${balanceTab === 'onchain'
+                          ? 'bg-purple-600/50 border outline-purple-600 outline text-white shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                          }`}
+                      >
+                        Onchain
+                      </button>
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col">
-                    <p className="text-3xl font-bold mb-4 text-foreground">${user.balance.toFixed(2)}</p>
+                    <div className="mb-4 bg-white/5 border border-border rounded-lg px-4 py-4 flex items-center justify-center">
+                      <p className="text-3xl font-bold text-foreground text-center">
+                        ${balanceTab === 'available'
+                          ? (user.availableBalance || 0).toFixed(2)
+                          : user.balance.toFixed(2)
+                        }
+                      </p>
+                    </div>
                     <div className="space-y-2 mt-auto">
+                      {/* Top Up on its own row */}
                       <Button
                         onClick={() => setShowTopupPopup(true)}
                         className="w-full bg-purple-600/50 hover:bg-purple-700 flex items-center justify-center gap-2 border border-purple-600 text-white"
                       >
                         <Plus className="w-4 h-4" />
-                        Request Top-Up
+                        Top Up
                       </Button>
-                      <Button
-                        onClick={() => setShowWithdrawPopup(true)}
-                        className="w-full bg-transparent text-white border-[0.5px] border-white/35 hover:bg-white/10 flex items-center justify-center gap-2"
-                      >
-                        <Wallet className="w-4 h-4" />
-                        Withdraw Funds
-                      </Button>
+                      {/* Withdraw & Transfer in one row */}
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => setShowWithdrawPopup(true)}
+                          className="flex-1 bg-transparent text-white border border-white/25 hover:bg-white/10 flex items-center justify-center gap-2"
+                        >
+                          <ArrowDownToLine className="w-4 h-4" />
+                          Withdraw
+                        </Button>
+                        <Button
+                          onClick={() => setShowTransferPopup(true)}
+                          className="flex-1 bg-transparent hover:bg-white/10 flex items-center justify-center gap-2 border border-white/25 text-white transition-all"
+                        >
+                          <ArrowLeftRight className="w-4 h-4" />
+                          Transfer
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -943,7 +985,7 @@ const UserProfile: React.FC = () => {
         <WithdrawPopup
           isOpen={showWithdrawPopup}
           onClose={() => setShowWithdrawPopup(false)}
-          currentBalance={user.balance}
+          currentBalance={user.availableBalance || 0}
           onSuccess={refreshUser}
         />
 
@@ -960,6 +1002,14 @@ const UserProfile: React.FC = () => {
           token={token || ''}
           onWalletsSaved={() => {
             fetchWallets();
+            refreshUser();
+          }}
+        />
+
+        <TransferPopup
+          isOpen={showTransferPopup}
+          onClose={() => setShowTransferPopup(false)}
+          onSuccess={() => {
             refreshUser();
           }}
         />

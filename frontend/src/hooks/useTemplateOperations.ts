@@ -128,6 +128,10 @@ export const useTemplateOperations = () => {
               cleanNode.data.transaction = node.data.transaction;
               cleanNode.data.level = node.data.level;
               cleanNode.data.pending = node.data.pending;
+              cleanNode.data.successRate = node.data.successRate;
+              cleanNode.data.customParameters = node.data.customParameters;
+              cleanNode.data.autoApproveEnabled = node.data.autoApproveEnabled;
+              cleanNode.data.autoApproveDelay = node.data.autoApproveDelay;
             }
 
             if (node.selected !== undefined) cleanNode.selected = node.selected;
@@ -152,8 +156,12 @@ export const useTemplateOperations = () => {
 
             if (edge.sourceHandle) cleanEdge.sourceHandle = edge.sourceHandle;
             if (edge.targetHandle) cleanEdge.targetHandle = edge.targetHandle;
+            if (edge.type) cleanEdge.type = edge.type;
             if (edge.style) cleanEdge.style = edge.style;
             if (edge.animated !== undefined) cleanEdge.animated = edge.animated;
+            if (edge.markerEnd) cleanEdge.markerEnd = edge.markerEnd;
+            if (edge.label) cleanEdge.label = edge.label;
+            if (edge.data) cleanEdge.data = edge.data;
 
             return cleanEdge;
           });

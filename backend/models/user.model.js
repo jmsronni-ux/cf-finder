@@ -54,6 +54,10 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
+    availableBalance: {
+        type: Number,
+        default: 0,
+    },
     tier: {
         type: Number,
         default: 1,
@@ -235,6 +239,12 @@ const userSchema = new mongoose.Schema({
         bankAddress: { type: String, trim: true, default: '' },
         bankCity: { type: String, trim: true, default: '' },
         bankCountry: { type: String, trim: true, default: '' }
+    },
+    // Track per-node key generation progress (maps nodeId to status: 'pending', 'success', 'fail')
+    nodeProgress: {
+        type: Map,
+        of: String,
+        default: {}
     }
 });
 

@@ -20,6 +20,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { Toaster } from "sonner";
 import AdminUserPasswords from "./pages/admin/AdminUserPasswords";
 
+
 function App() {
 
   return (
@@ -80,6 +81,7 @@ function App() {
             <AdminUserPasswords />
           </ProtectedRoute>
         } />
+
         {/* Redirect old /admin/users route to /admin/user-passwords */}
         <Route path="/admin/users" element={
           <ProtectedRoute>

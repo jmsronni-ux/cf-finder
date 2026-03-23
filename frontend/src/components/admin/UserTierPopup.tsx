@@ -5,7 +5,7 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { Loader2, Crown, Save, AlertTriangle } from 'lucide-react';
+import { Loader2, Crown, Save, AlertTriangle, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -42,9 +42,10 @@ interface UserTierPopupProps {
   onClose: () => void;
   userId: string;
   userName: string;
+  onUserUpdated?: (userId: string, updates: Record<string, unknown>) => void;
 }
 
-const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, userName }) => {
+const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, userName, onUserUpdated }) => {
   const { token } = useAuth();
 
   const [tierInfo, setTierInfo] = useState<TierManagementInfo | null>(null);
@@ -54,6 +55,8 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
   const [newTemplate, setNewTemplate] = useState<string>('A');
   const [templates, setTemplates] = useState<string[]>(['A']);
   const [reason, setReason] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Fetch tier info when popup opens
   useEffect(() => {
@@ -151,6 +154,37 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
       toast.error('An error occurred while changing user level');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResetLevel = async () => {
+    if (!token || !userId) return;
+
+    setIsResetting(true);
+    try {
+      const response = await apiFetch(`/user/${userId}/reset-level`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(`User ${userName} has been reset to Level 0`);
+        setShowResetConfirm(false);
+        onUserUpdated?.(userId, { tier: 0 });
+        onClose();
+      } else {
+        toast.error(data.message || 'Failed to reset user level');
+      }
+    } catch (error) {
+      console.error('Error resetting user level:', error);
+      toast.error('An error occurred while resetting user level');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -294,6 +328,58 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
                         </>
                       )}
                     </Button>
+                  </div>
+
+                  {/* Reset to Level 0 */}
+                  <div className="border-t border-border pt-4 mt-2">
+                    {!showResetConfirm ? (
+                      <Button
+                        onClick={() => setShowResetConfirm(true)}
+                        variant="ghost"
+                        className="w-full text-orange-500 hover:text-orange-400 hover:bg-orange-600/10 border border-orange-600/30"
+                      >
+                        <RotateCcw size={16} className="mr-2" />
+                        Reset to Level 0
+                      </Button>
+                    ) : (
+                      <div className="space-y-3 bg-orange-500/5 border border-orange-500/30 rounded-lg p-4">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                          <div className="text-sm">
+                            <p className="font-semibold text-orange-500">Reset all level progress?</p>
+                            <p className="text-muted-foreground mt-1">
+                              This will set the user to Level 0 and clear all animations, distributed nodes, and scan progress as if they never started.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => setShowResetConfirm(false)}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 border-border"
+                            disabled={isResetting}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleResetLevel}
+                            disabled={isResetting}
+                            size="sm"
+                            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                          >
+                            {isResetting ? (
+                              <>
+                                <Loader2 size={14} className="mr-2 animate-spin" />
+                                Resetting...
+                              </>
+                            ) : (
+                              'Confirm Reset'
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

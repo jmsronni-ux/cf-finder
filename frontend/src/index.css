@@ -85,6 +85,7 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+
   .theme {
     --animate-pulse: pulse var(--duration) ease-out infinite;
   }
@@ -99,7 +100,8 @@ body {
   color: hsl(var(--foreground));
 }
 
-html, body {
+html,
+body {
   font-family: "Inter", sans-serif !important;
 }
 
@@ -144,6 +146,7 @@ html, body {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -151,96 +154,557 @@ html, body {
 
 @theme inline {
   @keyframes pulse {
-  0%, 100% {
-    boxShadow: 0 0 0 0 var(--pulse-color);
+
+    0%,
+    100% {
+      boxShadow: 0 0 0 0 var(--pulse-color);
     }
-  50% {
-    boxShadow: 0 0 0 8px var(--pulse-color);
+
+    50% {
+      boxShadow: 0 0 0 8px var(--pulse-color);
     }
   }
 }
 
-/* Glowing animations for node status colors */
+/* ═══ NODE GLOW ANIMATIONS ═══ */
+
+/* ── GREEN (Success) ── steady warm glow + shimmer sweep */
 @keyframes glow-green {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(34, 197, 94, 0.4), 0 0 10px rgba(34, 197, 94, 0.3), 0 0 15px rgba(34, 197, 94, 0.2), 0 0 20px rgba(34, 197, 94, 0.1);
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 8px rgba(34, 197, 94, 0.35),
+      0 0 20px rgba(34, 197, 94, 0.15),
+      inset 0 0 12px rgba(34, 197, 94, 0.06);
   }
+
   50% {
-    box-shadow: 0 0 10px rgba(34, 197, 94, 0.6), 0 0 20px rgba(34, 197, 94, 0.5), 0 0 30px rgba(34, 197, 94, 0.4), 0 0 40px rgba(34, 197, 94, 0.2);
+    box-shadow:
+      0 0 12px rgba(34, 197, 94, 0.5),
+      0 0 28px rgba(34, 197, 94, 0.25),
+      inset 0 0 18px rgba(34, 197, 94, 0.1);
   }
 }
 
-@keyframes glow-red {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(239, 68, 68, 0.4), 0 0 10px rgba(239, 68, 68, 0.3), 0 0 15px rgba(239, 68, 68, 0.2), 0 0 20px rgba(239, 68, 68, 0.1);
+@keyframes shimmer-green {
+  0% {
+    left: -100%;
   }
-  50% {
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6), 0 0 20px rgba(239, 68, 68, 0.5), 0 0 30px rgba(239, 68, 68, 0.4), 0 0 40px rgba(239, 68, 68, 0.2);
+
+  100% {
+    left: 200%;
   }
 }
 
-@keyframes glow-yellow {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(234, 179, 8, 0.4), 0 0 10px rgba(234, 179, 8, 0.3), 0 0 15px rgba(234, 179, 8, 0.2), 0 0 20px rgba(234, 179, 8, 0.1);
-  }
-  50% {
-    box-shadow: 0 0 10px rgba(234, 179, 8, 0.6), 0 0 20px rgba(234, 179, 8, 0.5), 0 0 30px rgba(234, 179, 8, 0.4), 0 0 40px rgba(234, 179, 8, 0.2);
-  }
-}
-
-@keyframes glow-blue {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(59, 130, 246, 0.4), 0 0 10px rgba(59, 130, 246, 0.3), 0 0 15px rgba(59, 130, 246, 0.2), 0 0 20px rgba(59, 130, 246, 0.1);
-  }
-  50% {
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.6), 0 0 20px rgba(59, 130, 246, 0.5), 0 0 30px rgba(59, 130, 246, 0.4), 0 0 40px rgba(59, 130, 246, 0.2);
-  }
-}
-
-@keyframes glow-orange {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(249, 115, 22, 0.4), 0 0 10px rgba(249, 115, 22, 0.3), 0 0 15px rgba(249, 115, 22, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 10px rgba(249, 115, 22, 0.6), 0 0 20px rgba(249, 115, 22, 0.5), 0 0 30px rgba(249, 115, 22, 0.4);
-  }
-}
-
-@keyframes glow-purple {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(168, 85, 247, 0.4), 0 0 10px rgba(168, 85, 247, 0.3), 0 0 15px rgba(168, 85, 247, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 10px rgba(168, 85, 247, 0.6), 0 0 20px rgba(168, 85, 247, 0.5), 0 0 30px rgba(168, 85, 247, 0.4);
-  }
-}
-
-/* Utility classes for applying glow animations */
 .glow-green {
-  animation: glow-green 2s ease-in-out infinite;
+  animation: glow-green 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.glow-green::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.08), transparent);
+  animation: shimmer-green 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── RED (Fail) ── heartbeat double-flash */
+@keyframes glow-red {
+
+  0%,
+  100% {
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.3), 0 0 12px rgba(239, 68, 68, 0.1);
+  }
+
+  14% {
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.7), 0 0 30px rgba(239, 68, 68, 0.35), 0 0 50px rgba(239, 68, 68, 0.15);
+  }
+
+  28% {
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.3), 0 0 12px rgba(239, 68, 68, 0.1);
+  }
+
+  42% {
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.8), 0 0 36px rgba(239, 68, 68, 0.4), 0 0 60px rgba(239, 68, 68, 0.2);
+  }
+
+  56% {
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.3), 0 0 12px rgba(239, 68, 68, 0.1);
+  }
 }
 
 .glow-red {
-  animation: glow-red 2s ease-in-out infinite;
+  animation: glow-red 2.4s ease-in-out infinite;
+}
+
+/* ── YELLOW (Awaiting / Pending) ── aggressive pulse + fast rotating border accent */
+@keyframes glow-yellow {
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 8px rgba(234, 179, 8, 0.4),
+      0 0 18px rgba(234, 179, 8, 0.2);
+  }
+
+  50% {
+    box-shadow:
+      0 0 20px rgba(234, 179, 8, 0.7),
+      0 0 40px rgba(234, 179, 8, 0.35),
+      0 0 60px rgba(234, 179, 8, 0.15);
+  }
+}
+
+@keyframes border-rotate {
+  0% {
+    --border-angle: 0deg;
+  }
+
+  100% {
+    --border-angle: 360deg;
+  }
+}
+
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
 }
 
 .glow-yellow {
-  animation: glow-yellow 2s ease-in-out infinite;
+  animation: glow-yellow 1.6s ease-in-out infinite, border-rotate 2s linear infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.glow-yellow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--border-angle), transparent 40%, rgba(234, 179, 8, 0.7) 70%, rgba(250, 204, 21, 0.9) 80%, rgba(234, 179, 8, 0.7) 90%, transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── BLUE (Cold Wallet) ── slow crystallize shimmer sweep */
+@keyframes glow-blue {
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 8px rgba(59, 130, 246, 0.3),
+      0 0 16px rgba(59, 130, 246, 0.12);
+  }
+
+  50% {
+    box-shadow:
+      0 0 12px rgba(59, 130, 246, 0.45),
+      0 0 24px rgba(59, 130, 246, 0.2),
+      inset 0 0 10px rgba(59, 130, 246, 0.06);
+  }
+}
+
+@keyframes shimmer-blue {
+  0% {
+    left: -100%;
+  }
+
+  100% {
+    left: 200%;
+  }
 }
 
 .glow-blue {
-  animation: glow-blue 2s ease-in-out infinite;
+  animation: glow-blue 4s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.glow-blue::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.06), transparent);
+  animation: shimmer-blue 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── ORANGE (Reported) ── expanding ring signal */
+@keyframes glow-orange {
+
+  0%,
+  100% {
+    box-shadow: 0 0 6px rgba(249, 115, 22, 0.35), 0 0 12px rgba(249, 115, 22, 0.12);
+    outline: 2px solid transparent;
+    outline-offset: 0px;
+  }
+
+  50% {
+    box-shadow: 0 0 14px rgba(249, 115, 22, 0.55), 0 0 28px rgba(249, 115, 22, 0.2);
+    outline: 2px solid rgba(249, 115, 22, 0.25);
+    outline-offset: 4px;
+  }
 }
 
 .glow-orange {
-  animation: glow-orange 2s ease-in-out infinite;
+  animation: glow-orange 2.2s ease-in-out infinite;
+}
+
+/* ── PURPLE ── enhanced breathing with inset glow */
+@keyframes glow-purple {
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 8px rgba(168, 85, 247, 0.35),
+      0 0 16px rgba(168, 85, 247, 0.15),
+      inset 0 0 10px rgba(168, 85, 247, 0.06);
+  }
+
+  50% {
+    box-shadow:
+      0 0 14px rgba(168, 85, 247, 0.55),
+      0 0 30px rgba(168, 85, 247, 0.25),
+      inset 0 0 16px rgba(168, 85, 247, 0.1);
+  }
 }
 
 .glow-purple {
-  animation: glow-purple 2s ease-in-out infinite;
+  animation: glow-purple 2.8s ease-in-out infinite;
 }
 
-#\:r1\: > div > div > div.react-flow__panel.react-flow__attribution.bottom.right {
+/* ── PROCESSING (Scheduled action in-progress) ── amber pulse + shimmer */
+@keyframes glow-processing {
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 10px rgba(245, 158, 11, 0.4),
+      0 0 20px rgba(245, 158, 11, 0.15);
+  }
+
+  50% {
+    box-shadow:
+      0 0 18px rgba(245, 158, 11, 0.65),
+      0 0 36px rgba(245, 158, 11, 0.3),
+      0 0 50px rgba(245, 158, 11, 0.1);
+  }
+}
+
+@keyframes shimmer-processing {
+  0% {
+    left: -100%;
+  }
+
+  100% {
+    left: 200%;
+  }
+}
+
+.glow-processing {
+  animation: glow-processing 2s ease-in-out infinite;
+}
+
+/* ── InProgressPanel: completion flash + celebration ── */
+@keyframes flash-green {
+  0% {
+    background-color: rgba(16, 185, 129, 0.15);
+  }
+
+  30% {
+    background-color: rgba(16, 185, 129, 0.25);
+  }
+
+  100% {
+    background-color: transparent;
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+@keyframes flash-red {
+  0% {
+    background-color: rgba(239, 68, 68, 0.15);
+  }
+
+  30% {
+    background-color: rgba(239, 68, 68, 0.25);
+  }
+
+  100% {
+    background-color: transparent;
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+@keyframes celebration-fade-out {
+
+  0%,
+  70% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.row-complete-green {
+  animation: flash-green 2s ease-out forwards;
+}
+
+.row-complete-red {
+  animation: flash-red 2s ease-out forwards;
+}
+
+.celebration-fade {
+  animation: celebration-fade-out 4s ease-out forwards;
+}
+
+/* ── REVEAL SYSTEM: sealed node + win/lose animations ── */
+@keyframes sealed-float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes sealed-shimmer {
+  0% {
+    border-color: rgba(168, 85, 247, 0.35);
+  }
+
+  50% {
+    border-color: rgba(168, 85, 247, 0.6);
+  }
+
+  100% {
+    border-color: rgba(168, 85, 247, 0.35);
+  }
+}
+
+@keyframes sealed-pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes reveal-win-bounce {
+  0% {
+    transform: scale(1);
+  }
+
+  20% {
+    transform: scale(1.3);
+  }
+
+  40% {
+    transform: scale(0.95);
+  }
+
+  60% {
+    transform: scale(1.05);
+  }
+
+  80% {
+    transform: scale(0.98);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes reveal-win-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+  }
+
+  30% {
+    box-shadow: 0 0 30px 10px rgba(16, 185, 129, 0.5);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes reveal-lose-shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10% {
+    transform: translateX(-5px);
+  }
+
+  20% {
+    transform: translateX(5px);
+  }
+
+  30% {
+    transform: translateX(-4px);
+  }
+
+  40% {
+    transform: translateX(4px);
+  }
+
+  50% {
+    transform: translateX(-3px);
+  }
+
+  60% {
+    transform: translateX(3px);
+  }
+
+  70% {
+    transform: translateX(-2px);
+  }
+
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes reveal-lose-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+  }
+
+  30% {
+    box-shadow: 0 0 25px 8px rgba(239, 68, 68, 0.5);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.sealed-node {
+  animation: sealed-shimmer 2.5s ease-in-out infinite, sealed-pulse 2s ease-in-out infinite;
+}
+
+.sealed-float {
+  animation: sealed-float 2.5s ease-in-out infinite;
+}
+
+.reveal-win {
+  animation: reveal-win-bounce 0.8s ease-out, reveal-win-glow 1.2s ease-out;
+}
+
+.reveal-lose {
+  animation: reveal-lose-shake 0.6s ease-out, reveal-lose-flash 1s ease-out;
+}
+
+/* ── OCTAGON FAIL NODES ── */
+@keyframes octagon-fail-shake {
+
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+
+  10% {
+    transform: translateX(-4px) rotate(-1deg);
+  }
+
+  20% {
+    transform: translateX(4px) rotate(1deg);
+  }
+
+  30% {
+    transform: translateX(-3px) rotate(-0.5deg);
+  }
+
+  40% {
+    transform: translateX(3px) rotate(0.5deg);
+  }
+
+  50% {
+    transform: translateX(-2px);
+  }
+
+  60% {
+    transform: translateX(2px);
+  }
+
+  70% {
+    transform: translateX(-1px);
+  }
+
+  80% {
+    transform: translateX(1px);
+  }
+}
+
+@keyframes octagon-fail-flash {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0));
+  }
+
+  20% {
+    filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.7));
+  }
+
+  100% {
+    filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0));
+  }
+}
+
+.reveal-lose-octagon {
+  animation: octagon-fail-shake 0.6s ease-out, octagon-fail-flash 1s ease-out;
+}
+
+@keyframes octagon-idle-pulse {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.2));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.45));
+  }
+}
+
+.fail-octagon-node {
+  animation: octagon-idle-pulse 3s ease-in-out infinite;
+}
+
+#\:r1\:>div>div>div.react-flow__panel.react-flow__attribution.bottom.right {
   visibility: hidden !important;
 }
 
@@ -249,6 +713,7 @@ html, body {
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }
@@ -256,4 +721,55 @@ html, body {
 
 .animate-shimmer {
   animation: shimmer 2s infinite;
+}
+
+/* ── GROUP PANEL: stacking card metaphor ── */
+.group-panel-stack {
+  position: relative;
+}
+
+.group-panel-stack::before,
+.group-panel-stack::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(12, 12, 12, 0.4);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.group-panel-stack::before {
+  transform: translate(3px, 3px) scale(0.985);
+  opacity: 0.5;
+}
+
+.group-panel-stack::after {
+  transform: translate(6px, 6px) scale(0.97);
+  opacity: 0.2;
+}
+
+@keyframes group-panel-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.group-panel-enter {
+  animation: group-panel-enter 0.25s ease-out forwards;
+}
+
+/* ── ElevenLabs Agent Widget: compact on mobile ── */
+@media (max-width: 768px) {
+  elevenlabs-convai {
+    transform: scale(0.8);
+    transform-origin: bottom right;
+  }
 }

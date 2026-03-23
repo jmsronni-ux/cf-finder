@@ -41,79 +41,58 @@ export const createTierRequest = async (req, res, next) => {
             throw new ApiError(400, "You already have a pending request for this tier");
         }
 
-        // NEW CHECK: Verify all network rewards from ALL completed levels have been withdrawn
-        // by checking approved WithdrawRequest history per level
-        const networks = ['BTC', 'ETH', 'TRON', 'USDT', 'BNB', 'SOL'];
-        const levelsWithRemainingRewards = [];
+        // REMOVED CHECK: Verify all network rewards from ALL completed levels have been withdrawn
+        // Users are not suppose to withdraw based on latest requirements.
 
-        for (let level = 1; level <= user.tier; level++) {
-            const animField = `lvl${level}anim`;
-            const levelCompleted = user[animField] === 1;
-            if (!levelCompleted) {
-                continue;
-            }
-
-            const levelNetworkRewardsField = `lvl${level}NetworkRewards`;
-            const levelNetworkRewards = user[levelNetworkRewardsField] || {};
-
-            // Networks that actually have non-zero rewards for this level
-            const networksWithAmounts = networks.filter(network => {
-                const amount = Number(levelNetworkRewards[network] || 0);
-                return amount > 0;
-            });
-
-            if (networksWithAmounts.length === 0) {
-                continue;
-            }
-
-            // Build set of withdrawn networks for this level from approved requests
-            const approvedRequests = await WithdrawRequest.find({ userId, status: 'approved', level });
-            const withdrawnSet = new Set();
-            approvedRequests.forEach(req => {
-                (req.networks || []).forEach(n => withdrawnSet.add(String(n).toUpperCase()));
-            });
-
-            // Remaining networks are those with amounts but not in withdrawn set
-            const remaining = networksWithAmounts.filter(n => !withdrawnSet.has(n));
-            if (remaining.length > 0) {
-                levelsWithRemainingRewards.push({ level, networks: remaining });
-            }
-        }
-
-        if (levelsWithRemainingRewards.length > 0) {
-            const levelsList = levelsWithRemainingRewards.map(l => `Level ${l.level} (${l.networks.join(', ')})`).join('; ');
-            throw new ApiError(400, `You must withdraw all network rewards before upgrading. Remaining: ${levelsList}`);
-        }
-
-        // Create the tier request
+        // Create the tier request as already approved
         const tierRequest = await TierRequest.create({
             userId,
             requestedTier,
-            currentTier: user.tier
+            currentTier: user.tier,
+            status: 'approved',
+            reviewedAt: new Date(),
+            adminNote: 'Automatically approved upon request'
         });
+
+        // Reset animation flags for the requested tier level and all levels above
+        for (let level = requestedTier; level <= 5; level++) {
+            const animField = `lvl${level}anim`;
+            user[animField] = 0;
+        }
+
+        // Update user's tier
+        user.tier = requestedTier;
+        user.updatedAt = new Date();
+        await user.save();
 
         const tierInfo = getTierInfo(requestedTier);
         const currentTierInfo = getTierInfo(user.tier);
 
-        // Send confirmation email to user
-        sendTierRequestSubmittedEmail(
+        // Send confirmation email to user (using the approved email service)
+        sendTierRequestApprovedEmail(
             user.email,
             user.name,
-            user.tier,
+            tierRequest.currentTier,
             currentTierInfo.name,
             requestedTier,
             tierInfo.name,
             tierRequest._id
-        ).catch(err => console.error('Failed to send tier request submitted email:', err));
+        ).catch(err => console.error('Failed to send tier request approved email:', err));
 
         // Send Telegram notification to admin
         sendTierNotification(user, tierRequest).catch(err => console.error('Failed to send Telegram tier notification:', err));
 
         res.status(201).json({
             success: true,
-            message: `Tier upgrade request for ${tierInfo.name} submitted successfully. Awaiting admin approval.`,
+            message: `You have successfully upgraded to ${tierInfo.name}!`,
             data: {
-                request: tierRequest
+                request: tierRequest,
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    tier: user.tier
+                }
             }
         });
 

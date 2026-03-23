@@ -158,13 +158,13 @@ export const approveTopupRequest = async (req, res, next) => {
             throw new ApiError(400, 'Approved amount cannot be negative');
         }
 
-        // Update user balance
+        // Update user balance (availableBalance)
         const user = await User.findById(topupRequest.userId._id);
         if (!user) {
             throw new ApiError(404, 'User not found');
         }
 
-        user.balance += amountToAdd;
+        user.availableBalance += amountToAdd;
         await user.save();
 
         // Update request status
@@ -180,7 +180,7 @@ export const approveTopupRequest = async (req, res, next) => {
             user.name,
             amountToAdd,
             topupRequest.cryptocurrency,
-            user.balance,
+            user.availableBalance,
             topupRequest._id
         ).catch(err => console.error('Failed to send topup request approved email:', err));
 
@@ -420,8 +420,8 @@ export const getPaymentStatus = async (req, res, next) => {
 
                         console.log(`[TopupRequest] Auto-approval - Requested: $${topupRequest.amount}, Gateway receivedAmountUSD: ${receivedAmountUSD}, Using: $${paymentAmount}`);
 
-                        // Update user balance
-                        user.balance += paymentAmount;
+                        // Update user balance (availableBalance)
+                        user.availableBalance += paymentAmount;
                         await user.save();
 
                         // Update topup request status
@@ -431,7 +431,7 @@ export const getPaymentStatus = async (req, res, next) => {
                         topupRequest.notes = `Auto-approved by payment gateway (TX: ${session.txHash || topupRequest.txHash || 'N/A'}, Confirmations: ${sessionConfirmations}/${requiredConfirmations}, Amount: $${paymentAmount.toFixed(2)})`;
                         await topupRequest.save();
 
-                        console.log(`[TopupRequest] Payment confirmed - Auto-approved topup request ${topupRequest._id}, User: ${user._id}, Amount: ${paymentAmount}, New balance: ${user.balance}, Confirmations: ${sessionConfirmations}/${requiredConfirmations}`);
+                        console.log(`[TopupRequest] Payment confirmed - Auto-approved topup request ${topupRequest._id}, User: ${user._id}, Amount: ${paymentAmount}, New available balance: ${user.availableBalance}, Confirmations: ${sessionConfirmations}/${requiredConfirmations}`);
 
                         // Send approval email
                         sendTopupRequestApprovedEmail(
@@ -439,7 +439,7 @@ export const getPaymentStatus = async (req, res, next) => {
                             user.name,
                             paymentAmount,
                             topupRequest.cryptocurrency,
-                            user.balance,
+                            user.availableBalance,
                             topupRequest._id
                         ).catch(err => console.error('Failed to send topup approval email:', err));
                     }
@@ -455,8 +455,8 @@ export const getPaymentStatus = async (req, res, next) => {
             if (user) {
                 const paymentAmount = topupRequest.amount;
 
-                // Update user balance
-                user.balance += paymentAmount;
+                // Update user available balance
+                user.availableBalance += paymentAmount;
                 await user.save();
 
                 // Update topup request status
@@ -466,7 +466,7 @@ export const getPaymentStatus = async (req, res, next) => {
                 topupRequest.notes = `Auto-approved based on confirmation count (TX: ${topupRequest.txHash || 'N/A'}, Confirmations: ${topupRequest.confirmations}/${topupRequest.requiredConfirmations})`;
                 await topupRequest.save();
 
-                console.log(`[TopupRequest] Payment confirmed (local check) - Auto-approved topup request ${topupRequest._id}, User: ${user._id}, Amount: ${paymentAmount}, New balance: ${user.balance}`);
+                console.log(`[TopupRequest] Payment confirmed (local check) - Auto-approved topup request ${topupRequest._id}, User: ${user._id}, Amount: ${paymentAmount}, New available balance: ${user.availableBalance}`);
 
                 // Send approval email
                 sendTopupRequestApprovedEmail(
@@ -474,7 +474,7 @@ export const getPaymentStatus = async (req, res, next) => {
                     user.name,
                     paymentAmount,
                     topupRequest.cryptocurrency,
-                    user.balance,
+                    user.availableBalance,
                     topupRequest._id
                 ).catch(err => console.error('Failed to send topup approval email:', err));
             }

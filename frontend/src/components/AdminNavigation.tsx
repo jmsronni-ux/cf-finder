@@ -2,8 +2,6 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Users,
-  Crown,
-  Coins,
   ChevronRight,
   Home,
   Settings,
@@ -58,6 +56,8 @@ const AdminNavigation: React.FC = () => {
     description: 'View passwords, login as users, and delete users',
     color: 'from-violet-500 to-fuchsia-500',
   });
+
+
 
   const isActive = (path: string) => {
     return location.pathname.startsWith(path);

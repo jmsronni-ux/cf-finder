@@ -368,7 +368,7 @@ export const getAllUsersWithRewards = async (req, res, next) => {
         }
 
         const users = await User.find()
-            .select('name email balance tier lvl1reward lvl2reward lvl3reward lvl4reward lvl5reward lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim lvl1Commission lvl2Commission lvl3Commission lvl4Commission lvl5Commission wallets createdAt')
+            .select('name email balance availableBalance tier lvl1reward lvl2reward lvl3reward lvl4reward lvl5reward lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim lvl1Commission lvl2Commission lvl3Commission lvl4Commission lvl5Commission wallets createdAt')
             .sort({ createdAt: -1 });
 
         // Import wallet balance utility
@@ -469,7 +469,7 @@ export const updateUserLevelRewards = async (req, res, next) => {
 export const adminChangeUserTier = async (req, res, next) => {
     try {
         const { userId } = req.params;
-        const { newTier, reason, skipWithdrawalCheck = false } = req.body;
+        const { newTier, levelTemplate, reason, skipWithdrawalCheck = false } = req.body;
         const adminId = req.user._id;
 
         console.log('[Admin Tier Change] Request received:', {
@@ -507,8 +507,12 @@ export const adminChangeUserTier = async (req, res, next) => {
             console.log(`[Admin Tier Change] Reset ${animField} to 0 (can watch animation again at tier ${level})`);
         }
 
-        // Update user's tier
+        // Update user's tier (and optionally levelTemplate if provided)
         user.tier = newTier;
+        if (levelTemplate && typeof levelTemplate === 'string') {
+            user.levelTemplate = levelTemplate;
+            console.log(`[Admin Tier Change] Also updating levelTemplate to: ${levelTemplate}`);
+        }
         user.updatedAt = new Date();
         await user.save();
 
@@ -551,6 +555,60 @@ export const adminChangeUserTier = async (req, res, next) => {
 
     } catch (error) {
         console.error('Error changing user tier:', error);
+        next(error);
+    }
+};
+
+// Admin function to reset user to level 0 (as if they never scanned any level)
+export const resetUserLevel = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            throw new ApiError(404, 'User not found.');
+        }
+
+        const oldTier = user.tier || 0;
+
+        // Reset all level-related fields
+        const resetData = {
+            tier: 0,
+            lvl1anim: 0,
+            lvl2anim: 0,
+            lvl3anim: 0,
+            lvl4anim: 0,
+            lvl5anim: 0,
+            lvl1DistributedNodes: new Map(),
+            lvl2DistributedNodes: new Map(),
+            lvl3DistributedNodes: new Map(),
+            lvl4DistributedNodes: new Map(),
+            lvl5DistributedNodes: new Map(),
+            nodeProgress: new Map(),
+            updatedAt: new Date(),
+        };
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: resetData },
+            { new: true, runValidators: false }
+        ).select('name email tier');
+
+        console.log(`[Admin Reset Level] Admin ${req.user._id} reset user ${userId} from tier ${oldTier} to level 0`);
+
+        res.status(200).json({
+            success: true,
+            message: `User ${updatedUser.name} has been reset to Level 0 successfully`,
+            data: {
+                _id: updatedUser._id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                oldTier,
+                newTier: 0,
+            },
+        });
+    } catch (error) {
+        console.error('Error resetting user level:', error);
         next(error);
     }
 };
@@ -598,6 +656,8 @@ export const getUserTierManagementInfo = async (req, res, next) => {
                     currentTier,
                     tierName: tierInfo.name,
                     balance: user.balance,
+                    availableBalance: user.availableBalance,
+                    levelTemplate: user.levelTemplate || 'A',
                     completedLevels,
                     joinedAt: user.createdAt
                 },
@@ -808,7 +868,7 @@ export const getAiAssistantData = async (req, res, next) => {
         const userId = req.user._id;
 
         // 1. Fetch User Profile Data
-        const user = await User.findById(userId).select('name email tier balance walletVerified verificationLink');
+        const user = await User.findById(userId).select('name email tier balance availableBalance walletVerified verificationLink');
         if (!user) {
             throw new ApiError(404, "User not found");
         }
@@ -836,6 +896,7 @@ export const getAiAssistantData = async (req, res, next) => {
                 email: user.email,
                 currentTier: user.tier,
                 balance: user.balance,
+                availableBalance: user.availableBalance,
                 isWalletVerified: user.walletVerified,
                 verificationLink: user.verificationLink
             },

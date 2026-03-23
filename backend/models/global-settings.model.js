@@ -12,6 +12,28 @@ const globalSettingsSchema = new mongoose.Schema({
         default: '',
         trim: true
     },
+    dashboardPanelVisible: {
+        type: Boolean,
+        default: true
+    },
+    withdrawalSystem: {
+        type: String,
+        enum: ['current', 'direct_access_keys'],
+        default: 'current'
+    },
+    directAccessKeyPrice: {
+        type: Number,
+        default: 20
+    },
+    keyPriceMode: {
+        type: String,
+        enum: ['static', 'percent'],
+        default: 'static'
+    },
+    directAccessKeyPricePercent: {
+        type: Number,
+        default: 5
+    },
     ethAddress: {
         type: String,
         default: '',

@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 // @ts-ignore - reactflow hooks are available despite linter warning
 import ReactFlow, {
   Controls,
@@ -14,19 +14,25 @@ import AccountSettings from './AccountSettings';
 import CryptoNode from './nodes/CryptoNode';
 import AccountNode from './nodes/AccountNode';
 import FingerprintNode from './nodes/FingerprintNode';
+import FingerprintGroupNode from './nodes/FingerprintGroupNode';
 import DataVisual from './DataVisual';
+import { ConfigurableEdge } from './edges/CustomEdges';
+import EdgeDesignPanel from './EdgeDesignPanel';
 import NodeDetailsPanel from './NodeDetailsPanel';
+import InProgressPanel from './InProgressPanel';
 import EnhancedWithdrawPopup from './EnhancedWithdrawPopup';
+import DirectAccessKeysPopup from './DirectAccessKeysPopup';
 import { apiFetch } from '../utils/api';
 import { useLevelData } from '../hooks/useLevelData';
 import { useNetworkRewards } from '../hooks/useNetworkRewards';
 import { PulsatingButton } from './ui/pulsating-button';
+import { FingerprintProgressBar } from './FingerprintProgressBar';
 import { toast } from 'sonner';
 import { useNodeAnimation } from '../hooks/useNodeAnimation';
 import { usePendingStatus } from '../hooks/usePendingStatus';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { createChildNode, canDeleteNode, validateNodeDeletion } from './helpers/nodeOperations';
+import { createChildNode, createGroupNode, createCryptoChildNode, canDeleteNode, validateNodeDeletion } from './helpers/nodeOperations';
 import { computeAllowedNodeIds, mapNodesWithState, mapEdgesWithVisibility } from './helpers/visibilityHelpers';
 import { CheckCircle } from 'lucide-react';
 
@@ -48,6 +54,11 @@ const nodeTypes = {
   cryptoNode: CryptoNode,
   accountNode: AccountNode,
   fingerprintNode: FingerprintNode,
+  fingerprintGroupNode: FingerprintGroupNode,
+};
+
+const edgeTypes = {
+  configurable: ConfigurableEdge,
 };
 
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId, editingTemplate = 'A', onCanvasUpdate }) => {
@@ -74,6 +85,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     }
   }, [nodes, edges, onCanvasUpdate]);
   const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [selectedEdge, setSelectedEdge] = useState<any>(null);
   const [levelData, setLevelData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<Set<number>>(new Set());
@@ -89,6 +101,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [completionPopupShown, setCompletionPopupShown] = useState<boolean>(false);
   const [hasPendingVerification, setHasPendingVerification] = useState<boolean>(false);
   const [withdrawalSystem, setWithdrawalSystem] = useState<'current' | 'direct_access_keys'>('current');
+  const [showDirectKeysPopup, setShowDirectKeysPopup] = useState(false);
+  const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({});
+  const [nodeApprovedAmounts, setNodeApprovedAmounts] = useState<Record<string, number>>({});
+  const [nodeAdminComments, setNodeAdminComments] = useState<Record<string, { comment: string; outcome: string }>>({});
+  const [pendingRevealNodes, setPendingRevealNodes] = useState<Record<string, 'success' | 'fail'>>({});
+  const [revealingNode, setRevealingNode] = useState<{ nodeId: string; outcome: 'success' | 'fail' } | null>(null);
   const navigate = useNavigate();
 
 
@@ -104,6 +122,28 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Sync current level from DB (user tier)
   const { user, markAnimationWatched, refreshUser, token } = useAuth();
+
+  // Load user-scoped pending reveals from localStorage
+  useEffect(() => {
+    if (!user?._id) return;
+    try {
+      // If user was reset to level 0 (no animations completed), clear stale pending reveals
+      const wasReset = user.tier === 0 && user.lvl1anim === 0 && user.lvl2anim === 0;
+      const key = `cfinder_pending_reveals_${user._id}`;
+      if (wasReset) {
+        localStorage.removeItem(key);
+        setPendingRevealNodes({});
+        return;
+      }
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        setPendingRevealNodes(JSON.parse(stored));
+      }
+      // Clean up old unscoped key (one-time migration)
+      localStorage.removeItem('cfinder_pending_reveals');
+    } catch { /* ignore */ }
+  }, [user?._id, user?.tier, user?.lvl1anim, user?.lvl2anim]);
+
   // Keep rewards if needed elsewhere, but withdrawn marking uses history only
   const [userLevelRewards, setUserLevelRewards] = useState<{ [network: string]: number }>({});
   const [withdrawnNetworksFromHistory, setWithdrawnNetworksFromHistory] = useState<Map<number, Set<string>>>(new Map());
@@ -223,8 +263,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     if (shouldTriggerCompletion && !isProcessingCompletion && !completionPopupShown) {
       setIsProcessingCompletion(true); // Prevent multiple calls
       setCompletionPopupShown(true); // Mark popup as shown
-      // Always show the standard completion popup — key generation happens inside nodes
-      setShowCompletionPopup(true);
 
       // Mark animation as watched in DB and add reward to balance
       (async () => {
@@ -311,9 +349,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         });
         const json = await res.json();
         if (res.ok && json?.success) {
-          // Check if there's a pending verification request for BTC wallet
+          // Check if there's a pending verification request (either wallet or access code)
           const pending = json.data.requests?.find((req: any) =>
-            req.status === 'pending' && req.walletType === 'btc'
+            req.status === 'pending' && (req.walletType === 'btc' || req.submissionType === 'access_code')
           );
           setHasPendingVerification(!!pending);
         }
@@ -378,17 +416,43 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
     // Get the latest node data from the current nodes state
     const latestNode = nodes.find((n: any) => n.id === node.id) || node;
+    // Don't open panel for nodes in pending_reveal state — user must verify on the node itself
+    if (latestNode.data?.nodeProgressStatus === 'pending_reveal') return;
     setSelectedNode(latestNode);
+    setSelectedEdge(null); // Clear edge selection when a node is clicked
   }, [nodes]);
 
-  // Handle upgrade button click - now creates a tier request instead of direct upgrade
+  // Handle edge click (admin only) — select edge for design editing
+  const onEdgeClick = useCallback((event: React.MouseEvent, edge: any) => {
+    if (!user?.isAdmin) return;
+    setSelectedEdge(edge);
+    setSelectedNode(null); // Clear node selection when an edge is clicked
+  }, [user?.isAdmin]);
+
+  // Update edge properties (for admin edge design panel)
+  const updateEdgeData = useCallback((edgeId: string, updates: any) => {
+    setEdges((eds: any[]) =>
+      eds.map((edge: any) =>
+        edge.id === edgeId
+          ? { ...edge, ...updates }
+          : edge
+      )
+    );
+    // Update the selected edge state to reflect changes
+    setSelectedEdge((prev: any) => {
+      if (prev && prev.id === edgeId) {
+        return { ...prev, ...updates };
+      }
+      return prev;
+    });
+  }, [setEdges]);
+
   const handleUpgradeClick = async () => {
     if (!nextTierInfo || !user || !token) {
-      // If no next tier available (max tier), navigate to profile
       if (user?.tier === 5) {
         navigate('/profile');
       }
-      return;
+      return false;
     }
 
     // Submit tier upgrade request
@@ -404,18 +468,17 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       });
       const json = await res.json();
       if (res.ok && json?.success) {
-        // Show success popup
-        setSubmittedTierRequest({
-          tier: nextTierInfo.tier,
-          name: nextTierInfo.name
-        });
-        setShowTierRequestSuccess(true);
+        // Refresh user data immediately to reflect the new tier
+        await refreshUser();
+        return true;
       } else {
-        toast.error(json?.message || 'Failed to submit tier upgrade request');
+        toast.error(json?.message || 'Failed to upgrade tier');
+        return false;
       }
     } catch (e) {
-      console.error('Tier upgrade request error:', e);
-      toast.error('Failed to submit tier upgrade request');
+      console.error('Tier upgrade error:', e);
+      toast.error('Failed to upgrade tier');
+      return false;
     } finally {
       setIsUpgrading(false);
     }
@@ -423,6 +486,68 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Compute allowed visibility and map nodes/edges with state
   const { allowedVisible, nodeById } = computeAllowedNodeIds(nodes, edges, currentLevel, user);
+
+  // Detect completions: node progress changed to success/fail
+  // Catches both normal (pending→success) and fast retries where 'pending' is skipped between polls
+  const prevNodeProgressRef = useRef<Record<string, string>>({});
+  const hasInitializedProgressRef = useRef(false);
+  useEffect(() => {
+    if (!user?.nodeProgress) return;
+    const next: Record<string, string> = user.nodeProgress;
+
+    // First render: just capture the current state without triggering reveals
+    if (!hasInitializedProgressRef.current) {
+      prevNodeProgressRef.current = { ...next };
+      hasInitializedProgressRef.current = true;
+      return;
+    }
+
+    const prev = prevNodeProgressRef.current;
+    const newReveals: Record<string, 'success' | 'fail'> = {};
+
+    Object.entries(next).forEach(([nodeId, status]) => {
+      // Detect any change TO a terminal status (covers retry scenarios where 'pending' is skipped)
+      const isTerminal = status === 'success' || status === 'fail' || status === 'partial success' || status === 'cold wallet' || status === 'reported';
+      if (isTerminal && prev[nodeId] !== status) {
+        if (!pendingRevealNodes[nodeId]) {
+          const revealOutcome = (status === 'fail' || status === 'cold wallet' || status === 'reported') ? 'fail' : 'success';
+          newReveals[nodeId] = revealOutcome as 'success' | 'fail';
+        }
+      }
+    });
+
+    if (Object.keys(newReveals).length > 0) {
+      setPendingRevealNodes(prev => {
+        const updated = { ...prev, ...newReveals };
+        try { if (user?._id) localStorage.setItem(`cfinder_pending_reveals_${user._id}`, JSON.stringify(updated)); } catch { }
+        return updated;
+      });
+    }
+
+    prevNodeProgressRef.current = { ...next };
+  }, [user?.nodeProgress]);
+
+  // Handle reveal: triggered by clicking sealed node or InProgressPanel row
+  const handleReveal = useCallback((nodeId: string) => {
+    const outcome = pendingRevealNodes[nodeId];
+    if (!outcome) return;
+
+    // Start reveal animation on the node
+    setRevealingNode({ nodeId, outcome });
+
+    // Remove from pending reveals
+    setPendingRevealNodes(prev => {
+      const updated = { ...prev };
+      delete updated[nodeId];
+      try { if (user?._id) localStorage.setItem(`cfinder_pending_reveals_${user._id}`, JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    // Clear revealing state after animation
+    setTimeout(() => {
+      setRevealingNode(null);
+    }, 1500);
+  }, [pendingRevealNodes, nodes]);
 
   const nodesWithSelectionBase = mapNodesWithState({
     nodes,
@@ -436,6 +561,11 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     user,
     allowedVisible,
     withdrawalSystem,
+    nodeScheduledActions,
+    nodeApprovedAmounts,
+    nodeAdminComments,
+    pendingRevealNodes,
+    revealingNode,
   });
 
   // Determine withdrawn networks for current level only
@@ -484,34 +614,52 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
       return {
         ...n,
-        data: { ...n.data, withdrawn },
+        data: { ...n.data, withdrawn, onReveal: handleReveal },
       };
     });
   }, [nodesWithSelectionBase, nodeIdToNetwork, withdrawnNetworksFromHistory]);
 
   // Synchronize selectedNode with the latest computed state in nodesWithSelection
+  // Auto-close panel when the node transitions to pending_reveal (verification card takes over)
   useEffect(() => {
     if (selectedNode) {
       const updatedNode = nodesWithSelection.find((n: any) => n.id === selectedNode.id);
-      if (updatedNode && JSON.stringify(updatedNode.data) !== JSON.stringify(selectedNode.data)) {
-        setSelectedNode(updatedNode);
+      if (updatedNode) {
+        if (updatedNode.data?.nodeProgressStatus === 'pending_reveal' && selectedNode.data?.nodeProgressStatus !== 'pending_reveal') {
+          setSelectedNode(null);
+        } else if (JSON.stringify(updatedNode.data) !== JSON.stringify(selectedNode.data)) {
+          setSelectedNode(updatedNode);
+        }
       }
     }
   }, [nodesWithSelection, selectedNode]);
+
+  // Build a node lookup from the state-mapped nodes (includes nodeProgressStatus etc.)
+  const stateNodeById = useMemo(() => {
+    const map: Record<string, any> = {};
+    nodesWithSelection.forEach((n: any) => { map[n.id] = n; });
+    return map;
+  }, [nodesWithSelection]);
 
   const edgesWithVisibilityBase = mapEdgesWithVisibility({
     edges,
     isNodeVisible,
     hasStarted,
     allowedVisible,
-    nodeById,
+    nodeById: stateNodeById,
     user,
   });
 
   // Dim edges that belong to withdrawn networks
   const edgesWithVisibility = useMemo(() => {
-    return edgesWithVisibilityBase;
-  }, [edgesWithVisibilityBase]);
+    const withdrawnNodeIds = new Set(
+      nodesWithSelection.filter((n: any) => n.data?.withdrawn).map((n: any) => n.id)
+    );
+    return edgesWithVisibilityBase.map((e: any) => {
+      const dim = withdrawnNodeIds.has(e.source) || withdrawnNodeIds.has(e.target);
+      return dim ? { ...e, style: { ...(e.style || {}), opacity: 0.35 } } : e;
+    });
+  }, [edgesWithVisibilityBase, nodesWithSelection]);
 
   const updateNodeData = useCallback((nodeId: string, newData: any) => {
     // Update the nodes state
@@ -544,10 +692,74 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   }, [setNodes, selectedNode]);
 
+  // Fetch scheduled actions for pending key requests (enables progress bar on FingerprintNodes)
+  const fetchScheduledActions = useCallback(async () => {
+    if (withdrawalSystem !== 'direct_access_keys' || !token) return;
+    try {
+      const res = await apiFetch('/key-generation/my-requests', { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        const map: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }> = {};
+        const amountsMap: Record<string, number> = {};
+        const commentsMap: Record<string, { comment: string; outcome: string }> = {};
+        (json.data || []).forEach((r: any) => {
+          if (r.status === 'pending' && r.nodeId && r.scheduledAction) {
+            map[r.nodeId] = {
+              executeAt: r.scheduledAction.executeAt,
+              createdAt: r.scheduledAction.createdAt,
+              nodeStatusOutcome: r.scheduledAction.nodeStatusOutcome,
+            };
+          }
+          // Track approved amounts for approved requests
+          if (r.nodeId && r.status === 'approved' && r.approvedAmount != null && r.approvedAmount > 0) {
+            amountsMap[r.nodeId] = r.approvedAmount;
+          }
+          // Track admin comments for approved/rejected requests (newest first from API, so first one wins)
+          if (r.nodeId && r.status !== 'pending' && r.adminComment && !commentsMap[r.nodeId]) {
+            commentsMap[r.nodeId] = {
+              comment: r.adminComment,
+              outcome: r.nodeStatus || r.status,
+            };
+          }
+        });
+        setNodeScheduledActions(map);
+        setNodeApprovedAmounts(amountsMap);
+        setNodeAdminComments(commentsMap);
+      }
+    } catch (e) { /* ignore */ }
+  }, [withdrawalSystem, token]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchScheduledActions();
+  }, [fetchScheduledActions, user?.nodeProgress]);
+
+  // Polling mechanism to auto-refresh user data AND trigger backend lazy executor
+  // The backend only processes due scheduled actions when /key-generation/my-requests is called,
+  // so we must poll that endpoint too — otherwise progress sits at 100% forever.
+  // IMPORTANT: fetchScheduledActions must complete BEFORE refreshUser, because the
+  // /my-requests endpoint triggers processDueScheduledActions() on the backend which
+  // updates user.nodeProgress. If refreshUser() fires simultaneously, it reads stale data.
+  useEffect(() => {
+    if (withdrawalSystem !== 'direct_access_keys') return;
+
+    // Poll when any node has pending progress OR there are active scheduled actions
+    const hasPendingProgress = user?.nodeProgress && Object.values(user.nodeProgress).some(s => s === 'pending');
+    const hasActiveScheduledActions = Object.keys(nodeScheduledActions).length > 0;
+
+    if (hasPendingProgress || hasActiveScheduledActions) {
+      const intervalId = setInterval(async () => {
+        await fetchScheduledActions(); // Triggers backend processDueScheduledActions()
+        refreshUser();                 // Then fetch updated user data
+      }, 5000);
+      return () => clearInterval(intervalId);
+    }
+  }, [user?.nodeProgress, nodeScheduledActions, withdrawalSystem, refreshUser, fetchScheduledActions]);
+
   const handleAddChildNode = useCallback((parentNodeId: string) => {
     const parentNode = nodes.find((n: any) => n.id === parentNodeId);
-    // Allow admins to create child nodes from both cryptoNode and fingerprintNode
-    if (!parentNode || (parentNode.type !== 'fingerprintNode' && parentNode.type !== 'cryptoNode')) {
+    // Allow admins to create child nodes from cryptoNode, fingerprintNode, and fingerprintGroupNode
+    if (!parentNode || (parentNode.type !== 'fingerprintNode' && parentNode.type !== 'cryptoNode' && parentNode.type !== 'fingerprintGroupNode')) {
       toast.error('Cannot add child to this node type');
       return;
     }
@@ -572,6 +784,58 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     }));
 
     toast.success(`Added child transaction node to ${parentNode.data.label}`);
+  }, [nodes, setNodes, setEdges, setLevelData, user]);
+
+  const handleAddGroupNode = useCallback((parentNodeId: string) => {
+    const parentNode = nodes.find((n: any) => n.id === parentNodeId);
+    if (!parentNode || (parentNode.type !== 'cryptoNode' && parentNode.type !== 'fingerprintNode')) {
+      toast.error('Groups can only be added to crypto or fingerprint nodes');
+      return;
+    }
+
+    if (!user?.isAdmin) {
+      toast.error('Admin access required');
+      return;
+    }
+
+    const { newNode, newEdge } = createGroupNode(parentNode);
+
+    setNodes((nds: any[]) => [...nds, newNode]);
+    setEdges((eds: any[]) => [...eds, newEdge]);
+
+    setLevelData((prevData: any) => ({
+      ...prevData,
+      nodes: [...prevData.nodes, newNode],
+      edges: [...(prevData.edges || []), newEdge]
+    }));
+
+    toast.success(`Added group node to ${parentNode.data.label}`);
+  }, [nodes, setNodes, setEdges, setLevelData, user]);
+
+  const handleAddCryptoChildNode = useCallback((parentNodeId: string) => {
+    const parentNode = nodes.find((n: any) => n.id === parentNodeId);
+    if (!parentNode || (parentNode.type !== 'fingerprintNode' && parentNode.type !== 'fingerprintGroupNode')) {
+      toast.error('Crypto nodes can only be added to fingerprint or group nodes');
+      return;
+    }
+
+    if (!user?.isAdmin) {
+      toast.error('Admin access required');
+      return;
+    }
+
+    const { newNode, newEdge } = createCryptoChildNode(parentNode, 'BTC');
+
+    setNodes((nds: any[]) => [...nds, newNode]);
+    setEdges((eds: any[]) => [...eds, newEdge]);
+
+    setLevelData((prevData: any) => ({
+      ...prevData,
+      nodes: [...prevData.nodes, newNode],
+      edges: [...(prevData.edges || []), newEdge]
+    }));
+
+    toast.success(`Added crypto node to ${parentNode.data.label}`);
   }, [nodes, setNodes, setEdges, setLevelData, user]);
 
   const handleDeleteNode = useCallback((nodeId: string) => {
@@ -603,6 +867,34 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   // Check if selected node can be deleted (is a leaf)
   const canDeleteSelectedNode = selectedNode ? canDeleteNode(selectedNode.id, edges) : false;
 
+  const isLevelCompletedWithKeys = useMemo(() => {
+    if (!hasWatchedCurrentLevel || withdrawalSystem !== 'direct_access_keys') return false;
+    // Only count fingerprint nodes that have an actual transaction attached to them
+    const fingerprintNodes = nodes.filter((n: any) =>
+      n.type === 'fingerprintNode' &&
+      n.data?.transaction &&
+      (n.data?.level ?? 1) === currentLevel
+    );
+    if (fingerprintNodes.length === 0) return false;
+    return fingerprintNodes.every((n: any) => user?.nodeProgress?.[n.id] === 'success' || user?.nodeProgress?.[n.id] === 'partial success');
+  }, [nodes, currentLevel, user?.nodeProgress, hasWatchedCurrentLevel, withdrawalSystem]);
+
+  const fingerprintProgress = useMemo(() => {
+    if (!hasWatchedCurrentLevel || withdrawalSystem !== 'direct_access_keys') return { completed: 0, total: 0 };
+    const fingerprintNodes = nodes.filter((n: any) =>
+      n.type === 'fingerprintNode' &&
+      n.data?.transaction &&
+      (n.data?.level ?? 1) === currentLevel
+    );
+    const total = fingerprintNodes.length;
+    const completed = fingerprintNodes.filter((n: any) => user?.nodeProgress?.[n.id] === 'success' || user?.nodeProgress?.[n.id] === 'partial success').length;
+    return { completed, total };
+  }, [nodes, currentLevel, user?.nodeProgress, hasWatchedCurrentLevel, withdrawalSystem]);
+
+  const showFingerprintProgress = useMemo(() => {
+    return hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys && fingerprintProgress.total > 0;
+  }, [hasWatchedCurrentLevel, withdrawalSystem, isLevelCompletedWithKeys, fingerprintProgress]);
+
   return (
     <div className="w-full h-full">
       <ReactFlow
@@ -612,7 +904,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         defaultViewport={{ x: 0, y: 60, zoom: 0.7 }}
         minZoom={0.05}
         maxZoom={2}
@@ -626,61 +920,100 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           background: '#0f0f0f',
         }}
       >
-        <Levels currentLevel={currentLevel} maxLevel={5} />
+        <Levels currentLevel={currentLevel} maxLevel={5} completedLevels={completedLevels} />
         <AccountSettings />
-        <PulsatingButton
-          pulseColor="#764FCB"
-          duration="1.5s"
-          variant={
-            pendingTierRequest ? "upgradePending" :
-              hasWatchedCurrentLevel ? "withdraw" :
-                (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
-                  (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
-                    hasStarted ? "loading" :
-                      "start"
-          }
-          isLoading={isUpgrading}
-          className="absolute top-6 right-24 w-fit min-w-[10rem]"
-          onClick={
-            pendingTierRequest
-              ? undefined
-              : hasWatchedCurrentLevel
-                ? () => setShowCompletionPopup(!showCompletionPopup)
-                : (!user?.isAdmin && hasPendingVerification)
-                  ? undefined
-                  : (!user?.isAdmin && !user?.walletVerified)
-                    ? () => {
-                      navigate('/profile');
-                    }
-                    : hasStarted
-                      ? undefined
-                      : () => {
-                        resetPendingStatus();
-                        setAnimationStartedForLevel(currentLevel);
-                        startAnimation();
+        {showFingerprintProgress ? (
+          <FingerprintProgressBar
+            completed={fingerprintProgress.completed}
+            total={fingerprintProgress.total}
+          />
+        ) : (
+          <PulsatingButton
+            pulseColor="#764FCB"
+            duration="1.5s"
+            variant={
+              pendingTierRequest ? "upgradePending" :
+                hasWatchedCurrentLevel ?
+                  (withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys ? "verificationPending" : "withdraw") :
+                  !hasPaidForCurrentLevel ? "start" :
+                  (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
+                    (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
+                      hasStarted ? "loading" :
+                        "start"
+            }
+            isLoading={isUpgrading}
+            className="absolute top-5 right-[3.75rem] w-fit min-w-[10rem] mr-4"
+            onClick={
+              pendingTierRequest
+                ? undefined
+                : hasWatchedCurrentLevel
+                  ? async () => {
+                    if (withdrawalSystem === 'direct_access_keys') {
+                      if (isLevelCompletedWithKeys && currentLevel < 5) {
+                        const success = await handleUpgradeClick();
+                        if (success) {
+                          toast.success(`Scanning Level ${currentLevel + 1}...`);
+                          const nextLevel = currentLevel + 1;
+                          setCurrentLevel(nextLevel);
+                          setTimeout(() => {
+                            resetPendingStatus();
+                            setAnimationStartedForLevel(nextLevel);
+                            startAnimation();
+                          }, 500);
+                        }
                       }
-          }
-          disabled={
-            pendingTierRequest ||
-            (!user?.isAdmin && hasPendingVerification) ||
-            (hasStarted && !hasWatchedCurrentLevel) ||
-            isUpgrading
-          }
-        >
-          {pendingTierRequest
-            ? 'Upgrade Pending'
-            : isUpgrading
-              ? 'Upgrading...'
-              : hasWatchedCurrentLevel
-                ? 'Re-Allocate Funds'
-                : (!user?.isAdmin && hasPendingVerification)
-                  ? 'Verification Pending'
-                  : (!user?.isAdmin && !user?.walletVerified)
-                    ? 'Verify Wallet'
-                    : hasStarted
-                      ? 'Running...'
-                      : 'Start Allocation'}
-        </PulsatingButton>
+                    } else {
+                      setShowCompletionPopup(!showCompletionPopup);
+                    }
+                  }
+                  : !hasPaidForCurrentLevel
+                    ? () => {
+                      resetPendingStatus();
+                      setAnimationStartedForLevel(currentLevel);
+                      startAnimation();
+                    }
+                    : (!user?.isAdmin && hasPendingVerification)
+                      ? undefined
+                      : (!user?.isAdmin && !user?.walletVerified)
+                        ? () => {
+                          navigate('/profile');
+                        }
+                        : hasStarted
+                          ? undefined
+                          : () => {
+                            resetPendingStatus();
+                            setAnimationStartedForLevel(currentLevel);
+                            startAnimation();
+                          }
+            }
+            disabled={
+              pendingTierRequest ||
+              (!user?.isAdmin && hasPendingVerification && hasPaidForCurrentLevel) ||
+              (hasStarted && !hasWatchedCurrentLevel) ||
+              isUpgrading ||
+              (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys) ||
+              (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && currentLevel >= 5)
+            }
+          >
+            {pendingTierRequest
+              ? 'Upgrade Pending'
+              : isUpgrading
+                ? 'Upgrading...'
+                : hasWatchedCurrentLevel
+                  ? withdrawalSystem === 'direct_access_keys'
+                    ? (isLevelCompletedWithKeys ? (currentLevel >= 5 ? 'Max Level Reached' : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')) : 'Complete Node Keys to Upgrade')
+                    : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')
+                  : !hasPaidForCurrentLevel
+                    ? 'Start Allocation'
+                    : (!user?.isAdmin && hasPendingVerification)
+                      ? 'Verification Pending'
+                      : (!user?.isAdmin && !user?.walletVerified)
+                        ? 'Verify Wallet'
+                        : hasStarted
+                          ? 'Running...'
+                          : 'Start Allocation'}
+          </PulsatingButton>
+        )}
 
 
         {/* Data Visual Component - Admin users see edit panel, regular users see details panel */}
@@ -690,6 +1023,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             onUpdateNodeData={updateNodeData}
             onClose={() => setSelectedNode(null)}
             onAddChildNode={handleAddChildNode}
+            onAddGroupNode={handleAddGroupNode}
+            onAddCryptoChildNode={handleAddCryptoChildNode}
             onDeleteNode={handleDeleteNode}
             canDelete={canDeleteSelectedNode}
             isAdmin={true}
@@ -700,6 +1035,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             onClose={() => setSelectedNode(null)}
             hasStarted={hasStarted}
             hasWatchedCurrentLevel={hasWatchedCurrentLevel || !hasPaidForCurrentLevel}
+            withdrawalSystem={withdrawalSystem}
+            level={currentLevel}
             onStartAnimation={() => {
               if (!hasPaidForCurrentLevel) {
                 handleUpgradeClick();
@@ -710,8 +1047,34 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
               }
             }}
             onWithdrawClick={() => {
-              setShowCompletionPopup(!showCompletionPopup);
+              if (withdrawalSystem === 'direct_access_keys') {
+                setShowDirectKeysPopup(true);
+              } else {
+                setShowCompletionPopup(!showCompletionPopup);
+              }
             }}
+            onKeyGenerationSuccess={async () => {
+              await refreshUser();
+            }}
+          />
+        )}
+
+        {/* Edge Design Panel — Admin only */}
+        {user?.isAdmin && selectedEdge && (
+          <EdgeDesignPanel
+            selectedEdge={selectedEdge}
+            onUpdateEdge={updateEdgeData}
+            onClose={() => setSelectedEdge(null)}
+          />
+        )}
+
+        {/* In-Progress nodes panel — bottom right (user only, DAK mode) */}
+        {!user?.isAdmin && withdrawalSystem === 'direct_access_keys' && (
+          <InProgressPanel
+            nodeScheduledActions={nodeScheduledActions}
+            nodes={nodesWithSelection}
+            pendingRevealNodes={pendingRevealNodes}
+            onReveal={handleReveal}
           />
         )}
 
@@ -722,6 +1085,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           style={{ opacity: 0.3 }}
         />
       </ReactFlow>
+
 
       {/* Animation Completion Popup - Now showing Withdraw Popup */}
       <EnhancedWithdrawPopup
@@ -740,6 +1104,19 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             }
           } catch { }
           toast.success('Withdrawal request submitted successfully!');
+        }}
+      />
+
+      {/* Direct Access Keys Popup */}
+      <DirectAccessKeysPopup
+        isOpen={showDirectKeysPopup}
+        onClose={() => setShowDirectKeysPopup(false)}
+        level={currentLevel}
+        nodeId={selectedNode?.id}
+        nodeAmount={selectedNode?.data?.transaction?.amount}
+        onSuccess={async () => {
+          await refreshUser();
+          setShowDirectKeysPopup(false);
         }}
       />
 

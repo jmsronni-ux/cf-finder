@@ -57,6 +57,11 @@ export function mapNodesWithState(params: {
   user: any;
   allowedVisible: Set<string>;
   withdrawalSystem?: string;
+  nodeScheduledActions?: Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>;
+  nodeApprovedAmounts?: Record<string, number>;
+  nodeAdminComments?: Record<string, { comment: string; outcome: string }>;
+  pendingRevealNodes?: Record<string, 'success' | 'fail'>;
+  revealingNode?: { nodeId: string; outcome: 'success' | 'fail' } | null;
 }) {
   const {
     nodes,
@@ -70,7 +75,87 @@ export function mapNodesWithState(params: {
     user,
     allowedVisible,
     withdrawalSystem,
+    nodeScheduledActions,
+    nodeApprovedAmounts,
+    nodeAdminComments,
+    pendingRevealNodes,
+    revealingNode,
   } = params;
+  
+  // Helper to find all descendant fingerprint nodes and sum their amounts
+  const getGroupAggregation = (groupId: string) => {
+    const visited = new Set<string>();
+    const stack = [groupId];
+    let totalAmount = 0;
+    let childCount = 0;
+    let totalChildCount = 0;
+    let completedChildCount = 0;
+    const childNodeIds: string[] = [];
+    const nodeAmounts: Record<string, number> = {};
+    const completedChildDetails: { nodeId: string; amount: number; status: string; approvedAmount: number | null }[] = [];
+    // Collect success rates from child nodes for aggregation
+    let successRateSum = 0;
+    let successRateCount = 0;
+
+    while (stack.length > 0) {
+      const currentId = stack.pop()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      // Find children of current node
+      edges.forEach((edge: any) => {
+        if (edge.source === currentId) {
+          const targetNode = nodes.find(n => n.id === edge.target);
+          if (targetNode) {
+            if (targetNode.type === 'fingerprintNode') {
+              totalChildCount++;
+              // Collect success rate if present
+              const rawRate = targetNode.data?.successRate;
+              if (rawRate) {
+                const parsed = parseInt(rawRate);
+                if (!isNaN(parsed)) {
+                  successRateSum += parsed;
+                  successRateCount++;
+                }
+              }
+              // Don't count as completed if the node is still pending reveal (avoid spoilers)
+              const isPendingReveal = pendingRevealNodes?.[targetNode.id] != null;
+              const nodeProgressStatus = user?.nodeProgress?.[targetNode.id];
+              const isCompleted = !isPendingReveal && (nodeProgressStatus === 'success' || nodeProgressStatus === 'partial success' || nodeProgressStatus === 'fail' || nodeProgressStatus === 'cold wallet' || nodeProgressStatus === 'reported');
+              if (isCompleted) {
+                completedChildCount++;
+                const originalAmount = targetNode.data?.transaction?.amount || 0;
+                completedChildDetails.push({
+                  nodeId: targetNode.id,
+                  amount: originalAmount,
+                  status: nodeProgressStatus,
+                  approvedAmount: nodeApprovedAmounts?.[targetNode.id] ?? null,
+                });
+              } else {
+                const amount = targetNode.data?.transaction?.amount || 0;
+                totalAmount += amount;
+                childCount++;
+                childNodeIds.push(targetNode.id);
+                nodeAmounts[targetNode.id] = amount;
+              }
+            }
+            // Only continue traversal into non-group nodes;
+            // stop at the next group node boundary
+            if (targetNode.type !== 'fingerprintGroupNode') {
+              stack.push(targetNode.id);
+            }
+          }
+        }
+      });
+    }
+
+    // Compute average success rate from children that have one
+    const aggregatedSuccessRate = successRateCount > 0
+      ? `${Math.round(successRateSum / successRateCount)}%`
+      : null;
+
+    return { totalAmount, childCount, totalChildCount, completedChildCount, childNodeIds, nodeAmounts, aggregatedSuccessRate, completedChildDetails };
+  };
 
   // Build a map of parent nodes
   const parentMap = new Map<string, string>();
@@ -101,16 +186,25 @@ export function mapNodesWithState(params: {
     const isAdmin = user?.isAdmin === true;
 
     // Determine visibility:
+    // Top-level crypto nodes (parent is account/center) are always visible.
+    // Child crypto nodes (parent is fingerprint/group) follow normal level rules.
+    const isTopLevelCrypto = isCryptoNode && (() => {
+      const parentId = parentMap.get(node.id);
+      if (!parentId) return true; // No parent = top-level
+      const parent = nodes.find(n => n.id === parentId);
+      return !parent || parent.type === 'accountNode' || parent.id === 'center';
+    })();
+
     const nodeVisible = isAdmin
       ? true  // Admins always see everything
       : isCenterNode
         ? true  // Account/center node always visible
-        : isCryptoNode
-          ? true  // CryptoNodes always visible
+        : isTopLevelCrypto
+          ? true  // Top-level CryptoNodes always visible
           : shouldAutoShow
             ? isVisibleByRule
             : isCurrentLevel
-              ? (hasStarted ? isNodeVisible(node.id) : false)  // Before animation: hide all; During: animated nodes (ignore allowedVisible)
+              ? (hasStarted ? isNodeVisible(node.id) : false)
               : (isVisibleByRule && hasStarted && isNodeVisible(node.id));
 
     // Node is "unlocked" (interactive) if:
@@ -130,31 +224,59 @@ export function mapNodesWithState(params: {
       const parentId = parentMap.get(node.id);
       if (parentId) {
         const parentNode = nodes.find(n => n.id === parentId);
-        // If parent is a crypto node, then this node is the start of a chain and is NOT locked by parents
-        if (parentNode && parentNode.type !== 'cryptoNode') {
+        // If parent is a crypto node or a group node, then this node is NOT locked by parents
+        if (parentNode && parentNode.type !== 'cryptoNode' && parentNode.type !== 'fingerprintGroupNode') {
           const parentProgress = user?.nodeProgress?.[parentId];
-          if (parentProgress !== 'success') {
+          if (parentProgress !== 'success' && parentProgress !== 'partial success' && parentProgress !== 'fail' && parentProgress !== 'cold wallet' && parentProgress !== 'reported') {
             dakLocked = true;
           }
         }
       }
     }
 
+    // Inject scheduled action timing for progress bars
+    const scheduledInfo = nodeScheduledActions?.[node.id];
+
+    // For group nodes, calculate real-time aggregation from descendants
+    const groupAgg = node.type === 'fingerprintGroupNode' ? getGroupAggregation(node.id) : null;
+
     return {
       ...node,
-      hidden: !nodeVisible,  // Hide node completely in ReactFlow if not visible
+      hidden: !nodeVisible,
       data: {
         ...node.data,
+        withdrawalSystem,
+        isAdmin,
         selected: selectedNode?.id === node.id,
         isVisible: nodeVisible,
         hasStarted: hasStarted || hasWatchedNodeLevel,
         blocked: isBlocked,
-        locked: isPreviewNode || dakLocked,  // Only lock preview nodes from future levels or if parent not success
-        dakLocked, // Explicit flag for NodeDetailsPanel to show specific reason
-        nodeProgressStatus: user?.nodeProgress?.[node.id] || null,
+        locked: isPreviewNode || dakLocked,
+        dakLocked,
+        nodeProgressStatus: pendingRevealNodes?.[node.id]
+          ? 'pending_reveal'
+          : (user?.nodeProgress?.[node.id] || null),
+        revealOutcome: pendingRevealNodes?.[node.id] || null,
+        isRevealing: (revealingNode && revealingNode.nodeId === node.id) ? revealingNode.outcome : null,
         parentId: parentMap.get(node.id),
         effectiveStatus,
         timeRemaining,
+        scheduledExecuteAt: scheduledInfo?.executeAt || null,
+        scheduledCreatedAt: scheduledInfo?.createdAt || null,
+        // Group data
+        aggregatedAmount: groupAgg?.totalAmount,
+        childCount: groupAgg?.childCount,
+        totalChildCount: groupAgg?.totalChildCount,
+        completedChildCount: groupAgg?.completedChildCount,
+        childNodeIds: groupAgg?.childNodeIds,
+        completedChildDetails: groupAgg?.completedChildDetails,
+        nodeAmounts: groupAgg?.nodeAmounts,
+        // Aggregated success rate from child nodes (only for group nodes)
+        ...(groupAgg?.aggregatedSuccessRate ? { successRate: groupAgg.aggregatedSuccessRate } : {}),
+        approvedAmount: nodeApprovedAmounts?.[node.id] ?? null,
+        adminComment: nodeAdminComments?.[node.id] ?? null,
+        user,
+        level: nodeLevel,
       },
     };
   });
@@ -217,9 +339,31 @@ export function mapEdgesWithVisibility(params: {
       hiddenByAnimation = !hasStarted || !sourceVisible || !targetVisible;
     }
 
+    // Inject transfer animation on edges targeting nodes actively being verified
+    const isTargetVerifying = targetNode?.data?.isVerifying === true;
+    let transferData = {};
+    if (isTargetVerifying) {
+      transferData = {
+        dotEnabled: true,
+        dotBounce: true,
+        dotSpeed: 2.5,
+        dotSize: 4,
+        dotColor: '#f59e0b',  // amber
+        dotShape: 'circle',
+        glowEnabled: true,
+        glowIntensity: 0.2,
+        glowSpread: 3,
+      };
+    }
+
     return {
       ...edge,
       hidden: hiddenByAnimation,
+      ...(isTargetVerifying ? {
+        type: 'configurable',
+        data: { ...edge.data, ...transferData },
+        style: { ...edge.style, stroke: '#f59e0b', strokeOpacity: 0.6 },
+      } : {}),
     };
   });
 }
