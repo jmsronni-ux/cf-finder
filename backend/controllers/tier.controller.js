@@ -29,6 +29,7 @@ export const getUserTier = async (req, res, next) => {
                     availableBalance: user.availableBalance,
                     isAdmin: user.isAdmin,
                     walletVerified: user.walletVerified,
+                    levelTemplate: user.levelTemplate || 'A',
                     lvl1anim: user.lvl1anim,
                     lvl2anim: user.lvl2anim,
                     lvl3anim: user.lvl3anim,
