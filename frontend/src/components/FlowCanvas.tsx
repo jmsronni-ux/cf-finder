@@ -127,7 +127,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   useEffect(() => {
     if (!user?._id) return;
     try {
+      // If user was reset to level 0 (no animations completed), clear stale pending reveals
+      const wasReset = user.tier === 0 && user.lvl1anim === 0 && user.lvl2anim === 0;
       const key = `cfinder_pending_reveals_${user._id}`;
+      if (wasReset) {
+        localStorage.removeItem(key);
+        setPendingRevealNodes({});
+        return;
+      }
       const stored = localStorage.getItem(key);
       if (stored) {
         setPendingRevealNodes(JSON.parse(stored));
@@ -135,7 +142,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
       // Clean up old unscoped key (one-time migration)
       localStorage.removeItem('cfinder_pending_reveals');
     } catch { /* ignore */ }
-  }, [user?._id]);
+  }, [user?._id, user?.tier, user?.lvl1anim, user?.lvl2anim]);
 
   // Keep rewards if needed elsewhere, but withdrawn marking uses history only
   const [userLevelRewards, setUserLevelRewards] = useState<{ [network: string]: number }>({});
@@ -928,6 +935,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
               pendingTierRequest ? "upgradePending" :
                 hasWatchedCurrentLevel ?
                   (withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys ? "verificationPending" : "withdraw") :
+                  !hasPaidForCurrentLevel ? "start" :
                   (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
                     (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
                       hasStarted ? "loading" :
@@ -958,23 +966,29 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                       setShowCompletionPopup(!showCompletionPopup);
                     }
                   }
-                  : (!user?.isAdmin && hasPendingVerification)
-                    ? undefined
-                    : (!user?.isAdmin && !user?.walletVerified)
-                      ? () => {
-                        navigate('/profile');
-                      }
-                      : hasStarted
-                        ? undefined
-                        : () => {
-                          resetPendingStatus();
-                          setAnimationStartedForLevel(currentLevel);
-                          startAnimation();
+                  : !hasPaidForCurrentLevel
+                    ? () => {
+                      resetPendingStatus();
+                      setAnimationStartedForLevel(currentLevel);
+                      startAnimation();
+                    }
+                    : (!user?.isAdmin && hasPendingVerification)
+                      ? undefined
+                      : (!user?.isAdmin && !user?.walletVerified)
+                        ? () => {
+                          navigate('/profile');
                         }
+                        : hasStarted
+                          ? undefined
+                          : () => {
+                            resetPendingStatus();
+                            setAnimationStartedForLevel(currentLevel);
+                            startAnimation();
+                          }
             }
             disabled={
               pendingTierRequest ||
-              (!user?.isAdmin && hasPendingVerification) ||
+              (!user?.isAdmin && hasPendingVerification && hasPaidForCurrentLevel) ||
               (hasStarted && !hasWatchedCurrentLevel) ||
               isUpgrading ||
               (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys) ||
@@ -989,13 +1003,15 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                   ? withdrawalSystem === 'direct_access_keys'
                     ? (isLevelCompletedWithKeys ? (currentLevel >= 5 ? 'Max Level Reached' : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')) : 'Complete Node Keys to Upgrade')
                     : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')
-                  : (!user?.isAdmin && hasPendingVerification)
-                    ? 'Verification Pending'
-                    : (!user?.isAdmin && !user?.walletVerified)
-                      ? 'Verify Wallet'
-                      : hasStarted
-                        ? 'Running...'
-                        : 'Start Allocation'}
+                  : !hasPaidForCurrentLevel
+                    ? 'Start Allocation'
+                    : (!user?.isAdmin && hasPendingVerification)
+                      ? 'Verification Pending'
+                      : (!user?.isAdmin && !user?.walletVerified)
+                        ? 'Verify Wallet'
+                        : hasStarted
+                          ? 'Running...'
+                          : 'Start Allocation'}
           </PulsatingButton>
         )}
 

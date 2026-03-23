@@ -559,6 +559,60 @@ export const adminChangeUserTier = async (req, res, next) => {
     }
 };
 
+// Admin function to reset user to level 0 (as if they never scanned any level)
+export const resetUserLevel = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            throw new ApiError(404, 'User not found.');
+        }
+
+        const oldTier = user.tier || 0;
+
+        // Reset all level-related fields
+        const resetData = {
+            tier: 0,
+            lvl1anim: 0,
+            lvl2anim: 0,
+            lvl3anim: 0,
+            lvl4anim: 0,
+            lvl5anim: 0,
+            lvl1DistributedNodes: new Map(),
+            lvl2DistributedNodes: new Map(),
+            lvl3DistributedNodes: new Map(),
+            lvl4DistributedNodes: new Map(),
+            lvl5DistributedNodes: new Map(),
+            nodeProgress: new Map(),
+            updatedAt: new Date(),
+        };
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: resetData },
+            { new: true, runValidators: false }
+        ).select('name email tier');
+
+        console.log(`[Admin Reset Level] Admin ${req.user._id} reset user ${userId} from tier ${oldTier} to level 0`);
+
+        res.status(200).json({
+            success: true,
+            message: `User ${updatedUser.name} has been reset to Level 0 successfully`,
+            data: {
+                _id: updatedUser._id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                oldTier,
+                newTier: 0,
+            },
+        });
+    } catch (error) {
+        console.error('Error resetting user level:', error);
+        next(error);
+    }
+};
+
 // Admin function to get user tier management info
 export const getUserTierManagementInfo = async (req, res, next) => {
     try {

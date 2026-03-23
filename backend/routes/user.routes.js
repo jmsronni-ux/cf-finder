@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, updateMyProfile, changeMyPassword, getAllUsersWithPasswords, getMyCompanyDetails, updateMyCompanyDetails, getMyBankingDetails, updateMyBankingDetails, getAiAssistantData } from "../controllers/user.controller.js";
+import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, resetUserLevel, updateMyProfile, changeMyPassword, getAllUsersWithPasswords, getMyCompanyDetails, updateMyCompanyDetails, getMyBankingDetails, updateMyBankingDetails, getAiAssistantData } from "../controllers/user.controller.js";
 import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
@@ -132,5 +132,6 @@ userRouter.delete("/:id", authMiddleware, adminMiddleware, deleteUser);
 // Admin tier management routes (use /:userId sub-paths, safe after /:id because different param name)
 userRouter.get("/:userId/tier-management", authMiddleware, adminMiddleware, getUserTierManagementInfo);
 userRouter.put("/:userId/tier", authMiddleware, adminMiddleware, adminChangeUserTier);
+userRouter.put("/:userId/reset-level", authMiddleware, adminMiddleware, resetUserLevel);
 
 export default userRouter;

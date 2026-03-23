@@ -908,7 +908,7 @@ const AdminUserPasswords: React.FC = () => {
                           <div className="flex justify-center">
                             <Button
                               onClick={() => setUserToDelete(user)}
-                              disabled={!currentUser?.isAdmin} // Only main admins can delete users
+                              disabled={!currentUser?.isAdmin}
                               size="icon"
                               variant="destructive"
                               className="bg-red-600/20 hover:bg-red-600/40 text-red-500 hover:text-red-400 border border-red-600/50 h-8 w-8 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -958,6 +958,9 @@ const AdminUserPasswords: React.FC = () => {
         }}
         userId={selectedUserForTier || ''}
         userName={users.find(u => u._id === selectedUserForTier)?.name || ''}
+        onUserUpdated={(userId, updates) => {
+          setUsers(prev => prev.map(u => u._id === userId ? { ...u, ...updates } as UserData : u));
+        }}
       />
 
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
