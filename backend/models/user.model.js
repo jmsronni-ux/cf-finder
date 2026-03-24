@@ -61,11 +61,11 @@ const userSchema = new mongoose.Schema({
     tier: {
         type: Number,
         default: 1,
-        min: 1,
+        min: 0,
         max: 5,
         validate: {
-            validator: (tier) => tier >= 1 && tier <= 5,
-            message: 'Tier must be between 1 and 5'
+            validator: (tier) => tier >= 0 && tier <= 5,
+            message: 'Tier must be between 0 and 5'
         }
     },
     isAdmin: {

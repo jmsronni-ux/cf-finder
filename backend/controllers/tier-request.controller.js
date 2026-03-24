@@ -344,8 +344,8 @@ export const setUserTier = async (req, res, next) => {
         const { userId, tier } = req.body;
 
         // Validate tier
-        if (!tier || tier < 1 || tier > 5) {
-            throw new ApiError(400, "Invalid tier. Must be between 1 and 5");
+        if (tier === undefined || tier === null || tier < 0 || tier > 5) {
+            throw new ApiError(400, "Invalid tier. Must be between 0 and 5");
         }
 
         const user = await User.findById(userId);

@@ -481,9 +481,9 @@ export const adminChangeUserTier = async (req, res, next) => {
         });
 
         // Validate new tier
-        if (!newTier || newTier < 1 || newTier > 5) {
+        if (newTier === undefined || newTier === null || newTier < 0 || newTier > 5) {
             console.log('[Admin Tier Change] Validation failed - invalid tier:', newTier);
-            throw new ApiError(400, 'Invalid tier. Must be between 1 and 5.');
+            throw new ApiError(400, 'Invalid tier. Must be between 0 and 5.');
         }
 
         // Find the user
