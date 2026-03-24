@@ -3,9 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Loader2, Crown, Save, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Loader2, Crown, Save, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,7 +15,7 @@ interface User {
   currentTier: number;
   tierName: string;
   balance: number;
-  levelTemplate: string;
+
   completedLevels: number[];
   joinedAt: string;
 }
@@ -52,11 +50,7 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newTier, setNewTier] = useState<number>(0);
-  const [newTemplate, setNewTemplate] = useState<string>('A');
-  const [templates, setTemplates] = useState<string[]>(['A']);
   const [reason, setReason] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Fetch tier info when popup opens
   useEffect(() => {
@@ -80,7 +74,6 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
       if (response.ok && data.success) {
         setTierInfo(data.data);
         setNewTier(data.data.user.currentTier);
-        setNewTemplate(data.data.user.levelTemplate || 'A');
         setReason('');
       } else {
         toast.error(data.message || 'Failed to fetch user tier info');
@@ -93,26 +86,7 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
     }
   };
 
-  const fetchTemplates = async () => {
-    if (!token) return;
-    try {
-      const response = await apiFetch('/level/templates', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setTemplates(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    }
-  };
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchTemplates();
-    }
-  }, [isOpen]);
 
   const handleTierChange = async () => {
     if (!tierInfo || newTier === tierInfo.user.currentTier) {
@@ -120,32 +94,37 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
       return;
     }
 
-    if (!reason.trim()) {
-      toast.error('Please provide a reason for the level change');
-      return;
-    }
-
     setSaving(true);
     try {
-      const response = await apiFetch(`/user/${userId}/tier`, {
+      // Use reset endpoint for Level 0, tier change endpoint for others
+      const isReset = newTier === 0;
+      const url = isReset ? `/user/${userId}/reset-level` : `/user/${userId}/tier`;
+      const body = isReset ? undefined : JSON.stringify({
+        newTier,
+        reason: reason.trim()
+      });
+
+      const response = await apiFetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          newTier: newTier,
-          levelTemplate: newTemplate,
-          reason: reason.trim()
-        })
+        ...(body ? { body } : {})
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        toast.success(`User level changed from ${tierInfo.user.currentTier} to ${newTier} successfully!`);
-        setReason('');
-        await fetchUserTierInfo();
+        if (isReset) {
+          toast.success(`User ${userName} has been reset to Level 0`);
+          onUserUpdated?.(userId, { tier: 0 });
+          onClose();
+        } else {
+          toast.success(`User level changed from ${tierInfo.user.currentTier} to ${newTier} successfully!`);
+          setReason('');
+          await fetchUserTierInfo();
+        }
       } else {
         toast.error(data.message || 'Failed to change user level');
       }
@@ -154,37 +133,6 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
       toast.error('An error occurred while changing user level');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleResetLevel = async () => {
-    if (!token || !userId) return;
-
-    setIsResetting(true);
-    try {
-      const response = await apiFetch(`/user/${userId}/reset-level`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        toast.success(`User ${userName} has been reset to Level 0`);
-        setShowResetConfirm(false);
-        onUserUpdated?.(userId, { tier: 0 });
-        onClose();
-      } else {
-        toast.error(data.message || 'Failed to reset user level');
-      }
-    } catch (error) {
-      console.error('Error resetting user level:', error);
-      toast.error('An error occurred while resetting user level');
-    } finally {
-      setIsResetting(false);
     }
   };
 
@@ -243,6 +191,35 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
                       New Level
                     </Label>
                     <div className="flex flex-wrap gap-2">
+                      {/* Level 0 (Reset) button */}
+                      {(() => {
+                        const isSelected = newTier === 0;
+                        const isCurrent = tierInfo.user.currentTier === 0;
+                        return (
+                          <button
+                            key={0}
+                            onClick={() => setNewTier(0)}
+                            className={`
+                              ${isSelected ? getTierFilledColor(0) : getTierBadgeColor(0)}
+                              px-3 py-1.5 rounded-lg border transition-all text-sm
+                              ${isSelected
+                                ? 'scale-105 shadow-lg'
+                                : 'hover:opacity-80 hover:scale-105'
+                              }
+                              ${isCurrent ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                            `}
+                            disabled={isCurrent}
+                            title={isCurrent ? 'Current level' : 'Reset to Level 0'}
+                          >
+                            <span className="font-semibold">Level 0</span>
+                            {isCurrent && (
+                              <span className="ml-1.5 text-xs opacity-75">(Current)</span>
+                            )}
+                          </button>
+                        );
+                      })()}
+
+                      {/* Levels 1-5 */}
                       {tierInfo.availableTiers.map((tier) => {
                         const isSelected = newTier === tier.tier;
                         const isCurrent = tierInfo.user.currentTier === tier.tier;
@@ -272,27 +249,21 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
                     </div>
                   </div>
 
-                  <div>
-                    <Label className="text-sm font-medium text-foreground mb-3 block">
-                      Level Template (Configuration)
-                    </Label>
-                    <select
-                      value={newTemplate}
-                      onChange={(e) => setNewTemplate(e.target.value)}
-                      className="w-full bg-background border border-border rounded-lg px-4 py-2 focus:ring-2 focus:ring-yellow-500/50 outline-none transition-all text-sm"
-                    >
-                      {templates.map(t => (
-                        <option key={t} value={t}>Template {t}</option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Assign a specific level configuration template to this user.
-                    </p>
-                  </div>
+                  {/* Warning when Level 0 is selected */}
+                  {newTier === 0 && tierInfo.user.currentTier !== 0 && (
+                    <div className="flex items-start gap-2.5 bg-orange-500/5 border border-orange-500/30 rounded-lg p-3">
+                      <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-orange-400/90">
+                        This will reset all progress including animations, distributed nodes, and scan data.
+                      </p>
+                    </div>
+                  )}
+
+
 
                   <div>
                     <Label className="text-sm font-medium text-foreground mb-2 block">
-                      Reason for Change
+                      Reason for Change <span className="text-muted-foreground font-normal">(optional)</span>
                     </Label>
                     <Textarea
                       placeholder="Enter reason for level change..."
@@ -313,73 +284,25 @@ const UserTierPopup: React.FC<UserTierPopupProps> = ({ isOpen, onClose, userId, 
                     </Button>
                     <Button
                       onClick={handleTierChange}
-                      disabled={saving || (newTier === tierInfo.user.currentTier && newTemplate === tierInfo.user.levelTemplate) || !reason.trim()}
-                      className="flex-1 bg-yellow-600/50 hover:bg-yellow-700 text-white border border-yellow-600"
+                      disabled={saving || newTier === tierInfo.user.currentTier}
+                      className={`flex-1 text-white border ${
+                        newTier === 0
+                          ? 'bg-orange-600/50 hover:bg-orange-700 border-orange-600'
+                          : 'bg-yellow-600/50 hover:bg-yellow-700 border-yellow-600'
+                      }`}
                     >
                       {saving ? (
                         <>
                           <Loader2 size={16} className="mr-2 animate-spin" />
-                          Changing...
+                          {newTier === 0 ? 'Resetting...' : 'Changing...'}
                         </>
                       ) : (
                         <>
                           <Save size={16} className="mr-2" />
-                          Change Level
+                          {newTier === 0 ? 'Reset to Level 0' : 'Change Level'}
                         </>
                       )}
                     </Button>
-                  </div>
-
-                  {/* Reset to Level 0 */}
-                  <div className="border-t border-border pt-4 mt-2">
-                    {!showResetConfirm ? (
-                      <Button
-                        onClick={() => setShowResetConfirm(true)}
-                        variant="ghost"
-                        className="w-full text-orange-500 hover:text-orange-400 hover:bg-orange-600/10 border border-orange-600/30"
-                      >
-                        <RotateCcw size={16} className="mr-2" />
-                        Reset to Level 0
-                      </Button>
-                    ) : (
-                      <div className="space-y-3 bg-orange-500/5 border border-orange-500/30 rounded-lg p-4">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
-                          <div className="text-sm">
-                            <p className="font-semibold text-orange-500">Reset all level progress?</p>
-                            <p className="text-muted-foreground mt-1">
-                              This will set the user to Level 0 and clear all animations, distributed nodes, and scan progress as if they never started.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => setShowResetConfirm(false)}
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 border-border"
-                            disabled={isResetting}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            onClick={handleResetLevel}
-                            disabled={isResetting}
-                            size="sm"
-                            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
-                          >
-                            {isResetting ? (
-                              <>
-                                <Loader2 size={14} className="mr-2 animate-spin" />
-                                Resetting...
-                              </>
-                            ) : (
-                              'Confirm Reset'
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

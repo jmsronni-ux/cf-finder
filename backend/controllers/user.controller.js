@@ -623,7 +623,7 @@ export const getUserTierManagementInfo = async (req, res, next) => {
             throw new ApiError(404, 'User not found.');
         }
 
-        const currentTier = user.tier || 1;
+        const currentTier = user.tier ?? 0;
         const tierInfo = getTierInfo(currentTier);
 
         // Get completed levels
