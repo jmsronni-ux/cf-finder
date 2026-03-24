@@ -53,7 +53,8 @@ export const updateGlobalSettings = async (req, res, next) => {
             withdrawalSystem,
             directAccessKeyPrice,
             keyPriceMode,
-            directAccessKeyPricePercent
+            directAccessKeyPricePercent,
+            levelKeyPricing
         } = req.body;
 
         let settings = await GlobalSettings.findById('global_settings');
@@ -85,6 +86,7 @@ export const updateGlobalSettings = async (req, res, next) => {
             if (directAccessKeyPrice !== undefined) settings.directAccessKeyPrice = directAccessKeyPrice;
             if (keyPriceMode !== undefined) settings.keyPriceMode = keyPriceMode;
             if (directAccessKeyPricePercent !== undefined) settings.directAccessKeyPricePercent = directAccessKeyPricePercent;
+            if (levelKeyPricing !== undefined) settings.levelKeyPricing = levelKeyPricing;
 
             settings.updatedAt = Date.now();
             await settings.save();

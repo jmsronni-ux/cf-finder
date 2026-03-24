@@ -34,6 +34,17 @@ const globalSettingsSchema = new mongoose.Schema({
         type: Number,
         default: 5
     },
+    // Per-level key pricing overrides (level number → { mode, staticPrice, percentPrice })
+    // If a level is not in this map, the flat fields above are used as default
+    levelKeyPricing: {
+        type: Map,
+        of: new mongoose.Schema({
+            mode: { type: String, enum: ['static', 'percent'], default: 'static' },
+            staticPrice: { type: Number, default: 20 },
+            percentPrice: { type: Number, default: 5 }
+        }, { _id: false }),
+        default: {}
+    },
     ethAddress: {
         type: String,
         default: '',

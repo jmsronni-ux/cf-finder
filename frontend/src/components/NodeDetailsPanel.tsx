@@ -171,15 +171,42 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
             } catch (e) { /* fallback to global */ }
           }
 
-          if (userCustom?.customKeyPriceMode != null) {
-            setKeyPriceMode(userCustom.customKeyPriceMode);
-            setPricePerKey(userCustom.customDirectAccessKeyPrice ?? json.data.directAccessKeyPrice ?? 20);
-            setKeyPricePercent(userCustom.customDirectAccessKeyPricePercent ?? json.data.directAccessKeyPricePercent ?? 5);
-          } else {
-            setPricePerKey(json.data.directAccessKeyPrice || 20);
-            setKeyPriceMode(json.data.keyPriceMode || 'static');
-            setKeyPricePercent(json.data.directAccessKeyPricePercent ?? 5);
+          // Level-aware price resolution: user-level → user-default → global-level → global-default
+          const lvl = String(level);
+          let resolvedMode: 'static' | 'percent' | null = null;
+          let resolvedStatic = 20;
+          let resolvedPercent = 5;
+
+          // 1. Check user-level override
+          const userLevel = userCustom?.customLevelKeyPricing?.[lvl] || (userCustom?.customLevelKeyPricing instanceof Map ? undefined : null);
+          if (userLevel?.mode) {
+            resolvedMode = userLevel.mode;
+            resolvedStatic = userLevel.staticPrice ?? 20;
+            resolvedPercent = userLevel.percentPrice ?? 5;
           }
+          // 2. Fall back to user-default override
+          if (!resolvedMode && userCustom?.customKeyPriceMode != null) {
+            resolvedMode = userCustom.customKeyPriceMode;
+            resolvedStatic = userCustom.customDirectAccessKeyPrice ?? 20;
+            resolvedPercent = userCustom.customDirectAccessKeyPricePercent ?? 5;
+          }
+          // 3. Fall back to global-level override
+          const globalLevel = json.data.levelKeyPricing?.[lvl];
+          if (!resolvedMode && globalLevel?.mode) {
+            resolvedMode = globalLevel.mode;
+            resolvedStatic = globalLevel.staticPrice ?? 20;
+            resolvedPercent = globalLevel.percentPrice ?? 5;
+          }
+          // 4. Fall back to global-default
+          if (!resolvedMode) {
+            resolvedMode = json.data.keyPriceMode || 'static';
+            resolvedStatic = json.data.directAccessKeyPrice ?? 20;
+            resolvedPercent = json.data.directAccessKeyPricePercent ?? 5;
+          }
+
+          setKeyPriceMode(resolvedMode!);
+          setPricePerKey(resolvedStatic);
+          setKeyPricePercent(resolvedPercent);
         }
       } catch (e) { console.error('Failed to fetch key price'); }
       finally { setLoadingPrice(false); }
@@ -195,7 +222,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
         }
       } catch (e) { console.error('Failed to check pending key requests'); }
     })();
-  }, [withdrawalSystem, selectedNode?.id, hasWatchedCurrentLevel, token]);
+  }, [withdrawalSystem, selectedNode?.id, hasWatchedCurrentLevel, token, level]);
 
   const handleGenerateKeys = async () => {
     if (!hasSufficientBalance || !selectedNode?.id) return;

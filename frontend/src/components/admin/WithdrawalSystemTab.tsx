@@ -6,11 +6,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Loader2, Save, KeyRound, RefreshCw, Percent, DollarSign } from 'lucide-react';
 
+interface LevelPricing {
+  mode: 'static' | 'percent';
+  staticPrice: number;
+  percentPrice: number;
+}
+
+const DEFAULT_PRICING: LevelPricing = { mode: 'static', staticPrice: 20, percentPrice: 5 };
+
 const WithdrawalSystemTab: React.FC = () => {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [withdrawalSystem, setWithdrawalSystem] = useState<'current' | 'direct_access_keys'>('current');
+
+  // Per-level pricing (levels 1-5)
+  const [levelKeyPricing, setLevelKeyPricing] = useState<{ [level: string]: LevelPricing }>({});
+
+  // Keep flat defaults for backward compat / fallback
   const [directAccessKeyPrice, setDirectAccessKeyPrice] = useState(20);
   const [keyPriceMode, setKeyPriceMode] = useState<'static' | 'percent'>('static');
   const [directAccessKeyPricePercent, setDirectAccessKeyPricePercent] = useState(5);
@@ -31,6 +44,30 @@ const WithdrawalSystemTab: React.FC = () => {
         setDirectAccessKeyPrice(json.data.directAccessKeyPrice ?? 20);
         setKeyPriceMode(json.data.keyPriceMode || 'static');
         setDirectAccessKeyPricePercent(json.data.directAccessKeyPricePercent ?? 5);
+
+        const parsed: { [level: string]: LevelPricing } = {};
+        if (json.data.levelKeyPricing) {
+          const raw = json.data.levelKeyPricing;
+          for (const [k, v] of Object.entries(raw)) {
+            const entry = v as any;
+            parsed[k] = {
+              mode: entry.mode || 'static',
+              staticPrice: entry.staticPrice ?? 20,
+              percentPrice: entry.percentPrice ?? 5
+            };
+          }
+        }
+        // Ensure all 5 levels exist — fill missing ones with flat defaults
+        for (let l = 1; l <= 5; l++) {
+          if (!parsed[String(l)]) {
+            parsed[String(l)] = {
+              mode: json.data.keyPriceMode || 'static',
+              staticPrice: json.data.directAccessKeyPrice ?? 20,
+              percentPrice: json.data.directAccessKeyPricePercent ?? 5
+            };
+          }
+        }
+        setLevelKeyPricing(parsed);
       }
     } catch (e) {
       toast.error('Failed to fetch settings');
@@ -52,7 +89,8 @@ const WithdrawalSystemTab: React.FC = () => {
           withdrawalSystem,
           directAccessKeyPrice,
           keyPriceMode,
-          directAccessKeyPricePercent
+          directAccessKeyPricePercent,
+          levelKeyPricing
         })
       });
       const json = await res.json();
@@ -66,6 +104,13 @@ const WithdrawalSystemTab: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateLevelPricing = (level: string, field: keyof LevelPricing, value: any) => {
+    setLevelKeyPricing(prev => ({
+      ...prev,
+      [level]: { ...(prev[level] || { ...DEFAULT_PRICING }), [field]: value }
+    }));
   };
 
   if (loading) {
@@ -125,92 +170,79 @@ const WithdrawalSystemTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Key Pricing Section (only relevant for direct keys) */}
-          <div className={`transition-opacity space-y-4 ${isDAK ? 'opacity-100' : 'opacity-40'}`}>
-            {/* Pricing Mode Toggle */}
-            <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">
-                Key Pricing Mode
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <button
-                  onClick={() => setKeyPriceMode('static')}
-                  disabled={!isDAK}
-                  className={`p-3 rounded-lg border-2 transition-all text-left ${keyPriceMode === 'static'
-                      ? 'border-emerald-500 bg-emerald-500/10'
-                      : 'border-border hover:border-white/20 bg-white/5'
-                    } disabled:cursor-not-allowed`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <DollarSign className="w-4 h-4 text-emerald-400" />
-                    <span className="font-medium text-white text-sm">Static Price (USD)</span>
-                  </div>
-                  <p className="text-[11px] text-gray-500">
-                    Fixed dollar amount per key, regardless of node value.
-                  </p>
-                </button>
-                <button
-                  onClick={() => setKeyPriceMode('percent')}
-                  disabled={!isDAK}
-                  className={`p-3 rounded-lg border-2 transition-all text-left ${keyPriceMode === 'percent'
-                      ? 'border-amber-500 bg-amber-500/10'
-                      : 'border-border hover:border-white/20 bg-white/5'
-                    } disabled:cursor-not-allowed`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Percent className="w-4 h-4 text-amber-400" />
-                    <span className="font-medium text-white text-sm">Percentage of Node Amount</span>
-                  </div>
-                  <p className="text-[11px] text-gray-500">
-                    Key cost scales with the node's transaction amount.
-                  </p>
-                </button>
+          {/* Key Pricing by Level — clean table */}
+          <div className={`transition-opacity ${isDAK ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+            <label className="text-sm font-medium text-foreground mb-3 block">Key Price per Level</label>
+            <div className="border border-white/10 rounded-xl overflow-hidden">
+              {/* Table header */}
+              <div className="grid grid-cols-[60px_1fr_1fr] gap-0 px-4 py-2.5 bg-white/[0.04] border-b border-white/10">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Level</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Mode</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Price</span>
               </div>
+              {/* Table rows */}
+              {[1, 2, 3, 4, 5].map((l, i) => {
+                const lvl = String(l);
+                const p = levelKeyPricing[lvl] || { ...DEFAULT_PRICING };
+                return (
+                  <div
+                    key={l}
+                    className={`grid grid-cols-[60px_1fr_1fr] gap-0 items-center px-4 py-3 ${
+                      i < 4 ? 'border-b border-white/[0.06]' : ''
+                    } hover:bg-white/[0.02] transition-colors`}
+                  >
+                    <span className="text-sm font-bold text-orange-400">L{l}</span>
+                    {/* Mode pill toggle */}
+                    <div className="flex">
+                      <div className="inline-flex bg-white/[0.06] rounded-lg p-0.5">
+                        <button
+                          onClick={() => updateLevelPricing(lvl, 'mode', 'static')}
+                          className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                            p.mode === 'static'
+                              ? 'bg-emerald-500/20 text-emerald-300 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-400'
+                          }`}
+                        >
+                          $ Fixed
+                        </button>
+                        <button
+                          onClick={() => updateLevelPricing(lvl, 'mode', 'percent')}
+                          className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                            p.mode === 'percent'
+                              ? 'bg-amber-500/20 text-amber-300 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-400'
+                          }`}
+                        >
+                          %
+                        </button>
+                      </div>
+                    </div>
+                    {/* Value input */}
+                    <div className="relative max-w-[140px]">
+                      {p.mode === 'static' && (
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">$</span>
+                      )}
+                      <input
+                        type="number"
+                        min={p.mode === 'static' ? 1 : 0.1}
+                        max={p.mode === 'percent' ? 100 : undefined}
+                        step={p.mode === 'static' ? 1 : 0.1}
+                        value={p.mode === 'static' ? p.staticPrice : p.percentPrice}
+                        onChange={(e) => updateLevelPricing(lvl, p.mode === 'static' ? 'staticPrice' : 'percentPrice', Number(e.target.value))}
+                        className={`w-full bg-white/[0.04] border border-white/10 rounded-lg py-1.5 text-white text-sm font-medium focus:outline-none focus:ring-1 transition-all ${
+                          p.mode === 'static'
+                            ? 'pl-7 pr-3 focus:ring-emerald-500/50'
+                            : 'pl-3 pr-7 focus:ring-amber-500/50'
+                        }`}
+                      />
+                      {p.mode === 'percent' && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">%</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Static Price Input */}
-            {keyPriceMode === 'static' && (
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Direct Access Key Price (USD)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={directAccessKeyPrice}
-                  onChange={(e) => setDirectAccessKeyPrice(Number(e.target.value))}
-                  className="w-full md:w-48 bg-white/5 border border-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  disabled={!isDAK}
-                />
-                <p className="text-xs text-gray-500 mt-1">Fixed cost per key for users generating Direct Access Keys.</p>
-              </div>
-            )}
-
-            {/* Percentage Input */}
-            {keyPriceMode === 'percent' && (
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Key Price Percentage (%)
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={0.1}
-                    max={100}
-                    step={0.1}
-                    value={directAccessKeyPricePercent}
-                    onChange={(e) => setDirectAccessKeyPricePercent(Number(e.target.value))}
-                    className="w-full md:w-48 bg-white/5 border border-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    disabled={!isDAK}
-                  />
-                  <span className="text-gray-400 text-sm">%</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Key cost = {directAccessKeyPricePercent}% of each node's transaction amount. Minimum $1 per key.
-                </p>
-              </div>
-            )}
           </div>
 
           <Button

@@ -6,7 +6,42 @@ import Level from "../models/level.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import mongoose from "mongoose";
 
-// ─── Internal helpers (reused by both direct endpoints and lazy executor) ────
+// ─── Resolve key price using fallback chain ─────────────────────────────────
+// Priority: user-level → user-default → global-level → global-default
+function resolveKeyPrice(user, settings, level) {
+    let mode, staticPrice, percentPrice;
+
+    // 1. Check user per-level override
+    const userLevel = user.customLevelKeyPricing?.get?.(String(level));
+    if (userLevel) {
+        mode = userLevel.mode;
+        staticPrice = userLevel.staticPrice;
+        percentPrice = userLevel.percentPrice;
+    }
+    // 2. Check user flat override
+    else if (user.customKeyPriceMode != null) {
+        mode = user.customKeyPriceMode;
+        staticPrice = user.customDirectAccessKeyPrice ?? 20;
+        percentPrice = user.customDirectAccessKeyPricePercent ?? 5;
+    }
+    // 3. Check global per-level override
+    else {
+        const globalLevel = settings?.levelKeyPricing?.get?.(String(level));
+        if (globalLevel) {
+            mode = globalLevel.mode;
+            staticPrice = globalLevel.staticPrice;
+            percentPrice = globalLevel.percentPrice;
+        }
+        // 4. Global flat default
+        else {
+            mode = settings?.keyPriceMode || 'static';
+            staticPrice = settings?.directAccessKeyPrice || 20;
+            percentPrice = settings?.directAccessKeyPricePercent || 5;
+        }
+    }
+
+    return { mode: mode || 'static', staticPrice: staticPrice ?? 20, percentPrice: percentPrice ?? 5 };
+}
 
 async function _executeApprove(requestId, { approvedAmount, adminComment, nodeStatusOutcome, processedBy }, session) {
     const finalNodeStatus = nodeStatusOutcome || 'success';
@@ -184,11 +219,9 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
 
         if (!user.nodeProgress) user.nodeProgress = new Map();
 
-        // Get current block price — prefer per-user overrides
-        let settings = await GlobalSettings.findById('global_settings');
-        const keyPriceMode = user.customKeyPriceMode != null ? user.customKeyPriceMode : (settings?.keyPriceMode || 'static');
-        const staticPrice = user.customKeyPriceMode != null ? (user.customDirectAccessKeyPrice ?? 20) : (settings?.directAccessKeyPrice || 20);
-        const percentValue = user.customKeyPriceMode != null ? (user.customDirectAccessKeyPricePercent ?? 5) : (settings?.directAccessKeyPricePercent || 5);
+        // Resolve key price using fallback chain (user-level → user-default → global-level → global-default)
+        const settings = await GlobalSettings.findById('global_settings');
+        const { mode: keyPriceMode, staticPrice, percentPrice: percentValue } = resolveKeyPrice(user, settings, level);
 
         const requestsToCreate = [];
         for (let i = 0; i < childNodeIds.length; i++) {
@@ -316,15 +349,13 @@ export const createKeyGenerationRequest = async (req, res, next) => {
             throw new ApiError(400, "Level, valid keysCount, and nodeId are required");
         }
 
-        // Get current block price — prefer per-user overrides
-        let settings = await GlobalSettings.findById('global_settings');
+        // Resolve key price using fallback chain (user-level → user-default → global-level → global-default)
+        const settings = await GlobalSettings.findById('global_settings');
         const user = await User.findById(userId).session(session);
         if (!user) {
             throw new ApiError(404, "User not found");
         }
-        const keyPriceMode = user.customKeyPriceMode != null ? user.customKeyPriceMode : (settings?.keyPriceMode || 'static');
-        const staticPrice = user.customKeyPriceMode != null ? (user.customDirectAccessKeyPrice ?? 20) : (settings?.directAccessKeyPrice || 20);
-        const percentValue = user.customKeyPriceMode != null ? (user.customDirectAccessKeyPricePercent ?? 5) : (settings?.directAccessKeyPricePercent || 5);
+        const { mode: keyPriceMode, staticPrice, percentPrice: percentValue } = resolveKeyPrice(user, settings, level);
 
         // Calculate price based on mode
         const price = keyPriceMode === 'percent'

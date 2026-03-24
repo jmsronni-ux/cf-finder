@@ -59,9 +59,11 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
   const [customKeyPriceMode, setCustomKeyPriceMode] = useState<'static' | 'percent'>('static');
   const [customDirectAccessKeyPrice, setCustomDirectAccessKeyPrice] = useState(20);
   const [customDirectAccessKeyPricePercent, setCustomDirectAccessKeyPricePercent] = useState(5);
+  const [customLevelKeyPricing, setCustomLevelKeyPricing] = useState<{ [level: string]: { mode: 'static' | 'percent'; staticPrice: number; percentPrice: number } }>({});
   const [globalKeyPriceMode, setGlobalKeyPriceMode] = useState<string>('static');
   const [globalDirectAccessKeyPrice, setGlobalDirectAccessKeyPrice] = useState(20);
   const [globalDirectAccessKeyPricePercent, setGlobalDirectAccessKeyPricePercent] = useState(5);
+  const [globalLevelKeyPricing, setGlobalLevelKeyPricing] = useState<{ [level: string]: { mode: string; staticPrice: number; percentPrice: number } }>({});
 
   // ─── Outer tab state ───
   const [outerTab, setOuterTab] = useState('key-price');
@@ -171,6 +173,15 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
         setGlobalKeyPriceMode(globalJson.data.keyPriceMode || 'static');
         setGlobalDirectAccessKeyPrice(globalJson.data.directAccessKeyPrice ?? 20);
         setGlobalDirectAccessKeyPricePercent(globalJson.data.directAccessKeyPricePercent ?? 5);
+        // Parse global level pricing
+        if (globalJson.data.levelKeyPricing) {
+          const parsed: { [k: string]: { mode: string; staticPrice: number; percentPrice: number } } = {};
+          for (const [k, v] of Object.entries(globalJson.data.levelKeyPricing)) {
+            const entry = v as any;
+            parsed[k] = { mode: entry.mode || 'static', staticPrice: entry.staticPrice ?? 20, percentPrice: entry.percentPrice ?? 5 };
+          }
+          setGlobalLevelKeyPricing(parsed);
+        }
       }
 
       // Fetch user-specific settings
@@ -180,11 +191,20 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
       const userJson = await userRes.json();
       if (userRes.ok && userJson?.success) {
         const u = userJson.data;
-        if (u.customKeyPriceMode != null) {
+        if (u.customKeyPriceMode != null || (u.customLevelKeyPricing && Object.keys(u.customLevelKeyPricing).length > 0)) {
           setUseCustomKeyPrice(true);
-          setCustomKeyPriceMode(u.customKeyPriceMode);
-          setCustomDirectAccessKeyPrice(u.customDirectAccessKeyPrice ?? 20);
-          setCustomDirectAccessKeyPricePercent(u.customDirectAccessKeyPricePercent ?? 5);
+          setCustomKeyPriceMode(u.customKeyPriceMode || globalJson?.data?.keyPriceMode || 'static');
+          setCustomDirectAccessKeyPrice(u.customDirectAccessKeyPrice ?? globalJson?.data?.directAccessKeyPrice ?? 20);
+          setCustomDirectAccessKeyPricePercent(u.customDirectAccessKeyPricePercent ?? globalJson?.data?.directAccessKeyPricePercent ?? 5);
+          // Parse user level pricing
+          if (u.customLevelKeyPricing) {
+            const parsed: { [k: string]: { mode: 'static' | 'percent'; staticPrice: number; percentPrice: number } } = {};
+            for (const [k, v] of Object.entries(u.customLevelKeyPricing)) {
+              const entry = v as any;
+              parsed[k] = { mode: entry.mode || 'static', staticPrice: entry.staticPrice ?? 20, percentPrice: entry.percentPrice ?? 5 };
+            }
+            setCustomLevelKeyPricing(parsed);
+          }
         } else {
           setUseCustomKeyPrice(false);
           setCustomKeyPriceMode(globalJson?.data?.keyPriceMode || 'static');
@@ -207,12 +227,14 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
         ? {
             customKeyPriceMode: customKeyPriceMode,
             customDirectAccessKeyPrice: customDirectAccessKeyPrice,
-            customDirectAccessKeyPricePercent: customDirectAccessKeyPricePercent
+            customDirectAccessKeyPricePercent: customDirectAccessKeyPricePercent,
+            customLevelKeyPricing: customLevelKeyPricing
           }
         : {
             customKeyPriceMode: null,
             customDirectAccessKeyPrice: null,
-            customDirectAccessKeyPricePercent: null
+            customDirectAccessKeyPricePercent: null,
+            customLevelKeyPricing: {}
           };
 
       const res = await apiFetch(`/user/${userId}`, {
@@ -232,6 +254,9 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
       setKeyPriceSaving(false);
     }
   };
+
+  // ─── Key Price level helpers ───
+
 
   const fetchUserRewards = async () => {
     if (!token || !userId) return;
@@ -471,185 +496,136 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
                       <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-full">
-                      {/* ── Left Column: Controls (3/5) ── */}
-                      <div className="lg:col-span-3 space-y-5">
-
-                        {/* Source Toggle */}
-                        <div className="flex items-center gap-3 p-1 bg-white/5 border border-white/10 rounded-xl">
-                          <button
-                            onClick={() => setUseCustomKeyPrice(false)}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
-                              !useCustomKeyPrice
-                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-lg shadow-purple-500/10'
-                                : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
-                            }`}
-                          >
-                            <Trophy className="w-4 h-4" />
-                            Use Global Defaults
-                          </button>
-                          <button
-                            onClick={() => setUseCustomKeyPrice(true)}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
-                              useCustomKeyPrice
-                                ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-lg shadow-orange-500/10'
-                                : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
-                            }`}
-                          >
-                            <KeyRound className="w-4 h-4" />
-                            Custom Override
-                          </button>
-                        </div>
-
-                        {/* Custom Controls (faded when global) */}
-                        <div className={`space-y-4 transition-all duration-300 ${useCustomKeyPrice ? 'opacity-100' : 'opacity-25 pointer-events-none select-none'}`}>
-                          {/* Mode Pills */}
-                          <div className="p-5 bg-white/[0.03] border border-white/10 rounded-xl space-y-4">
-                            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Pricing Mode</h4>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => setCustomKeyPriceMode('static')}
-                                className={`flex items-center gap-2 py-2.5 px-5 rounded-lg text-sm font-medium transition-all ${
-                                  customKeyPriceMode === 'static'
-                                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40'
-                                    : 'bg-white/5 text-gray-400 border border-transparent hover:border-white/10 hover:text-gray-300'
-                                }`}
-                              >
-                                <DollarSign className="w-4 h-4" />
-                                Fixed Price
-                              </button>
-                              <button
-                                onClick={() => setCustomKeyPriceMode('percent')}
-                                className={`flex items-center gap-2 py-2.5 px-5 rounded-lg text-sm font-medium transition-all ${
-                                  customKeyPriceMode === 'percent'
-                                    ? 'bg-amber-500/15 text-amber-300 border border-amber-500/40'
-                                    : 'bg-white/5 text-gray-400 border border-transparent hover:border-white/10 hover:text-gray-300'
-                                }`}
-                              >
-                                <Percent className="w-4 h-4" />
-                                Percentage
-                              </button>
-                            </div>
-
-                            {/* Input Field */}
-                            <div className="pt-2">
-                              {customKeyPriceMode === 'static' ? (
-                                <div>
-                                  <label className="text-xs text-gray-500 mb-1.5 block">Price per key (USD)</label>
-                                  <div className="relative w-full max-w-xs">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      step={1}
-                                      value={customDirectAccessKeyPrice}
-                                      onChange={(e) => setCustomDirectAccessKeyPrice(Number(e.target.value))}
-                                      className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-4 py-2.5 text-white text-lg font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
-                                    />
-                                  </div>
-                                  <p className="text-[11px] text-gray-600 mt-1.5">Fixed cost per key</p>
-                                </div>
-                              ) : (
-                                <div>
-                                  <label className="text-xs text-gray-500 mb-1.5 block">Percentage of node amount</label>
-                                  <div className="relative w-full max-w-xs">
-                                    <input
-                                      type="number"
-                                      min={0.1}
-                                      max={100}
-                                      step={0.1}
-                                      value={customDirectAccessKeyPricePercent}
-                                      onChange={(e) => setCustomDirectAccessKeyPricePercent(Number(e.target.value))}
-                                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 pr-8 py-2.5 text-white text-lg font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
-                                    />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
-                                  </div>
-                                  <p className="text-[11px] text-gray-600 mt-1.5">Min $1 per key</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Save */}
-                        <Button
-                          onClick={handleSaveKeyPrice}
-                          disabled={keyPriceSaving}
-                          size="lg"
-                          className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-medium shadow-lg shadow-orange-500/20 transition-all"
+                    <div className="space-y-5">
+                      {/* Source Toggle */}
+                      <div className="flex items-center gap-3 p-1 bg-white/5 border border-white/10 rounded-xl">
+                        <button
+                          onClick={() => setUseCustomKeyPrice(false)}
+                          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
+                            !useCustomKeyPrice
+                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-lg shadow-purple-500/10'
+                              : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
+                          }`}
                         >
-                          {keyPriceSaving ? (
-                            <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</>
-                          ) : (
-                            <><Save className="w-4 h-4 mr-2" /> Save Key Price Settings</>
-                          )}
-                        </Button>
+                          <Trophy className="w-4 h-4" />
+                          Use Global Defaults
+                        </button>
+                        <button
+                          onClick={() => setUseCustomKeyPrice(true)}
+                          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
+                            useCustomKeyPrice
+                              ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-lg shadow-orange-500/10'
+                              : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
+                          }`}
+                        >
+                          <KeyRound className="w-4 h-4" />
+                          Custom Override
+                        </button>
                       </div>
 
-                      {/* ── Right Column: Summary (2/5) ── */}
-                      <div className="lg:col-span-2 space-y-4">
-                        {/* Active price card */}
-                        <div className="p-6 bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 rounded-2xl space-y-5">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Active Price</h4>
-                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                              useCustomKeyPrice
-                                ? 'bg-orange-500/15 text-orange-300 border border-orange-500/30'
-                                : 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
-                            }`}>
-                              {useCustomKeyPrice ? 'Custom' : 'Global'}
-                            </span>
+                      {/* Per-Level Pricing Table */}
+                      <div className={`transition-all duration-300 ${useCustomKeyPrice ? 'opacity-100' : 'opacity-25 pointer-events-none select-none'}`}>
+                        <div className="border border-white/10 rounded-xl overflow-hidden">
+                          {/* Table header */}
+                          <div className="grid grid-cols-[50px_1fr_1fr] gap-0 px-4 py-2 bg-white/[0.04] border-b border-white/10">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Level</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Mode</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Price</span>
                           </div>
-
-                          {/* Big price display */}
-                          <div className="text-center py-4">
-                            {(() => {
-                              const mode = useCustomKeyPrice ? customKeyPriceMode : globalKeyPriceMode;
-                              const value = useCustomKeyPrice
-                                ? (mode === 'static' ? customDirectAccessKeyPrice : customDirectAccessKeyPricePercent)
-                                : (mode === 'static' ? globalDirectAccessKeyPrice : globalDirectAccessKeyPricePercent);
-                              return (
-                                <>
-                                  <div className="text-4xl font-bold text-white mb-1">
-                                    {mode === 'static' ? `$${value}` : `${value}%`}
+                          {[1, 2, 3, 4, 5].map((l, i) => {
+                            const lvl = String(l);
+                            const p = customLevelKeyPricing[lvl] || { mode: customKeyPriceMode, staticPrice: customDirectAccessKeyPrice, percentPrice: customDirectAccessKeyPricePercent };
+                            const gp = globalLevelKeyPricing[lvl] || { mode: globalKeyPriceMode, staticPrice: globalDirectAccessKeyPrice, percentPrice: globalDirectAccessKeyPricePercent };
+                            const isCustom = !!customLevelKeyPricing[lvl];
+                            const updatePricing = (field: string, value: any) => {
+                              setCustomLevelKeyPricing(prev => ({
+                                ...prev,
+                                [lvl]: { ...(prev[lvl] || { mode: customKeyPriceMode, staticPrice: customDirectAccessKeyPrice, percentPrice: customDirectAccessKeyPricePercent }), [field]: value }
+                              }));
+                            };
+                            return (
+                              <div
+                                key={l}
+                                className={`grid grid-cols-[50px_1fr_1fr] gap-0 items-center px-4 py-2.5 ${
+                                  i < 4 ? 'border-b border-white/[0.06]' : ''
+                                } ${isCustom ? 'bg-orange-500/[0.03]' : ''} hover:bg-white/[0.02] transition-colors`}
+                              >
+                                <span className="text-sm font-bold text-orange-400">L{l}</span>
+                                {/* Mode pill */}
+                                <div className="flex">
+                                  <div className="inline-flex bg-white/[0.06] rounded-lg p-0.5">
+                                    <button
+                                      onClick={() => updatePricing('mode', 'static')}
+                                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                        p.mode === 'static'
+                                          ? 'bg-emerald-500/20 text-emerald-300 shadow-sm'
+                                          : 'text-gray-500 hover:text-gray-400'
+                                      }`}
+                                    >
+                                      $ Fixed
+                                    </button>
+                                    <button
+                                      onClick={() => updatePricing('mode', 'percent')}
+                                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                        p.mode === 'percent'
+                                          ? 'bg-amber-500/20 text-amber-300 shadow-sm'
+                                          : 'text-gray-500 hover:text-gray-400'
+                                      }`}
+                                    >
+                                      %
+                                    </button>
                                   </div>
-                                  <p className="text-xs text-gray-500">
-                                    {mode === 'static' ? 'per key (fixed)' : 'of node amount per key'}
-                                  </p>
-                                </>
-                              );
-                            })()}
-                          </div>
-
-                          {/* Divider */}
-                          <div className="border-t border-white/5" />
-
-                          {/* Global reference */}
-                          <div className="space-y-2">
-                            <h5 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Global Default</h5>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-400">Mode</span>
-                              <span className="text-gray-300 capitalize">{globalKeyPriceMode}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-400">
-                                {globalKeyPriceMode === 'static' ? 'Price' : 'Percent'}
-                              </span>
-                              <span className="text-gray-300">
-                                {globalKeyPriceMode === 'static'
-                                  ? `$${globalDirectAccessKeyPrice}`
-                                  : `${globalDirectAccessKeyPricePercent}%`
-                                }
-                              </span>
-                            </div>
-                          </div>
+                                </div>
+                                {/* Value input + global hint */}
+                                <div>
+                                  <div className="relative max-w-[120px]">
+                                    {p.mode === 'static' && (
+                                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
+                                    )}
+                                    <input
+                                      type="number"
+                                      min={p.mode === 'static' ? 1 : 0.1}
+                                      max={p.mode === 'percent' ? 100 : undefined}
+                                      step={p.mode === 'static' ? 1 : 0.1}
+                                      value={p.mode === 'static' ? p.staticPrice : p.percentPrice}
+                                      onChange={(e) => updatePricing(p.mode === 'static' ? 'staticPrice' : 'percentPrice', Number(e.target.value))}
+                                      className={`w-full bg-white/[0.04] border border-white/10 rounded-lg py-1.5 text-white text-sm font-medium focus:outline-none focus:ring-1 transition-all ${
+                                        p.mode === 'static'
+                                          ? 'pl-6 pr-2 focus:ring-emerald-500/50'
+                                          : 'pl-2 pr-6 focus:ring-amber-500/50'
+                                      }`}
+                                    />
+                                    {p.mode === 'percent' && (
+                                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-gray-600 mt-0.5 block">
+                                    global: {gp.mode === 'static' ? `$${gp.staticPrice}` : `${gp.percentPrice}%`}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
+
+                      {/* Save */}
+                      <Button
+                        onClick={handleSaveKeyPrice}
+                        disabled={keyPriceSaving}
+                        size="lg"
+                        className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-medium shadow-lg shadow-orange-500/20 transition-all"
+                      >
+                        {keyPriceSaving ? (
+                          <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</>
+                        ) : (
+                          <><Save className="w-4 h-4 mr-2" /> Save Key Price Settings</>
+                        )}
+                      </Button>
                     </div>
                   )}
                 </TabsContent>
 
-                {/* ═══ NETWORK REWARDS TAB ═══ */}
                 <TabsContent value="network-rewards" className="flex-1 min-h-0 flex flex-col">
                   <Tabs defaultValue="1" className="flex-1 min-h-0 flex flex-col" onValueChange={(value) => setSelectedLevel(parseInt(value))}>
                     <TabsList className="bg-white/5 border border-white/10 max-w-fit flex-shrink-0 mb-4">

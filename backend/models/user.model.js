@@ -259,6 +259,16 @@ const userSchema = new mongoose.Schema({
     customDirectAccessKeyPricePercent: {
         type: Number,
         default: null
+    },
+    // Per-level key pricing overrides (level number → { mode, staticPrice, percentPrice })
+    customLevelKeyPricing: {
+        type: Map,
+        of: new mongoose.Schema({
+            mode: { type: String, enum: ['static', 'percent'], default: 'static' },
+            staticPrice: { type: Number, default: 20 },
+            percentPrice: { type: Number, default: 5 }
+        }, { _id: false }),
+        default: {}
     }
 });
 
