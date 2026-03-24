@@ -144,11 +144,7 @@ const CryptoNode: React.FC<CryptoNodeProps> = ({ data }) => {
             className="size-9 object-contain"
           />
         </div>
-        {data.withdrawn && (
-          <div className="absolute -top-1 -right-1">
-            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full border border-black/50" />
-          </div>
-        )}
+
         <Handle
           type="source"
           position={getPosition(handles.source.position)}
@@ -176,12 +172,7 @@ const CryptoNode: React.FC<CryptoNodeProps> = ({ data }) => {
           className="size-9 object-contain"
         />
       </div>
-      {data.withdrawn && (
-        <div className="absolute -top-1 -right-1">
-          {/* simple visual mark; node is already dimmed */}
-          <div className="w-2.5 h-2.5 bg-green-500 rounded-full border border-black/50" />
-        </div>
-      )}
+
       <Handle
         type="source"
         position={getPosition(handles.source.position)}

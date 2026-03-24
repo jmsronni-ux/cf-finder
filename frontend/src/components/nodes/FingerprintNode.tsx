@@ -83,6 +83,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const isDAK = data.withdrawalSystem === 'direct_access_keys';
 
+
   // Reveal animation refs (must be at top level to respect Rules of Hooks)
   const revealIconRef = useRef<HTMLDivElement>(null);
   const revealContentRef = useRef<HTMLDivElement>(null);
@@ -219,9 +220,8 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
 
   // ─── DAK STATUS STYLING (visible fills + glow) ───
   const getDakStatusStyling = () => {
-    if (data.withdrawn) {
-      return 'border-neutral-600/50 bg-neutral-800 opacity-40';
-    }
+    // NOTE: withdrawn nodes no longer get gray styling here.
+    // Instead, they keep their status color and the outer container applies opacity.
     if (data.blocked) {
       return 'border-neutral-600 bg-neutral-800 opacity-70';
     }
@@ -773,11 +773,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
             <span className="text-white/50 text-[0.6rem] font-mono">
               {data.transaction?.transaction.slice(0, 4)}…{data.transaction?.transaction.slice(-4)}
             </span>
-            {data.withdrawn && (
-              <div className="absolute -top-1 -right-1">
-                <CheckCircle className="text-emerald-400" size={15} />
-              </div>
-            )}
+
           </div>
 
           <Handle type="source" position={getPosition(handles.source.position)} />
@@ -849,11 +845,8 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
             <span className="text-white/40 text-[0.55rem] font-mono">
               {data.transaction?.transaction.slice(0, 4)}…{data.transaction?.transaction.slice(-4)}
             </span>
-            {data.withdrawn && (
-              <div className="absolute -top-1 -right-1">
-                <CheckCircle className="text-emerald-400" size={15} />
-              </div>
-            )}
+
+
           </div>
           <Handle type="source" position={getPosition(handles.source.position)} />
           {/* Admin comment bubble */}
@@ -889,7 +882,7 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
     return (
       <div
         ref={rootRef}
-        className={`relative cursor-pointer border rounded-xl size-20 flex flex-col items-center justify-center text-center transition-all duration-200 ${getDakStatusStyling()}`}
+        className={`relative cursor-pointer border rounded-xl size-20 flex flex-col items-center justify-center text-center transition-all duration-200 ${getDakStatusStyling()} ${data.withdrawn ? 'opacity-50' : ''}`}
       >
         <Handle
           type="target"
@@ -934,12 +927,6 @@ const FingerprintNode: React.FC<FingerprintNodeProps> = ({ id, data }) => {
             {data.transaction?.transaction.slice(0, 4)}…{data.transaction?.transaction.slice(-4)}
           </span>
 
-          {/* Withdrawn mark */}
-          {data.withdrawn && (
-            <div className="absolute -top-1.5 -right-1.5">
-              <CheckCircle className="text-emerald-400" size={15} />
-            </div>
-          )}
         </div>
 
         <Handle

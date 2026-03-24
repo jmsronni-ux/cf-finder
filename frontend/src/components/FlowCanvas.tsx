@@ -101,6 +101,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [completionPopupShown, setCompletionPopupShown] = useState<boolean>(false);
   const [hasPendingVerification, setHasPendingVerification] = useState<boolean>(false);
   const [withdrawalSystem, setWithdrawalSystem] = useState<'current' | 'direct_access_keys'>('current');
+  const [withdrawalSystemLoaded, setWithdrawalSystemLoaded] = useState(false);
   const [showDirectKeysPopup, setShowDirectKeysPopup] = useState(false);
   const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({});
   const [nodeApprovedAmounts, setNodeApprovedAmounts] = useState<Record<string, number>>({});
@@ -403,6 +404,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         }
       } catch (e) {
         console.error('Failed to fetch withdrawal system setting');
+      } finally {
+        setWithdrawalSystemLoaded(true);
       }
     };
     if (token) fetchWithdrawalSystem();
@@ -894,6 +897,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const showFingerprintProgress = useMemo(() => {
     return hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys && fingerprintProgress.total > 0;
   }, [hasWatchedCurrentLevel, withdrawalSystem, isLevelCompletedWithKeys, fingerprintProgress]);
+
+  // Don't render nodes until the withdrawal system setting has been fetched from global settings.
+  // Without this gate, nodes briefly render with the default 'current' value, causing a flash
+  // of the old design (square corners, checkmark badge) before the DAK design kicks in.
+  if (!withdrawalSystemLoaded) {
+    return <div className="w-full h-full" />;
+  }
 
   return (
     <div className="w-full h-full">
