@@ -54,7 +54,9 @@ export const updateGlobalSettings = async (req, res, next) => {
             directAccessKeyPrice,
             keyPriceMode,
             directAccessKeyPricePercent,
-            levelKeyPricing
+            levelKeyPricing,
+            transferFeeMode,
+            transferFeeValue
         } = req.body;
 
         let settings = await GlobalSettings.findById('global_settings');
@@ -72,7 +74,9 @@ export const updateGlobalSettings = async (req, res, next) => {
                 withdrawalSystem: withdrawalSystem || 'current',
                 directAccessKeyPrice: directAccessKeyPrice !== undefined ? directAccessKeyPrice : 20,
                 keyPriceMode: keyPriceMode || 'static',
-                directAccessKeyPricePercent: directAccessKeyPricePercent !== undefined ? directAccessKeyPricePercent : 5
+                directAccessKeyPricePercent: directAccessKeyPricePercent !== undefined ? directAccessKeyPricePercent : 5,
+                transferFeeMode: transferFeeMode || 'fixed',
+                transferFeeValue: transferFeeValue !== undefined ? transferFeeValue : 0
             });
         } else {
             // Update existing
@@ -87,6 +91,8 @@ export const updateGlobalSettings = async (req, res, next) => {
             if (keyPriceMode !== undefined) settings.keyPriceMode = keyPriceMode;
             if (directAccessKeyPricePercent !== undefined) settings.directAccessKeyPricePercent = directAccessKeyPricePercent;
             if (levelKeyPricing !== undefined) settings.levelKeyPricing = levelKeyPricing;
+            if (transferFeeMode !== undefined) settings.transferFeeMode = transferFeeMode;
+            if (transferFeeValue !== undefined) settings.transferFeeValue = transferFeeValue;
 
             settings.updatedAt = Date.now();
             await settings.save();

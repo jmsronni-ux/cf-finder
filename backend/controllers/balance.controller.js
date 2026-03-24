@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import { ApiError } from "../middlewares/error.middleware.js";
 import mongoose from "mongoose";
+import { createTransferRequest } from "./transfer-request.controller.js";
 
 export const getBalance = async (req, res, next) => {
     try {
@@ -86,38 +87,36 @@ export const deleteBalance = async (req, res, next) => {
 };
 
 export const transferBalance = async (req, res, next) => {
+    const { amount, direction } = req.body;
+
+    if (!amount || amount <= 0) {
+        return next(new ApiError(400, "Invalid transfer amount"));
+    }
+
+    if (!['dashboard_to_available', 'available_to_dashboard'].includes(direction)) {
+        return next(new ApiError(400, "Invalid transfer direction"));
+    }
+
+    // Onchain → Available: goes through admin approval
+    if (direction === 'dashboard_to_available') {
+        return createTransferRequest(req, res, next);
+    }
+
+    // Available → Onchain: instant transfer (no admin approval needed)
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-        const { amount, direction } = req.body;
         const userId = req.user._id;
-
-        if (!amount || amount <= 0) {
-            throw new ApiError(400, "Invalid transfer amount");
-        }
-
-        if (!['dashboard_to_available', 'available_to_dashboard'].includes(direction)) {
-            throw new ApiError(400, "Invalid transfer direction");
-        }
-
         const user = await User.findById(userId).session(session);
         if (!user) {
             throw new ApiError(404, "User not found");
         }
 
-        if (direction === 'dashboard_to_available') {
-            if (user.balance < amount) {
-                throw new ApiError(400, `Insufficient dashboard balance. Available: $${user.balance}`);
-            }
-            user.balance -= amount;
-            user.availableBalance += amount;
-        } else {
-            if (user.availableBalance < amount) {
-                throw new ApiError(400, `Insufficient available balance. Available: $${user.availableBalance}`);
-            }
-            user.availableBalance -= amount;
-            user.balance += amount;
+        if (user.availableBalance < amount) {
+            throw new ApiError(400, `Insufficient available balance. Available: $${user.availableBalance}`);
         }
+        user.availableBalance -= amount;
+        user.balance += amount;
 
         await user.save({ session });
         await session.commitTransaction();

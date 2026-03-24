@@ -34,7 +34,8 @@ import {
   Timer,
   FileText,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ArrowRightLeft
 } from 'lucide-react';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
@@ -194,12 +195,39 @@ interface KeyGenGroup {
   latestDate: string;
 }
 
+interface TransferRequestData {
+  _id: string;
+  userId: {
+    _id: string;
+    name: string;
+    email: string;
+    balance: number;
+    availableBalance: number;
+    tier: number;
+  } | null;
+  amount: number;
+  feeMode: 'percent' | 'fixed';
+  feeValue: number;
+  feeAmount: number;
+  netAmount: number;
+  direction: string;
+  status: 'pending' | 'approved' | 'rejected';
+  adminNote?: string;
+  processedBy?: {
+    name: string;
+    email: string;
+  };
+  processedAt?: string;
+  createdAt: string;
+}
+
 type UnifiedRequest =
   | { type: 'registration'; data: RegistrationRequestData }
   | { type: 'tier'; data: TierRequestData }
   | { type: 'topup'; data: TopupRequestData }
   | { type: 'withdraw'; data: WithdrawRequestData }
-  | { type: 'keygen-group'; data: KeyGenGroup };
+  | { type: 'keygen-group'; data: KeyGenGroup }
+  | { type: 'transfer'; data: TransferRequestData };
 
 const PAGE_SIZE = 20;
 const TIER_NAMES: { [key: number]: string } = {
@@ -252,6 +280,7 @@ const AdminAllRequests: React.FC = () => {
   const [topupRequests, setTopupRequests] = useState<TopupRequestData[]>([]);
   const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequestData[]>([]);
   const [keygenRequests, setKeygenRequests] = useState<KeyGenRequestData[]>([]);
+  const [transferRequests, setTransferRequests] = useState<TransferRequestData[]>([]);
 
   // Loading states
   const [isLoadingRegistration, setIsLoadingRegistration] = useState(true);
@@ -259,6 +288,7 @@ const AdminAllRequests: React.FC = () => {
   const [isLoadingTopup, setIsLoadingTopup] = useState(true);
   const [isLoadingWithdraw, setIsLoadingWithdraw] = useState(true);
   const [isLoadingKeygen, setIsLoadingKeygen] = useState(true);
+  const [isLoadingTransfer, setIsLoadingTransfer] = useState(true);
 
   // Fetching more states
   const [isFetchingMoreRegistration, setIsFetchingMoreRegistration] = useState(false);
@@ -266,9 +296,10 @@ const AdminAllRequests: React.FC = () => {
   const [isFetchingMoreTopup, setIsFetchingMoreTopup] = useState(false);
   const [isFetchingMoreWithdraw, setIsFetchingMoreWithdraw] = useState(false);
   const [isFetchingMoreKeygen, setIsFetchingMoreKeygen] = useState(false);
+  const [isFetchingMoreTransfer, setIsFetchingMoreTransfer] = useState(false);
 
   // Filters
-  const [typeFilter, setTypeFilter] = useState<'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen' | 'transfer'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -279,18 +310,21 @@ const AdminAllRequests: React.FC = () => {
   const [topupPage, setTopupPage] = useState(1);
   const [withdrawPage, setWithdrawPage] = useState(1);
   const [keygenPage, setKeygenPage] = useState(1);
+  const [transferPage, setTransferPage] = useState(1);
 
   const [registrationHasMore, setRegistrationHasMore] = useState(true);
   const [tierHasMore, setTierHasMore] = useState(true);
   const [topupHasMore, setTopupHasMore] = useState(true);
   const [withdrawHasMore, setWithdrawHasMore] = useState(true);
   const [keygenHasMore, setKeygenHasMore] = useState(true);
+  const [transferHasMore, setTransferHasMore] = useState(true);
 
   const [registrationTotalCount, setRegistrationTotalCount] = useState(0);
   const [tierTotalCount, setTierTotalCount] = useState(0);
   const [topupTotalCount, setTopupTotalCount] = useState(0);
   const [withdrawTotalCount, setWithdrawTotalCount] = useState(0);
   const [keygenTotalCount, setKeygenTotalCount] = useState(0);
+  const [transferTotalCount, setTransferTotalCount] = useState(0);
 
   // Processing states
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -771,6 +805,74 @@ const AdminAllRequests: React.FC = () => {
     }
   }, [PAGE_SIZE, token, statusFilter, debouncedSearch, typeFilter]);
 
+  // Fetch Transfer Requests
+  const fetchTransferRequests = useCallback(async (requestedPage = 1, append = false) => {
+    if (!token) return;
+    if (typeFilter !== 'all' && typeFilter !== 'transfer') return;
+
+    if (append) {
+      setIsFetchingMoreTransfer(true);
+    } else {
+      setIsLoadingTransfer(true);
+      setTransferHasMore(true);
+    }
+
+    try {
+      const params = new URLSearchParams();
+      params.set('page', String(requestedPage));
+      params.set('limit', String(PAGE_SIZE));
+
+      if (statusFilter !== 'all') {
+        params.set('status', statusFilter);
+      }
+
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+
+      const response = await apiFetch(`/transfer-request/all?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        const incomingRequests: TransferRequestData[] = data.data || [];
+        const pagination = data.pagination;
+
+        setTransferRequests(prev => append ? [...prev, ...incomingRequests] : incomingRequests);
+
+        setTransferTotalCount(prevTotal => {
+          if (pagination && typeof pagination.total === 'number') {
+            return pagination.total;
+          }
+          return append ? prevTotal : incomingRequests.length;
+        });
+
+        const hasMoreResults = pagination && typeof pagination.totalPages === 'number'
+          ? requestedPage < Math.max(pagination.totalPages, 1)
+          : incomingRequests.length === PAGE_SIZE;
+        setTransferHasMore(hasMoreResults);
+        setTransferPage(requestedPage);
+      } else {
+        toast.error(data.message || 'Failed to fetch transfer requests');
+      }
+    } catch (error) {
+      console.error('Error fetching transfer requests:', error);
+      toast.error('An error occurred while fetching transfer requests');
+    } finally {
+      if (append) {
+        setIsFetchingMoreTransfer(false);
+      } else {
+        setIsLoadingTransfer(false);
+      }
+    }
+  }, [PAGE_SIZE, token, statusFilter, debouncedSearch, typeFilter]);
+
   // Keygen countdown timer
   useEffect(() => {
     const hasScheduled = keygenRequests.some(r => r.scheduledAction);
@@ -954,6 +1056,68 @@ const AdminAllRequests: React.FC = () => {
     });
   };
 
+  // Transfer approve/reject handlers
+  const handleTransferApprove = async (requestId: string) => {
+    setProcessingId(requestId);
+    try {
+      const response = await apiFetch(`/transfer-request/${requestId}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success('Transfer request approved!');
+        if (typeFilter === 'all' || typeFilter === 'transfer') {
+          fetchTransferRequests(1, false);
+        }
+      } else {
+        toast.error(data.message || 'Failed to approve request');
+      }
+    } catch (error) {
+      console.error('Error approving transfer:', error);
+      toast.error('An error occurred while approving the request');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleTransferReject = async (requestId: string) => {
+    const notes = prompt('Enter rejection reason (optional):');
+
+    setProcessingId(requestId);
+    try {
+      const response = await apiFetch(`/transfer-request/${requestId}/reject`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ adminNote: notes || '' }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success('Transfer request rejected, funds refunded');
+        if (typeFilter === 'all' || typeFilter === 'transfer') {
+          fetchTransferRequests(1, false);
+        }
+      } else {
+        toast.error(data.message || 'Failed to reject request');
+      }
+    } catch (error) {
+      console.error('Error rejecting transfer:', error);
+      toast.error('An error occurred while rejecting the request');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   // Effect to fetch data when filters change
   useEffect(() => {
     if (!user?.isAdmin && !user?.isSubAdmin) return;
@@ -998,7 +1162,15 @@ const AdminAllRequests: React.FC = () => {
       setKeygenTotalCount(0);
       fetchKeygenRequests(1, false);
     }
-  }, [user?.isAdmin, user?.isSubAdmin, typeFilter, statusFilter, debouncedSearch, fetchRegistrationRequests, fetchTierRequests, fetchTopupRequests, fetchWithdrawRequests, fetchKeygenRequests]);
+
+    if (typeFilter === 'all' || typeFilter === 'transfer') {
+      setTransferRequests([]);
+      setTransferPage(1);
+      setTransferHasMore(true);
+      setTransferTotalCount(0);
+      fetchTransferRequests(1, false);
+    }
+  }, [user?.isAdmin, user?.isSubAdmin, typeFilter, statusFilter, debouncedSearch, fetchRegistrationRequests, fetchTierRequests, fetchTopupRequests, fetchWithdrawRequests, fetchKeygenRequests, fetchTransferRequests]);
 
   // Infinite scroll
   useEffect(() => {
@@ -1031,6 +1203,11 @@ const AdminAllRequests: React.FC = () => {
         if (typeFilter === 'all' || typeFilter === 'keygen') {
           if (!isLoadingKeygen && keygenHasMore && !isFetchingMoreKeygen) {
             fetchKeygenRequests(keygenPage + 1, true);
+          }
+        }
+        if (typeFilter === 'all' || typeFilter === 'transfer') {
+          if (!isLoadingTransfer && transferHasMore && !isFetchingMoreTransfer) {
+            fetchTransferRequests(transferPage + 1, true);
           }
         }
       }
@@ -1067,7 +1244,12 @@ const AdminAllRequests: React.FC = () => {
     fetchTierRequests,
     fetchTopupRequests,
     fetchWithdrawRequests,
-    fetchKeygenRequests
+    fetchKeygenRequests,
+    fetchTransferRequests,
+    isLoadingTransfer,
+    transferHasMore,
+    isFetchingMoreTransfer,
+    transferPage
   ]);
 
   // Get unified requests
@@ -1095,6 +1277,12 @@ const AdminAllRequests: React.FC = () => {
     if (typeFilter === 'all' || typeFilter === 'withdraw') {
       withdrawRequests.forEach(req => {
         requests.push({ type: 'withdraw', data: req });
+      });
+    }
+
+    if (typeFilter === 'all' || typeFilter === 'transfer') {
+      transferRequests.forEach(req => {
+        requests.push({ type: 'transfer', data: req });
       });
     }
 
@@ -1152,14 +1340,16 @@ const AdminAllRequests: React.FC = () => {
     (typeFilter === 'all' || typeFilter === 'tier' ? tierTotalCount : 0) +
     (typeFilter === 'all' || typeFilter === 'topup' ? topupTotalCount : 0) +
     (typeFilter === 'all' || typeFilter === 'withdraw' ? withdrawTotalCount : 0) +
-    (typeFilter === 'all' || typeFilter === 'keygen' ? keygenTotalCount : 0);
+    (typeFilter === 'all' || typeFilter === 'keygen' ? keygenTotalCount : 0) +
+    (typeFilter === 'all' || typeFilter === 'transfer' ? transferTotalCount : 0);
 
   const isLoading =
     (typeFilter === 'all' || typeFilter === 'registration' ? isLoadingRegistration : false) ||
     (typeFilter === 'all' || typeFilter === 'tier' ? isLoadingTier : false) ||
     (typeFilter === 'all' || typeFilter === 'topup' ? isLoadingTopup : false) ||
     (typeFilter === 'all' || typeFilter === 'withdraw' ? isLoadingWithdraw : false) ||
-    (typeFilter === 'all' || typeFilter === 'keygen' ? isLoadingKeygen : false);
+    (typeFilter === 'all' || typeFilter === 'keygen' ? isLoadingKeygen : false) ||
+    (typeFilter === 'all' || typeFilter === 'transfer' ? isLoadingTransfer : false);
 
   const isInitialLoading = isLoading && unifiedRequests.length === 0;
 
@@ -1202,6 +1392,8 @@ const AdminAllRequests: React.FC = () => {
         return 'border-l-orange-500';
       case 'keygen-group':
         return 'border-l-yellow-500';
+      case 'transfer':
+        return 'border-l-cyan-500';
       default:
         return 'border-l-gray-500';
     }
@@ -1219,6 +1411,8 @@ const AdminAllRequests: React.FC = () => {
         return 'bg-orange-500/15 border-orange-500/20 text-orange-500';
       case 'keygen-group':
         return 'bg-yellow-500/15 border-yellow-500/20 text-yellow-500';
+      case 'transfer':
+        return 'bg-cyan-500/15 border-cyan-500/20 text-cyan-500';
       default:
         return 'bg-gray-500/15 border-gray-500/20 text-gray-500';
     }
@@ -1236,6 +1430,8 @@ const AdminAllRequests: React.FC = () => {
         return <Wallet className="w-6 h-6 text-orange-500" />;
       case 'keygen-group':
         return <KeyRound className="w-6 h-6 text-yellow-500" />;
+      case 'transfer':
+        return <ArrowRightLeft className="w-6 h-6 text-cyan-500" />;
       default:
         return <User className="w-6 h-6" />;
     }
@@ -1247,7 +1443,8 @@ const AdminAllRequests: React.FC = () => {
       tier: { text: 'Level', color: 'bg-purple-500/20 text-purple-500 border-purple-500/50' },
       topup: { text: 'Top-Up', color: 'bg-green-500/20 text-green-500 border-green-500/50' },
       withdraw: { text: 'Withdrawal', color: 'bg-orange-500/20 text-orange-500 border-orange-500/50' },
-      'keygen-group': { text: 'Key Generation', color: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50' }
+      'keygen-group': { text: 'Key Generation', color: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50' },
+      transfer: { text: 'Transfer', color: 'bg-cyan-500/20 text-cyan-500 border-cyan-500/50' }
     };
     return badges[type as keyof typeof badges] || badges.registration;
   };
@@ -1802,7 +1999,7 @@ const AdminAllRequests: React.FC = () => {
             {/* Filter & Search Section */}
             <div className="flex items-center gap-4 mt-10 mb-6 justify-between">
               <MagicBadge title="Requests" />
-              <Select value={typeFilter} onValueChange={(value: 'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen') => setTypeFilter(value)}>
+              <Select value={typeFilter} onValueChange={(value: 'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen' | 'transfer') => setTypeFilter(value)}>
                 <SelectTrigger className="w-[220px] bg-background/50 border-border">
                   <SelectValue />
                 </SelectTrigger>
@@ -1813,6 +2010,7 @@ const AdminAllRequests: React.FC = () => {
                   <SelectItem value="topup">Top-Up</SelectItem>
                   <SelectItem value="withdraw">Withdrawal</SelectItem>
                   <SelectItem value="keygen">Key Generation</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2433,6 +2631,63 @@ const AdminAllRequests: React.FC = () => {
                               )}
 
                               {/* Withdraw Card */}
+
+                              {/* Transfer Card */}
+                              {request.type === 'transfer' && (
+                                <>
+                                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-3 border-t border-border">
+                                    <div className="flex items-center gap-2">
+                                      <DollarSign className="w-4 h-4 text-cyan-500" />
+                                      <div>
+                                        <p className="text-xs text-gray-400">Amount</p>
+                                        <p className="font-bold text-cyan-400">${request.data.amount.toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <DollarSign className="w-4 h-4 text-red-500" />
+                                      <div>
+                                        <p className="text-xs text-gray-400">Fee ({request.data.feeMode === 'percent' ? `${request.data.feeValue}%` : `$${request.data.feeValue}`})</p>
+                                        <p className="font-bold text-red-400">${request.data.feeAmount.toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <DollarSign className="w-4 h-4 text-green-500" />
+                                      <div>
+                                        <p className="text-xs text-gray-400">Net Amount</p>
+                                        <p className="font-bold text-green-400">${request.data.netAmount.toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ArrowRightLeft className="w-4 h-4 text-purple-500" />
+                                      <div>
+                                        <p className="text-xs text-gray-400">Direction</p>
+                                        <p className="font-bold text-sm">Onchain → Available</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Calendar className="w-4 h-4 text-gray-500" />
+                                      <div>
+                                        <p className="text-xs text-gray-400">Requested</p>
+                                        <p className="font-bold text-sm">{new Date(request.data.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {request.data.adminNote && (
+                                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
+                                      <p className="text-sm text-red-400"><strong>Admin Note:</strong> {request.data.adminNote}</p>
+                                    </div>
+                                  )}
+
+                                  {request.data.processedAt && (
+                                    <div className="text-xs text-gray-400 mt-2">
+                                      Processed: {new Date(request.data.processedAt).toLocaleString()}
+                                      {request.data.processedBy && ` by ${request.data.processedBy.name}`}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
                               {request.type === 'withdraw' && (
                                 <>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-border">
@@ -2858,6 +3113,48 @@ const AdminAllRequests: React.FC = () => {
                                     );
                                   }
                                 })()}
+
+                                {/* Transfer Actions */}
+                                {request.type === 'transfer' && (
+                                  <>
+                                    <div className="flex items-center gap-2 p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 mb-1">
+                                      <ArrowRightLeft className="w-4 h-4 text-cyan-400" />
+                                      <div className="text-xs">
+                                        <span className="text-cyan-400 font-medium">${request.data.netAmount.toFixed(2)}</span>
+                                        <span className="text-gray-400"> after </span>
+                                        <span className="text-red-400">${request.data.feeAmount.toFixed(2)} fee</span>
+                                      </div>
+                                    </div>
+                                    <Button
+                                      onClick={() => handleTransferApprove(request.data._id)}
+                                      disabled={processingId === request.data._id}
+                                      className="bg-green-600/50 hover:bg-green-700 text-white flex items-center justify-center gap-2 border border-green-600"
+                                    >
+                                      {processingId === request.data._id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <CheckCircle className="w-4 h-4" />
+                                          Approve
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      onClick={() => handleTransferReject(request.data._id)}
+                                      disabled={processingId === request.data._id}
+                                      className="bg-red-600/50 hover:bg-red-700 text-white flex items-center justify-center gap-2 border border-red-600"
+                                    >
+                                      {processingId === request.data._id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <XCircle className="w-4 h-4" />
+                                          Reject
+                                        </>
+                                      )}
+                                    </Button>
+                                  </>
+                                )}
 
                                 {/* Withdraw Actions */}
                                 {request.type === 'withdraw' && (

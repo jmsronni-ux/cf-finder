@@ -101,6 +101,10 @@ export default defineConfig({
       '/password-recovery': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+      },
+      '/transfer-request': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
       }
     },
   },

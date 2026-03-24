@@ -45,6 +45,16 @@ const globalSettingsSchema = new mongoose.Schema({
         }, { _id: false }),
         default: {}
     },
+    // Transfer fee settings (onchain → available)
+    transferFeeMode: {
+        type: String,
+        enum: ['percent', 'fixed'],
+        default: 'fixed'
+    },
+    transferFeeValue: {
+        type: Number,
+        default: 0
+    },
     ethAddress: {
         type: String,
         default: '',
