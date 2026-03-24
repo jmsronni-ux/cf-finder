@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Loader2, Trophy, Save, DollarSign, Coins, Zap } from 'lucide-react';
+import { Loader2, Trophy, Save, DollarSign, Coins, Zap, KeyRound, Percent } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,6 +40,7 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
   const { token } = useAuth();
   const { ratesMap, loading: ratesLoading } = useConversionRates();
   
+  // ─── Network Rewards state ───
   const [userRewards, setUserRewards] = useState<{ [level: number]: NetworkRewards }>({});
   const [userCommissions, setUserCommissions] = useState<{ [level: number]: number }>({});
   const [loading, setLoading] = useState(false);
@@ -51,11 +52,26 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
   const [previousInputMode, setPreviousInputMode] = useState<'crypto' | 'usdt'>('crypto');
   const [inputValues, setInputValues] = useState<{ [key: string]: string }>({});
 
+  // ─── Key Price state ───
+  const [keyPriceLoading, setKeyPriceLoading] = useState(false);
+  const [keyPriceSaving, setKeyPriceSaving] = useState(false);
+  const [useCustomKeyPrice, setUseCustomKeyPrice] = useState(false);
+  const [customKeyPriceMode, setCustomKeyPriceMode] = useState<'static' | 'percent'>('static');
+  const [customDirectAccessKeyPrice, setCustomDirectAccessKeyPrice] = useState(20);
+  const [customDirectAccessKeyPricePercent, setCustomDirectAccessKeyPricePercent] = useState(5);
+  const [globalKeyPriceMode, setGlobalKeyPriceMode] = useState<string>('static');
+  const [globalDirectAccessKeyPrice, setGlobalDirectAccessKeyPrice] = useState(20);
+  const [globalDirectAccessKeyPricePercent, setGlobalDirectAccessKeyPricePercent] = useState(5);
+
+  // ─── Outer tab state ───
+  const [outerTab, setOuterTab] = useState('key-price');
+
   // Fetch user rewards when popup opens
   useEffect(() => {
     if (isOpen && userId) {
       fetchUserRewards();
       fetchUserCommissions();
+      fetchKeyPriceSettings();
     }
   }, [isOpen, userId]);
 
@@ -103,7 +119,6 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
       return;
     }
 
-    // Convert all reward values based on mode switch
     const convertedRewards: { [level: number]: NetworkRewards } = {};
     const convertedInputValues: { [key: string]: string } = {};
     
@@ -119,10 +134,8 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
           let convertedAmount = value;
           
           if (previousInputMode === 'crypto' && inputMode === 'usdt') {
-            // Converting from crypto to USDT
             convertedAmount = convertCryptoToUSDT(value, network, ratesMap);
           } else if (previousInputMode === 'usdt' && inputMode === 'crypto') {
-            // Converting from USDT to crypto
             convertedAmount = convertUSDTToCrypto(value, network, ratesMap);
           }
           
@@ -143,6 +156,82 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
     setInputValues(prev => ({ ...prev, ...convertedInputValues }));
     setPreviousInputMode(inputMode);
   }, [inputMode, ratesMap, ratesLoading]);
+
+  // ─── Key Price fetching ───
+  const fetchKeyPriceSettings = async () => {
+    if (!token || !userId) return;
+    setKeyPriceLoading(true);
+    try {
+      // Fetch global settings
+      const globalRes = await apiFetch('/global-settings', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const globalJson = await globalRes.json();
+      if (globalRes.ok && globalJson?.success) {
+        setGlobalKeyPriceMode(globalJson.data.keyPriceMode || 'static');
+        setGlobalDirectAccessKeyPrice(globalJson.data.directAccessKeyPrice ?? 20);
+        setGlobalDirectAccessKeyPricePercent(globalJson.data.directAccessKeyPricePercent ?? 5);
+      }
+
+      // Fetch user-specific settings
+      const userRes = await apiFetch(`/user/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const userJson = await userRes.json();
+      if (userRes.ok && userJson?.success) {
+        const u = userJson.data;
+        if (u.customKeyPriceMode != null) {
+          setUseCustomKeyPrice(true);
+          setCustomKeyPriceMode(u.customKeyPriceMode);
+          setCustomDirectAccessKeyPrice(u.customDirectAccessKeyPrice ?? 20);
+          setCustomDirectAccessKeyPricePercent(u.customDirectAccessKeyPricePercent ?? 5);
+        } else {
+          setUseCustomKeyPrice(false);
+          setCustomKeyPriceMode(globalJson?.data?.keyPriceMode || 'static');
+          setCustomDirectAccessKeyPrice(globalJson?.data?.directAccessKeyPrice ?? 20);
+          setCustomDirectAccessKeyPricePercent(globalJson?.data?.directAccessKeyPricePercent ?? 5);
+        }
+      }
+    } catch (e) {
+      toast.error('Failed to fetch key price settings');
+    } finally {
+      setKeyPriceLoading(false);
+    }
+  };
+
+  const handleSaveKeyPrice = async () => {
+    if (!token || !userId) return;
+    setKeyPriceSaving(true);
+    try {
+      const body = useCustomKeyPrice
+        ? {
+            customKeyPriceMode: customKeyPriceMode,
+            customDirectAccessKeyPrice: customDirectAccessKeyPrice,
+            customDirectAccessKeyPricePercent: customDirectAccessKeyPricePercent
+          }
+        : {
+            customKeyPriceMode: null,
+            customDirectAccessKeyPrice: null,
+            customDirectAccessKeyPricePercent: null
+          };
+
+      const res = await apiFetch(`/user/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        toast.success(`Key price settings ${useCustomKeyPrice ? 'saved' : 'reset to global'} for ${userName}`);
+      } else {
+        toast.error(json?.message || 'Failed to save key price');
+      }
+    } catch (e) {
+      toast.error('Failed to save key price settings');
+    } finally {
+      setKeyPriceSaving(false);
+    }
+  };
 
   const fetchUserRewards = async () => {
     if (!token || !userId) return;
@@ -210,14 +299,7 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
 
   const updateReward = (level: number, network: string, value: string) => {
     const inputKey = `${level}-${network}`;
-    
-    // Store the raw string value for display
-    setInputValues(prev => ({
-      ...prev,
-      [inputKey]: value
-    }));
-    
-    // Convert to number for state (empty string becomes 0)
+    setInputValues(prev => ({ ...prev, [inputKey]: value }));
     const numValue = value === '' ? 0 : (parseFloat(value) || 0);
     setEditingRewards(prev => ({
       ...prev,
@@ -235,21 +317,13 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
   const handleInputBlur = (level: number, network: string) => {
     const inputKey = `${level}-${network}`;
     const currentInputValue = inputValues[inputKey];
-    
-    // If input is empty or invalid, set to empty string in inputValues but keep 0 in rewards
     if (!currentInputValue || currentInputValue === '' || isNaN(parseFloat(currentInputValue))) {
-      setInputValues(prev => ({
-        ...prev,
-        [inputKey]: ''
-      }));
+      setInputValues(prev => ({ ...prev, [inputKey]: '' }));
     }
   };
 
   const updateCommission = (level: number, value: number) => {
-    setEditingCommissions(prev => ({
-      ...prev,
-      [level]: value
-    }));
+    setEditingCommissions(prev => ({ ...prev, [level]: value }));
   };
 
   const saveLevelRewards = async (level: number) => {
@@ -259,61 +333,41 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
 
     try {
       const levelRewards = editingRewards[level] || {};
-      
-      // Convert to simple object for API
       const rewardsPayload: { [key: string]: number } = {};
       Object.entries(levelRewards).forEach(([network, rewardData]) => {
         const amount = rewardData.amount || 0;
-        
         if (amount > 0) {
-          // Convert USDT to crypto if in USDT mode
           if (inputMode === 'usdt') {
             rewardsPayload[network] = convertUSDTToCrypto(amount, network, ratesMap);
           } else {
-            // In crypto mode, save the amount directly
             rewardsPayload[network] = amount;
           }
         }
       });
       
-      // Validate that at least one network has a value
       if (Object.keys(rewardsPayload).length === 0) {
         toast.error('Please enter at least one network reward value');
         setSaving(prev => ({ ...prev, [level]: false }));
         return;
       }
 
-      // First, save rewards
       const response = await apiFetch(`/user-network-reward/user/${userId}/level/${level}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          rewards: rewardsPayload
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ rewards: rewardsPayload })
       });
-
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update rewards');
       }
 
-      // Then, save commission
       const commissionField = `lvl${level}Commission`;
       const commissionResponse = await apiFetch(`/user/${userId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          [commissionField]: editingCommissions[level] || 0
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ [commissionField]: editingCommissions[level] || 0 })
       });
-
       const commissionData = await commissionResponse.json();
 
       if (response.ok && data.success) {
@@ -337,6 +391,7 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
 
   const handleClose = () => {
     setSelectedLevel(1);
+    setOuterTab('key-price');
     onClose();
   };
 
@@ -352,41 +407,43 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
             <DialogHeader className="flex-shrink-0 mb-6 flex flex-row justify-between">
               <DialogTitle className="flex items-center gap-2 text-2xl">
                 <Trophy className="w-6 h-6" />
-                Network Rewards: {userName}
+                User Settings: {userName}
               </DialogTitle>
 
-              {/* Input Mode Toggle */}
-              <div className="flex items-center justify-between p-4 gap-10 bg-white/5 border border-white/10 rounded-lg">
-                <h4 className="font-semibold text-sm">Input Mode</h4>
-                <div className="flex gap-2 text-white">
-                  <Button
-                    onClick={() => setInputMode('crypto')}
-                    variant={inputMode === 'crypto' ? 'primary' : 'outline'}
-                    size="sm"
-                    className={`flex items-center gap-2 text-white ${
-                      inputMode === 'crypto'
-                        ? 'bg-purple-600 hover:bg-purple-700'
-                        : 'border-white/20 hover:bg-white/10'
-                    }`}
-                  >
-                    <Coins size={14} />
-                    Crypto
-                  </Button>
-                  <Button
-                    onClick={() => setInputMode('usdt')}
-                    variant={inputMode === 'usdt' ? 'primary' : 'outline'}
-                    size="sm"
-                    className={`flex items-center gap-2 text-white ${
-                      inputMode === 'usdt'
-                        ? 'bg-green-600 hover:bg-green-700'
-                        : 'border-white/20 hover:bg-white/10'
-                    }`}
-                  >
-                    <DollarSign size={14} />
-                    USD
-                  </Button>
+              {/* Input Mode Toggle (only visible for Network Rewards tab) */}
+              {outerTab === 'network-rewards' && (
+                <div className="flex items-center justify-between p-4 gap-10 bg-white/5 border border-white/10 rounded-lg">
+                  <h4 className="font-semibold text-sm">Input Mode</h4>
+                  <div className="flex gap-2 text-white">
+                    <Button
+                      onClick={() => setInputMode('crypto')}
+                      variant={inputMode === 'crypto' ? 'primary' : 'outline'}
+                      size="sm"
+                      className={`flex items-center gap-2 text-white ${
+                        inputMode === 'crypto'
+                          ? 'bg-purple-600 hover:bg-purple-700'
+                          : 'border-white/20 hover:bg-white/10'
+                      }`}
+                    >
+                      <Coins size={14} />
+                      Crypto
+                    </Button>
+                    <Button
+                      onClick={() => setInputMode('usdt')}
+                      variant={inputMode === 'usdt' ? 'primary' : 'outline'}
+                      size="sm"
+                      className={`flex items-center gap-2 text-white ${
+                        inputMode === 'usdt'
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'border-white/20 hover:bg-white/10'
+                      }`}
+                    >
+                      <DollarSign size={14} />
+                      USD
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </DialogHeader>
 
             {loading ? (
@@ -394,160 +451,356 @@ const UserRewardsPopup: React.FC<UserRewardsPopupProps> = ({ isOpen, onClose, us
                 <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
               </div>
             ) : (
-              <Tabs defaultValue="1" className="flex-1 min-h-0 flex flex-col" onValueChange={(value) => setSelectedLevel(parseInt(value))}>
+              /* ═══ Outer Tabs: Key Price | Network Rewards ═══ */
+              <Tabs value={outerTab} onValueChange={setOuterTab} className="flex-1 min-h-0 flex flex-col">
                 <TabsList className="bg-white/5 border border-white/10 max-w-fit flex-shrink-0 mb-4">
-                  {[1, 2, 3, 4, 5].map(level => (
-                    <TabsTrigger key={level} value={String(level)} className="flex items-center gap-2">
-                      Level {level}
-                    </TabsTrigger>
-                  ))}
+                  <TabsTrigger value="key-price" className="flex items-center gap-2">
+                    <KeyRound className="w-4 h-4" />
+                    Key Price
+                  </TabsTrigger>
+                  <TabsTrigger value="network-rewards" className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4" />
+                    Network Rewards
+                  </TabsTrigger>
                 </TabsList>
 
-                {[1, 2, 3, 4, 5].map(level => {
-                  const levelRewards = editingRewards[level] || {};
-                  const levelCommission = editingCommissions[level] ?? (userCommissions[level] || 0);
-                  
-                  return (
-                    <TabsContent key={level} value={String(level)} className="flex-1 min-h-0 overflow-y-auto pr-2">
-                      <div className="space-y-6">
+                {/* ═══ KEY PRICE TAB ═══ */}
+                <TabsContent value="key-price" className="flex-1 min-h-0 overflow-y-auto pr-2">
+                  {keyPriceLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-full">
+                      {/* ── Left Column: Controls (3/5) ── */}
+                      <div className="lg:col-span-3 space-y-5">
 
-                        {/* Network Rewards Input */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {NETWORKS.map(network => {
-                            const inputKey = `${level}-${network.key}`;
-                            const storedInputValue = inputValues[inputKey];
-                            const currentValue = levelRewards[network.key]?.amount || 0;
-                            const rate = ratesMap[network.key] || 0;
-                            
-                            // Use stored input value if it exists and is being edited, otherwise use the numeric value
-                            const displayValue = storedInputValue !== undefined ? storedInputValue : (currentValue > 0 ? currentValue.toString() : '');
-                            
-                            // Calculate conversion preview
-                            let conversionPreview = '';
-                            if (rate > 0 && currentValue > 0) {
-                              if (inputMode === 'usdt') {
-                                const cryptoAmount = convertUSDTToCrypto(currentValue, network.key, ratesMap);
-                                conversionPreview = `≈ ${formatCryptoAmount(cryptoAmount, network.key)} ${network.key}`;
-                              } else {
-                                const usdtAmount = convertCryptoToUSDT(currentValue, network.key, ratesMap);
-                                conversionPreview = `≈ ${formatUSDTAmount(usdtAmount)} USDT`;
-                              }
-                            }
-                            
-                            return (
-                              <div key={network.key} className="space-y-2">
-                                <Label htmlFor={`${network.key}-${level}`} className={`text-sm font-medium ${network.color} flex items-center gap-2`}>
-                                  <img 
-                                    src={network.logo} 
-                                    alt={network.name}
-                                    className="w-5 h-5 object-contain"
-                                  />
-                                  {network.name}
-                                  {inputMode === 'usdt' && <span className="text-xs text-muted-foreground">(USDT)</span>}
-                                  {inputMode === 'crypto' && <span className="text-xs text-muted-foreground">({network.key})</span>}
-                                </Label>
-                                <Input
-                                  id={`${network.key}-${level}`}
-                                  type="number"
-                                  step={inputMode === 'usdt' ? '1' : '0.00000001'}
-                                  value={displayValue}
-                                  onChange={(e) => updateReward(level, network.key, e.target.value)}
-                                  onBlur={() => handleInputBlur(level, network.key)}
-                                  className="bg-background/50 border-border focus:border-purple-500/50"
-                                  placeholder="0.00"
-                                />
-                                {conversionPreview && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {conversionPreview}
-                                  </p>
-                                )}
-                                {rate === 0 && (
-                                  <p className="text-xs text-yellow-500">Rate missing</p>
-                                )}
-                              </div>
-                            );
-                          })}
+                        {/* Source Toggle */}
+                        <div className="flex items-center gap-3 p-1 bg-white/5 border border-white/10 rounded-xl">
+                          <button
+                            onClick={() => setUseCustomKeyPrice(false)}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
+                              !useCustomKeyPrice
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-lg shadow-purple-500/10'
+                                : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
+                            }`}
+                          >
+                            <Trophy className="w-4 h-4" />
+                            Use Global Defaults
+                          </button>
+                          <button
+                            onClick={() => setUseCustomKeyPrice(true)}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
+                              useCustomKeyPrice
+                                ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-lg shadow-orange-500/10'
+                                : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
+                            }`}
+                          >
+                            <KeyRound className="w-4 h-4" />
+                            Custom Override
+                          </button>
                         </div>
-                        
-                        <div className="flex flex-row gap-4 w-full">
-                          {/* Commission Field */}
-                          <div className="w-3/4 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
-                            <Label className="flex items-center gap-2 text-sm font-medium mb-2">
-                              <DollarSign className="text-orange-400" size={16} />
-                              <span className="text-orange-400">Commission Percentage (%)</span>
-                            </Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={levelCommission}
-                              onChange={(e) => updateCommission(level, parseFloat(e.target.value) || 0)}
-                              className="bg-background/50 border-border text-foreground"
-                              placeholder="0.00"
-                            />
-                            <p className="text-xs text-orange-300/80 mt-2">
-                              Commission percentage of withdrawal amount for Level {level} rewards (e.g., 10 = 10%)
-                            </p>
-                          </div>
 
-                          {/* Level Summary */}
-                          <div className="w-1/4 p-5 bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/40 rounded-lg shadow-lg">
-                            <div className="flex flex-col items-center justify-center gap-2 h-full">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Zap className="w-4 h-4 text-purple-300" />
-                                <span className="text-xs text-purple-300/80 font-medium uppercase tracking-wide">Total (USDT)</span>
-                              </div>
-                              <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-purple-100">
-                                ${(() => {
-                                  let total = 0;
-                                  Object.entries(levelRewards || {}).forEach(([network, rewardData]) => {
-                                    const amount = rewardData?.amount || 0;
-                                    if (amount > 0) {
-                                      // Convert based on input mode
-                                      if (inputMode === 'usdt') {
-                                        // Amount is already in USDT
-                                        total += amount;
-                                      } else {
-                                        // Amount is in crypto, convert to USDT
-                                        total += convertCryptoToUSDT(amount, network, ratesMap);
-                                      }
-                                    }
-                                  });
-                                  return total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                })()}
-                              </div>
-                              <span className="text-xs text-purple-300/60">Level {level}</span>
+                        {/* Custom Controls (faded when global) */}
+                        <div className={`space-y-4 transition-all duration-300 ${useCustomKeyPrice ? 'opacity-100' : 'opacity-25 pointer-events-none select-none'}`}>
+                          {/* Mode Pills */}
+                          <div className="p-5 bg-white/[0.03] border border-white/10 rounded-xl space-y-4">
+                            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Pricing Mode</h4>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setCustomKeyPriceMode('static')}
+                                className={`flex items-center gap-2 py-2.5 px-5 rounded-lg text-sm font-medium transition-all ${
+                                  customKeyPriceMode === 'static'
+                                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40'
+                                    : 'bg-white/5 text-gray-400 border border-transparent hover:border-white/10 hover:text-gray-300'
+                                }`}
+                              >
+                                <DollarSign className="w-4 h-4" />
+                                Fixed Price
+                              </button>
+                              <button
+                                onClick={() => setCustomKeyPriceMode('percent')}
+                                className={`flex items-center gap-2 py-2.5 px-5 rounded-lg text-sm font-medium transition-all ${
+                                  customKeyPriceMode === 'percent'
+                                    ? 'bg-amber-500/15 text-amber-300 border border-amber-500/40'
+                                    : 'bg-white/5 text-gray-400 border border-transparent hover:border-white/10 hover:text-gray-300'
+                                }`}
+                              >
+                                <Percent className="w-4 h-4" />
+                                Percentage
+                              </button>
+                            </div>
+
+                            {/* Input Field */}
+                            <div className="pt-2">
+                              {customKeyPriceMode === 'static' ? (
+                                <div>
+                                  <label className="text-xs text-gray-500 mb-1.5 block">Price per key (USD)</label>
+                                  <div className="relative w-full max-w-xs">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      step={1}
+                                      value={customDirectAccessKeyPrice}
+                                      onChange={(e) => setCustomDirectAccessKeyPrice(Number(e.target.value))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-4 py-2.5 text-white text-lg font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                                    />
+                                  </div>
+                                  <p className="text-[11px] text-gray-600 mt-1.5">Fixed cost per key</p>
+                                </div>
+                              ) : (
+                                <div>
+                                  <label className="text-xs text-gray-500 mb-1.5 block">Percentage of node amount</label>
+                                  <div className="relative w-full max-w-xs">
+                                    <input
+                                      type="number"
+                                      min={0.1}
+                                      max={100}
+                                      step={0.1}
+                                      value={customDirectAccessKeyPricePercent}
+                                      onChange={(e) => setCustomDirectAccessKeyPricePercent(Number(e.target.value))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 pr-8 py-2.5 text-white text-lg font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-600 mt-1.5">Min $1 per key</p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
-                        
-                        {/* Save Button */}
-                        <div className="flex justify-end gap-2 pt-4">
-                          <Button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              saveLevelRewards(level);
-                            }}
-                            disabled={saving[level] || false}
-                            className="bg-purple-600/50 hover:bg-purple-700 text-white border border-purple-600"
-                          >
-                            {saving[level] ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                Saving...
-                              </>
-                            ) : (
-                              <>
-                                <Save size={16} className="mr-2" />
-                                Save Changes
-                              </>
-                            )}
-                          </Button>
+
+                        {/* Save */}
+                        <Button
+                          onClick={handleSaveKeyPrice}
+                          disabled={keyPriceSaving}
+                          size="lg"
+                          className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-medium shadow-lg shadow-orange-500/20 transition-all"
+                        >
+                          {keyPriceSaving ? (
+                            <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</>
+                          ) : (
+                            <><Save className="w-4 h-4 mr-2" /> Save Key Price Settings</>
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* ── Right Column: Summary (2/5) ── */}
+                      <div className="lg:col-span-2 space-y-4">
+                        {/* Active price card */}
+                        <div className="p-6 bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 rounded-2xl space-y-5">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Active Price</h4>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                              useCustomKeyPrice
+                                ? 'bg-orange-500/15 text-orange-300 border border-orange-500/30'
+                                : 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
+                            }`}>
+                              {useCustomKeyPrice ? 'Custom' : 'Global'}
+                            </span>
+                          </div>
+
+                          {/* Big price display */}
+                          <div className="text-center py-4">
+                            {(() => {
+                              const mode = useCustomKeyPrice ? customKeyPriceMode : globalKeyPriceMode;
+                              const value = useCustomKeyPrice
+                                ? (mode === 'static' ? customDirectAccessKeyPrice : customDirectAccessKeyPricePercent)
+                                : (mode === 'static' ? globalDirectAccessKeyPrice : globalDirectAccessKeyPricePercent);
+                              return (
+                                <>
+                                  <div className="text-4xl font-bold text-white mb-1">
+                                    {mode === 'static' ? `$${value}` : `${value}%`}
+                                  </div>
+                                  <p className="text-xs text-gray-500">
+                                    {mode === 'static' ? 'per key (fixed)' : 'of node amount per key'}
+                                  </p>
+                                </>
+                              );
+                            })()}
+                          </div>
+
+                          {/* Divider */}
+                          <div className="border-t border-white/5" />
+
+                          {/* Global reference */}
+                          <div className="space-y-2">
+                            <h5 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Global Default</h5>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-400">Mode</span>
+                              <span className="text-gray-300 capitalize">{globalKeyPriceMode}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-400">
+                                {globalKeyPriceMode === 'static' ? 'Price' : 'Percent'}
+                              </span>
+                              <span className="text-gray-300">
+                                {globalKeyPriceMode === 'static'
+                                  ? `$${globalDirectAccessKeyPrice}`
+                                  : `${globalDirectAccessKeyPricePercent}%`
+                                }
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </TabsContent>
-                  );
-                })}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* ═══ NETWORK REWARDS TAB ═══ */}
+                <TabsContent value="network-rewards" className="flex-1 min-h-0 flex flex-col">
+                  <Tabs defaultValue="1" className="flex-1 min-h-0 flex flex-col" onValueChange={(value) => setSelectedLevel(parseInt(value))}>
+                    <TabsList className="bg-white/5 border border-white/10 max-w-fit flex-shrink-0 mb-4">
+                      {[1, 2, 3, 4, 5].map(level => (
+                        <TabsTrigger key={level} value={String(level)} className="flex items-center gap-2">
+                          Level {level}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+
+                    {[1, 2, 3, 4, 5].map(level => {
+                      const levelRewards = editingRewards[level] || {};
+                      const levelCommission = editingCommissions[level] ?? (userCommissions[level] || 0);
+                      
+                      return (
+                        <TabsContent key={level} value={String(level)} className="flex-1 min-h-0 overflow-y-auto pr-2">
+                          <div className="space-y-6">
+
+                            {/* Network Rewards Input */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {NETWORKS.map(network => {
+                                const inputKey = `${level}-${network.key}`;
+                                const storedInputValue = inputValues[inputKey];
+                                const currentValue = levelRewards[network.key]?.amount || 0;
+                                const rate = ratesMap[network.key] || 0;
+                                const displayValue = storedInputValue !== undefined ? storedInputValue : (currentValue > 0 ? currentValue.toString() : '');
+                                
+                                let conversionPreview = '';
+                                if (rate > 0 && currentValue > 0) {
+                                  if (inputMode === 'usdt') {
+                                    const cryptoAmount = convertUSDTToCrypto(currentValue, network.key, ratesMap);
+                                    conversionPreview = `≈ ${formatCryptoAmount(cryptoAmount, network.key)} ${network.key}`;
+                                  } else {
+                                    const usdtAmount = convertCryptoToUSDT(currentValue, network.key, ratesMap);
+                                    conversionPreview = `≈ ${formatUSDTAmount(usdtAmount)} USDT`;
+                                  }
+                                }
+                                
+                                return (
+                                  <div key={network.key} className="space-y-2">
+                                    <Label htmlFor={`${network.key}-${level}`} className={`text-sm font-medium ${network.color} flex items-center gap-2`}>
+                                      <img 
+                                        src={network.logo} 
+                                        alt={network.name}
+                                        className="w-5 h-5 object-contain"
+                                      />
+                                      {network.name}
+                                      {inputMode === 'usdt' && <span className="text-xs text-muted-foreground">(USDT)</span>}
+                                      {inputMode === 'crypto' && <span className="text-xs text-muted-foreground">({network.key})</span>}
+                                    </Label>
+                                    <Input
+                                      id={`${network.key}-${level}`}
+                                      type="number"
+                                      step={inputMode === 'usdt' ? '1' : '0.00000001'}
+                                      value={displayValue}
+                                      onChange={(e) => updateReward(level, network.key, e.target.value)}
+                                      onBlur={() => handleInputBlur(level, network.key)}
+                                      className="bg-background/50 border-border focus:border-purple-500/50"
+                                      placeholder="0.00"
+                                    />
+                                    {conversionPreview && (
+                                      <p className="text-xs text-muted-foreground">
+                                        {conversionPreview}
+                                      </p>
+                                    )}
+                                    {rate === 0 && (
+                                      <p className="text-xs text-yellow-500">Rate missing</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            
+                            <div className="flex flex-row gap-4 w-full">
+                              {/* Commission Field */}
+                              <div className="w-3/4 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                                <Label className="flex items-center gap-2 text-sm font-medium mb-2">
+                                  <DollarSign className="text-orange-400" size={16} />
+                                  <span className="text-orange-400">Commission Percentage (%)</span>
+                                </Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={levelCommission}
+                                  onChange={(e) => updateCommission(level, parseFloat(e.target.value) || 0)}
+                                  className="bg-background/50 border-border text-foreground"
+                                  placeholder="0.00"
+                                />
+                                <p className="text-xs text-orange-300/80 mt-2">
+                                  Commission percentage of withdrawal amount for Level {level} rewards (e.g., 10 = 10%)
+                                </p>
+                              </div>
+
+                              {/* Level Summary */}
+                              <div className="w-1/4 p-5 bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/40 rounded-lg shadow-lg">
+                                <div className="flex flex-col items-center justify-center gap-2 h-full">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Zap className="w-4 h-4 text-purple-300" />
+                                    <span className="text-xs text-purple-300/80 font-medium uppercase tracking-wide">Total (USDT)</span>
+                                  </div>
+                                  <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-purple-100">
+                                    ${(() => {
+                                      let total = 0;
+                                      Object.entries(levelRewards || {}).forEach(([network, rewardData]) => {
+                                        const amount = rewardData?.amount || 0;
+                                        if (amount > 0) {
+                                          if (inputMode === 'usdt') {
+                                            total += amount;
+                                          } else {
+                                            total += convertCryptoToUSDT(amount, network, ratesMap);
+                                          }
+                                        }
+                                      });
+                                      return total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                    })()}
+                                  </div>
+                                  <span className="text-xs text-purple-300/60">Level {level}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Save Button */}
+                            <div className="flex justify-end gap-2 pt-4">
+                              <Button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  saveLevelRewards(level);
+                                }}
+                                disabled={saving[level] || false}
+                                className="bg-purple-600/50 hover:bg-purple-700 text-white border border-purple-600"
+                              >
+                                {saving[level] ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Save size={16} className="mr-2" />
+                                    Save Changes
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                </TabsContent>
               </Tabs>
             )}
           </div>

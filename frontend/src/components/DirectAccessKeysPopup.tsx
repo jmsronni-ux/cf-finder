@@ -56,9 +56,27 @@ export const DirectAccessKeysPopup: React.FC<DirectAccessKeysPopupProps> = ({
       });
       const json = await res.json();
       if (res.ok && json?.success) {
-        setPricePerKey(json.data.directAccessKeyPrice || 20);
-        setKeyPriceMode(json.data.keyPriceMode || 'static');
-        setKeyPricePercent(json.data.directAccessKeyPricePercent ?? 5);
+        // Fetch the user's own document for per-user key price overrides
+        let userCustom: any = null;
+        if (user?._id) {
+          try {
+            const userRes = await apiFetch(`/user/${(user as any)._id}`, { headers: { Authorization: `Bearer ${token}` } });
+            const userJson = await userRes.json();
+            if (userRes.ok && userJson?.success) {
+              userCustom = userJson.data;
+            }
+          } catch (e) { /* fallback to global */ }
+        }
+
+        if (userCustom?.customKeyPriceMode != null) {
+          setKeyPriceMode(userCustom.customKeyPriceMode);
+          setPricePerKey(userCustom.customDirectAccessKeyPrice ?? json.data.directAccessKeyPrice ?? 20);
+          setKeyPricePercent(userCustom.customDirectAccessKeyPricePercent ?? json.data.directAccessKeyPricePercent ?? 5);
+        } else {
+          setPricePerKey(json.data.directAccessKeyPrice || 20);
+          setKeyPriceMode(json.data.keyPriceMode || 'static');
+          setKeyPricePercent(json.data.directAccessKeyPricePercent ?? 5);
+        }
       }
     } catch (e) {
       console.error('Failed to fetch key price');

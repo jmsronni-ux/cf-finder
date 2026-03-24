@@ -245,6 +245,20 @@ const userSchema = new mongoose.Schema({
         type: Map,
         of: String,
         default: {}
+    },
+    // Per-user key price overrides (null = use global settings)
+    customKeyPriceMode: {
+        type: String,
+        enum: ['static', 'percent', null],
+        default: null
+    },
+    customDirectAccessKeyPrice: {
+        type: Number,
+        default: null
+    },
+    customDirectAccessKeyPricePercent: {
+        type: Number,
+        default: null
     }
 });
 

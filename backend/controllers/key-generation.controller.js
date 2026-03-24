@@ -184,11 +184,11 @@ export const createGroupKeyGenerationRequest = async (req, res, next) => {
 
         if (!user.nodeProgress) user.nodeProgress = new Map();
 
-        // Get current block price
+        // Get current block price — prefer per-user overrides
         let settings = await GlobalSettings.findById('global_settings');
-        const keyPriceMode = settings?.keyPriceMode || 'static';
-        const staticPrice = settings?.directAccessKeyPrice || 20;
-        const percentValue = settings?.directAccessKeyPricePercent || 5;
+        const keyPriceMode = user.customKeyPriceMode != null ? user.customKeyPriceMode : (settings?.keyPriceMode || 'static');
+        const staticPrice = user.customKeyPriceMode != null ? (user.customDirectAccessKeyPrice ?? 20) : (settings?.directAccessKeyPrice || 20);
+        const percentValue = user.customKeyPriceMode != null ? (user.customDirectAccessKeyPricePercent ?? 5) : (settings?.directAccessKeyPricePercent || 5);
 
         const requestsToCreate = [];
         for (let i = 0; i < childNodeIds.length; i++) {
@@ -316,22 +316,21 @@ export const createKeyGenerationRequest = async (req, res, next) => {
             throw new ApiError(400, "Level, valid keysCount, and nodeId are required");
         }
 
-        // Get current block price
+        // Get current block price — prefer per-user overrides
         let settings = await GlobalSettings.findById('global_settings');
-        const keyPriceMode = settings?.keyPriceMode || 'static';
-        const staticPrice = settings?.directAccessKeyPrice || 20;
-        const percentValue = settings?.directAccessKeyPricePercent || 5;
+        const user = await User.findById(userId).session(session);
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+        const keyPriceMode = user.customKeyPriceMode != null ? user.customKeyPriceMode : (settings?.keyPriceMode || 'static');
+        const staticPrice = user.customKeyPriceMode != null ? (user.customDirectAccessKeyPrice ?? 20) : (settings?.directAccessKeyPrice || 20);
+        const percentValue = user.customKeyPriceMode != null ? (user.customDirectAccessKeyPricePercent ?? 5) : (settings?.directAccessKeyPricePercent || 5);
 
         // Calculate price based on mode
         const price = keyPriceMode === 'percent'
             ? Math.max(1, ((nodeAmount || 0) * percentValue) / 100)
             : staticPrice;
         const totalCost = price * keysCount;
-
-        const user = await User.findById(userId).session(session);
-        if (!user) {
-            throw new ApiError(404, "User not found");
-        }
 
         // Check if node is already success
         if (user.nodeProgress && user.nodeProgress.get(nodeId) === 'success') {
