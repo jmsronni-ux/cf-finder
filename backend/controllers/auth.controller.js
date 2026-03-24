@@ -84,6 +84,8 @@ export const signIn = async (req, res, next) => {
         // Remove password from response
         const userResponse = user.toObject();
         delete userResponse.password;
+        // Mongoose Map must be converted to a plain object for the frontend
+        userResponse.nodeProgress = user.nodeProgress ? Object.fromEntries(user.nodeProgress) : {};
 
         res.status(200).json({ success: true, message: "User signed in successfully", data: { token, user: userResponse } });
     } catch (error) {
@@ -123,6 +125,8 @@ export const impersonateUser = async (req, res, next) => {
 
         const userResponse = targetUser.toObject();
         delete userResponse.password;
+        // Mongoose Map must be converted to a plain object for the frontend
+        userResponse.nodeProgress = targetUser.nodeProgress ? Object.fromEntries(targetUser.nodeProgress) : {};
 
         res.status(200).json({
             success: true,
