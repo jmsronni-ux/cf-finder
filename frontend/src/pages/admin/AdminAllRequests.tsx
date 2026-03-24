@@ -2169,9 +2169,9 @@ const AdminAllRequests: React.FC = () => {
                                     <div className="flex items-center gap-2">
                                       <h3 className="text-lg font-bold">
                                         {request.type === 'registration' ? request.data.name :
-                                          request.type === 'tier' ? request.data.userId.name :
+                                          request.type === 'tier' ? request.data.userId?.name || 'Unknown User' :
                                             request.type === 'topup' ? request.data.userId?.name || 'Unknown User' :
-                                              request.data.userId.name}
+                                              request.data.userId?.name || 'Unknown User'}
                                       </h3>
                                       <Badge className={`${getStatusColor(request.data.status)} flex items-center gap-1`}>
                                         {getStatusIcon(request.data.status)}
@@ -2219,9 +2219,9 @@ const AdminAllRequests: React.FC = () => {
                                   <div className="flex items-center gap-2 text-sm text-gray-400">
                                     <Mail size={14} />
                                     {request.type === 'registration' ? request.data.email :
-                                      request.type === 'tier' ? request.data.userId.email :
+                                      request.type === 'tier' ? request.data.userId?.email || 'N/A' :
                                         request.type === 'topup' ? request.data.userId?.email || 'N/A' :
-                                          request.data.userId.email}
+                                          request.data.userId?.email || 'N/A'}
                                   </div>
                                 </div>
                               </div>
@@ -2286,7 +2286,7 @@ const AdminAllRequests: React.FC = () => {
                                         <DollarSign className="w-4 h-4 text-green-500" />
                                         <div>
                                           <p className="text-xs text-gray-400">User Balance</p>
-                                          <p className="font-bold text-green-400">${request.data.userId.balance.toFixed(2)}</p>
+                                          <p className="font-bold text-green-400">${request.data.userId?.balance?.toFixed(2) ?? 'N/A'}</p>
                                         </div>
                                       </div>
                                     )}
@@ -2304,7 +2304,7 @@ const AdminAllRequests: React.FC = () => {
                                       <div className="flex items-center gap-2">
                                         <DollarSign className="w-4 h-4 text-green-500" />
                                         <span className="text-sm text-gray-400">User Balance:</span>
-                                        <span className="font-bold text-green-400">${request.data.userId.balance.toFixed(2)}</span>
+                                        <span className="font-bold text-green-400">${request.data.userId?.balance?.toFixed(2) ?? 'N/A'}</span>
                                       </div>
                                     </div>
                                   )}
@@ -2447,14 +2447,14 @@ const AdminAllRequests: React.FC = () => {
                                       <Wallet className="w-4 h-4 text-blue-500" />
                                       <div>
                                         <p className="text-xs text-gray-400">Current Balance</p>
-                                        <p className="font-bold">${request.data.userId.balance.toFixed(2)}</p>
+                                        <p className="font-bold">${request.data.userId?.balance?.toFixed(2) ?? 'N/A'}</p>
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Trophy className="w-4 h-4 text-purple-500" />
                                       <div>
                                         <p className="text-xs text-gray-400">Tier Level</p>
-                                        <p className="font-bold">Tier {request.data.userId.tier}</p>
+                                        <p className="font-bold">Tier {request.data.userId?.tier ?? 'N/A'}</p>
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2">
