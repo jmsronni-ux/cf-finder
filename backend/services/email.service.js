@@ -119,7 +119,9 @@ export const testEmailConnection = async () => {
 // Send registration approved email using Mailtrap API
 export const sendRegistrationApprovedEmail = async (email, name, password, frontendUrl) => {
     try {
-        const loginUrl = frontendUrl ? `${frontendUrl}/login` : 'http://localhost:5173/login';
+        // FRONTEND_URL may be comma-separated (for CORS); use only the first URL for email links
+        const baseUrl = frontendUrl ? frontendUrl.split(',')[0].trim() : 'http://localhost:5173';
+        const loginUrl = `${baseUrl}/login`;
 
         // Load and process template
         const html = loadEmailTemplate('registration-approved', {
@@ -144,7 +146,9 @@ export const sendRegistrationApprovedEmail = async (email, name, password, front
 // Send password reset email using Mailtrap API
 export const sendPasswordResetEmailMailtrap = async (email, name, resetToken, frontendUrl) => {
     try {
-        const resetLink = `${frontendUrl || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+        // FRONTEND_URL may be comma-separated (for CORS); use only the first URL for email links
+        const baseUrl = (frontendUrl || 'http://localhost:5173').split(',')[0].trim();
+        const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
 
         // Load and process template
         const html = loadEmailTemplate('password-reset', {
