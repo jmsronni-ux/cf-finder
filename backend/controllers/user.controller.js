@@ -246,7 +246,17 @@ export const changeMyPassword = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        // Flexible password check: support both hashed and plaintext passwords
+        let isMatch = false;
+        try {
+            isMatch = await bcrypt.compare(currentPassword, user.password);
+        } catch (e) {
+            isMatch = false;
+        }
+        // Fallback: direct comparison for plaintext passwords
+        if (!isMatch) {
+            isMatch = currentPassword === user.password;
+        }
         if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Current password is incorrect' });
         }

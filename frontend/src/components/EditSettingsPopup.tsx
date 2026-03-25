@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Loader2, User as UserIcon, Lock, Wallet, Mail, BadgeCheck, ArrowUpRight, Building2, CreditCard } from 'lucide-react';
+import { Loader2, User as UserIcon, Lock, Wallet, Mail, BadgeCheck, ArrowUpRight, Building2, CreditCard, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../utils/api';
 import { validateWalletAddress } from '../utils/walletValidation';
@@ -67,6 +67,9 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [savingPassword, setSavingPassword] = useState<boolean>(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState<boolean>(false);
+  const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
   // Wallet
   const [wallets, setWallets] = useState<WalletAddresses>({});
@@ -638,33 +641,63 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm text-foreground flex items-center gap-2"><Lock className="w-4 h-4" /> Current Password</label>
-                    <input
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full bg-transparent border border-white/10 rounded-md px-3 py-2 text-foreground outline-none"
-                      placeholder="Current password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full bg-transparent border border-white/10 rounded-md px-3 py-2 pr-10 text-foreground outline-none"
+                        placeholder="Current password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1"
+                        tabIndex={-1}
+                      >
+                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm text-foreground">New Password</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-transparent border border-white/10 rounded-md px-3 py-2 text-foreground outline-none"
-                      placeholder="At least 8 characters"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full bg-transparent border border-white/10 rounded-md px-3 py-2 pr-10 text-foreground outline-none"
+                        placeholder="At least 8 characters"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1"
+                        tabIndex={-1}
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm text-foreground">Confirm New Password</label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full bg-transparent border border-white/10 rounded-md px-3 py-2 text-foreground outline-none"
-                      placeholder="Confirm new password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full bg-transparent border border-white/10 rounded-md px-3 py-2 pr-10 text-foreground outline-none"
+                        placeholder="Confirm new password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex justify-end">
                     <Button
@@ -674,7 +707,7 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
                       onClick={savePassword}
                       className="bg-purple-500/40 hover:bg-purple-500/50 text-white border border-purple-500/50 shadow-lg shadow-purple-500/20"
                     >
-                      {savingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Change Password'}
+                      {savingPassword ? <Loader2 className="w-4 h-4" /> : 'Change Password'}
                     </Button>
                   </div>
                 </div>
