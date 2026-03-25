@@ -63,11 +63,16 @@ export const useNodeAnimation = (
       );
       initialVisibleNodes = cryptoNodes.map((node: any) => node.id);
       
-      // Then animate level 1 fingerprint nodes + child crypto nodes
-      nodesToAnimate = nodes.filter((node: any) => 
+      // Select all candidates
+      const candidates = nodes.filter((node: any) => 
         ((node.type === 'fingerprintNode' || node.type === 'fingerprintGroupNode' || childCryptoIds.has(node.id))
           && (node.data?.level ?? 1) === 1)
       );
+      // Ensure group nodes animate first, then everything else
+      const groups = candidates.filter((n: any) => n.type === 'fingerprintGroupNode');
+      const others = candidates.filter((n: any) => n.type !== 'fingerprintGroupNode');
+      nodesToAnimate = [...groups, ...others];
+
     } else {
       // Level 2+: All previous level nodes should already be visible
       const previousLevelNodes = nodes.filter((node: any) => {
@@ -76,15 +81,19 @@ export const useNodeAnimation = (
       });
       initialVisibleNodes = previousLevelNodes.map((node: any) => node.id);
       
-      // Animate new fingerprint/group/child-crypto nodes from current level
-      nodesToAnimate = nodes.filter((node: any) => 
+      // Select all candidates from current level
+      const candidates = nodes.filter((node: any) => 
         ((node.type === 'fingerprintNode' || node.type === 'fingerprintGroupNode' || childCryptoIds.has(node.id))
           && (node.data?.level ?? 1) === currentLevel)
       );
+      // Ensure group nodes animate first, then everything else
+      const groups = candidates.filter((n: any) => n.type === 'fingerprintGroupNode');
+      const others = candidates.filter((n: any) => n.type !== 'fingerprintGroupNode');
+      nodesToAnimate = [...groups, ...others];
     }
 
     console.log(`[useNodeAnimation] Initial visible nodes:`, initialVisibleNodes);
-    console.log(`[useNodeAnimation] Nodes to animate:`, nodesToAnimate.map(n => n.id));
+    console.log(`[useNodeAnimation] Nodes to animate exact order:`, nodesToAnimate.map(n => n.id));
 
     // Phase 1: Set initial visible nodes
     setAnimationState(prev => ({
@@ -92,14 +101,31 @@ export const useNodeAnimation = (
       visibleNodes: new Set(initialVisibleNodes),
     }));
 
+    if (nodesToAnimate.length === 0) {
+      // Nothing to animate, complete instantly
+      setAnimationState(prev => ({
+        ...prev,
+        isAnimating: false,
+        allNodesAppeared: true,
+        // Let the useEffect handle the actual isCompleted so pending status checks run
+      }));
+      return;
+    }
+
     // Phase 2: Show nodes to animate one by one
     const baseDelay = isFirstLevel ? 1000 : 500; // Shorter delay for level 2+ since crypto nodes already visible
-    const staggerDelay = 750; // Delay between each fingerprint node
-
+    const staggerDelay = 750; // Delay between each node
+    
+    // We create a sequential chain of timeouts instead of calculating index*staggerDelay
+    // in case browser scheduling bunches up parallel setTimeouts
+    
+    let currentDelay = baseDelay;
+    
     nodesToAnimate.forEach((node: any, index: number) => {
+      const isLastNode = index === nodesToAnimate.length - 1;
+      const scheduledDelay = currentDelay;
+      
       setTimeout(() => {
-        const isLastNode = index === nodesToAnimate.length - 1;
-        
         setAnimationState(prev => ({
           ...prev,
           visibleNodes: new Set([...Array.from(prev.visibleNodes), node.id]),
@@ -109,11 +135,13 @@ export const useNodeAnimation = (
           isCompleted: false,
         }));
         
-        // Emit event when fingerprint node appears
+        // Emit event when node appears
         if (onNodeAppear) {
           onNodeAppear(node.id);
         }
-      }, baseDelay + index * staggerDelay);
+      }, scheduledDelay);
+      
+      currentDelay += staggerDelay;
     });
   }, [nodes, animationState.hasStarted, onNodeAppear, currentLevel]);
 

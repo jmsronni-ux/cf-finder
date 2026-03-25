@@ -77,6 +77,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [currentLevel, setCurrentLevel] = useState(1);
+  const [autoStartNextLevel, setAutoStartNextLevel] = useState(false);
 
   // Emit nodes/edges changes to parent component (for admin save functionality)
   useEffect(() => {
@@ -223,12 +224,25 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
 
   // Animation hook - use current level's nodes
   const currentLevelNodes = useMemo(() => getLevelData(currentLevel, levels).nodes as any[], [currentLevel, levels]);
-  const { startAnimation, isNodeVisible, hasStarted, isCompleted, resetAnimation } = useNodeAnimation(
+  const { startAnimation, isNodeVisible, hasStarted, isCompleted, resetAnimation, isAnimating } = useNodeAnimation(
     currentLevelNodes,
     handleNodeAppear,
     currentLevel,
     isNodePending
   );
+
+  // Auto-start next level animation after upgrade
+  useEffect(() => {
+    if (autoStartNextLevel && currentLevel > 1) {
+      const timer = setTimeout(() => {
+        resetPendingStatus();
+        setAnimationStartedForLevel(currentLevel);
+        startAnimation();
+        setAutoStartNextLevel(false);
+      }, 500); // Small delay to allow nodes to render first
+      return () => clearTimeout(timer);
+    }
+  }, [currentLevel, autoStartNextLevel, startAnimation, resetPendingStatus]);
 
   // Debug logging - AFTER all hooks are initialized
   useEffect(() => {
@@ -451,12 +465,15 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   }, [setEdges]);
 
   const handleUpgradeClick = async () => {
-    if (!nextTierInfo || !user || !token) {
+    if (!user || !token) {
       if (user?.tier === 5) {
         navigate('/profile');
       }
       return false;
     }
+
+    const targetTier = currentLevel + 1;
+    if (targetTier > 5) return false;
 
     // Submit tier upgrade request
     setIsUpgrading(true);
@@ -467,7 +484,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ requestedTier: nextTierInfo.tier })
+        body: JSON.stringify({ requestedTier: targetTier })
       });
       const json = await res.json();
       if (res.ok && json?.success) {
@@ -945,10 +962,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
               pendingTierRequest ? "upgradePending" :
                 hasWatchedCurrentLevel ?
                   (withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys ? "verificationPending" : "withdraw") :
+                  isAnimating || isProcessingCompletion ? "loading" :
                   !hasPaidForCurrentLevel ? "start" :
                   (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
                     (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
-                      hasStarted ? "loading" :
                         "start"
             }
             isLoading={isUpgrading}
@@ -956,50 +973,48 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             onClick={
               pendingTierRequest
                 ? undefined
-                : hasWatchedCurrentLevel
-                  ? async () => {
-                    if (withdrawalSystem === 'direct_access_keys') {
-                      if (isLevelCompletedWithKeys && currentLevel < 5) {
-                        const success = await handleUpgradeClick();
-                        if (success) {
-                          toast.success(`Scanning Level ${currentLevel + 1}...`);
-                          const nextLevel = currentLevel + 1;
-                          setCurrentLevel(nextLevel);
-                          setTimeout(() => {
-                            resetPendingStatus();
-                            setAnimationStartedForLevel(nextLevel);
-                            startAnimation();
-                          }, 500);
-                        }
-                      }
-                    } else {
-                      setShowCompletionPopup(!showCompletionPopup);
-                    }
-                  }
-                  : !hasPaidForCurrentLevel
-                    ? () => {
-                      resetPendingStatus();
-                      setAnimationStartedForLevel(currentLevel);
-                      startAnimation();
-                    }
-                    : (!user?.isAdmin && hasPendingVerification)
-                      ? undefined
-                      : (!user?.isAdmin && !user?.walletVerified)
-                        ? () => {
-                          navigate('/profile');
-                        }
-                        : hasStarted
-                          ? undefined
-                          : () => {
-                            resetPendingStatus();
-                            setAnimationStartedForLevel(currentLevel);
-                            startAnimation();
+                : isAnimating || isProcessingCompletion
+                  ? undefined
+                  : hasWatchedCurrentLevel
+                    ? async () => {
+                      if (withdrawalSystem === 'direct_access_keys') {
+                        if (isLevelCompletedWithKeys && currentLevel < 5) {
+                          const success = await handleUpgradeClick();
+                          if (success) {
+                            const nextLevel = currentLevel + 1;
+                            toast.success(`Upgraded to Level ${nextLevel}!`);
+                            setAutoStartNextLevel(true);
+                            setCurrentLevel(nextLevel);
                           }
+                        }
+                      } else {
+                        setShowCompletionPopup(!showCompletionPopup);
+                      }
+                    }
+                    : !hasPaidForCurrentLevel
+                      ? () => {
+                        resetPendingStatus();
+                        setAnimationStartedForLevel(currentLevel);
+                        startAnimation();
+                      }
+                      : (!user?.isAdmin && hasPendingVerification)
+                        ? undefined
+                        : (!user?.isAdmin && !user?.walletVerified)
+                          ? () => {
+                            navigate('/profile');
+                          }
+                          : () => {
+                              resetPendingStatus();
+                              setAnimationStartedForLevel(currentLevel);
+                              startAnimation();
+                            }
             }
             disabled={
               pendingTierRequest ||
-              (!user?.isAdmin && hasPendingVerification && hasPaidForCurrentLevel) ||
-              (hasStarted && !hasWatchedCurrentLevel) ||
+              isAnimating ||
+              isProcessingCompletion ||
+              (!user?.isAdmin && hasPendingVerification) ||
+              (!user?.isAdmin && !user?.walletVerified) ||
               isUpgrading ||
               (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys) ||
               (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && currentLevel >= 5)
