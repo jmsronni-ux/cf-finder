@@ -6,6 +6,11 @@ const globalSettingsSchema = new mongoose.Schema({
         type: String,
         default: 'global_settings'
     },
+    // Default template for new users
+    defaultLevelTemplate: {
+        type: String,
+        default: 'A'
+    },
     // Mainnet wallet addresses
     btcAddress: {
         type: String,

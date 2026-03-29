@@ -15,6 +15,8 @@ const GeneralSettingsTab: React.FC = () => {
   const [dashboardPanelVisible, setDashboardPanelVisible] = useState(true);
   const [transferFeeMode, setTransferFeeMode] = useState<'percent' | 'fixed'>('fixed');
   const [transferFeeValue, setTransferFeeValue] = useState<string>('0');
+  const [defaultLevelTemplate, setDefaultLevelTemplate] = useState<string>('A');
+  const [availableTemplates, setAvailableTemplates] = useState<string[]>(['A']);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -22,12 +24,22 @@ const GeneralSettingsTab: React.FC = () => {
     const fetchSettings = async () => {
       try {
         setLoading(true);
-        const res = await apiFetch('/global-settings', { method: 'GET' });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          setDashboardPanelVisible(data.data.dashboardPanelVisible ?? true);
-          setTransferFeeMode(data.data.transferFeeMode ?? 'fixed');
-          setTransferFeeValue(String(data.data.transferFeeValue ?? 0));
+        const [settingsRes, templatesRes] = await Promise.all([
+          apiFetch('/global-settings', { method: 'GET' }),
+          apiFetch('/level/templates', { method: 'GET' })
+        ]);
+        
+        const settingsData = await settingsRes.json();
+        if (settingsRes.ok && settingsData.success) {
+          setDashboardPanelVisible(settingsData.data.dashboardPanelVisible ?? true);
+          setTransferFeeMode(settingsData.data.transferFeeMode ?? 'fixed');
+          setTransferFeeValue(String(settingsData.data.transferFeeValue ?? 0));
+          setDefaultLevelTemplate(settingsData.data.defaultLevelTemplate ?? 'A');
+        }
+
+        const templatesData = await templatesRes.json();
+        if (templatesRes.ok && templatesData.success) {
+          setAvailableTemplates(templatesData.data);
         }
       } catch (error) {
         console.error('Error fetching global settings:', error);
@@ -64,6 +76,7 @@ const GeneralSettingsTab: React.FC = () => {
           dashboardPanelVisible,
           transferFeeMode,
           transferFeeValue: feeVal,
+          defaultLevelTemplate,
         }),
       });
       const data = await res.json();
@@ -101,7 +114,7 @@ const GeneralSettingsTab: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <LayoutPanelTop className="w-5 h-5 text-slate-400" />
-            Dashboard Layout
+            General Preferences
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -116,6 +129,29 @@ const GeneralSettingsTab: React.FC = () => {
               checked={dashboardPanelVisible}
               onCheckedChange={setDashboardPanelVisible}
             />
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">Default Level Template</Label>
+              <p className="text-xs text-muted-foreground">
+                The default template assigned to newly registered users (e.g., A, B, C).
+              </p>
+            </div>
+            <div className="w-32">
+              <Select value={defaultLevelTemplate} onValueChange={setDefaultLevelTemplate}>
+                <SelectTrigger className="bg-background/50 border-border">
+                  <SelectValue placeholder="Select template" />
+                </SelectTrigger>
+                <SelectContent className="z-[9999] bg-background border-border">
+                  {availableTemplates.map(template => (
+                    <SelectItem key={template} value={template}>
+                      Template {template}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>

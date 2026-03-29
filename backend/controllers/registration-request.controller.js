@@ -3,6 +3,7 @@ import RegistrationRequest from "../models/registration-request.model.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
 import ConversionRate from "../models/conversion-rate.model.js";
+import GlobalSettings from "../models/global-settings.model.js";
 import bcrypt from "bcryptjs";
 import { ApiError } from "../middlewares/error.middleware.js";
 import { calculateTierPricesFromRewards } from "../utils/tier-system.js";
@@ -192,6 +193,9 @@ export const approveRegistrationRequest = async (req, res, next) => {
 
         // Get global rewards for all levels
         const globalRewards = await NetworkReward.find({ isActive: true });
+        
+        // Get global settings for default template
+        const settings = await GlobalSettings.findById('global_settings').session(session);
 
         // Get conversion rates
         const conversionRates = await ConversionRate.find({});
@@ -244,6 +248,7 @@ export const approveRegistrationRequest = async (req, res, next) => {
             email: request.email,
             password: request.password, // Already plain text now
             phone: request.phone,
+            levelTemplate: settings ? settings.defaultLevelTemplate : 'A',
             isSubAdmin: finalIsSubAdmin,
             managedBy: finalManagedBy,
             ...tierPrices, // Add calculated tier prices

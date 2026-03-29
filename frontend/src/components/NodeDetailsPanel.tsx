@@ -61,10 +61,30 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const isGroupNode = selectedNode?.type === 'fingerprintGroupNode';
   const nodeAmount = selectedNode?.data?.transaction?.amount || 0;
   // Compute effective price based on mode
-  const effectivePrice = keyPriceMode === 'percent'
-    ? Math.max(1, (nodeAmount * keyPricePercent) / 100)
-    : pricePerKey;
-  const totalKeyCost = keysCount * effectivePrice * (isGroupNode ? (selectedNode?.data?.childCount || 0) : 1);
+  let effectivePrice = pricePerKey;
+  let totalKeyCost = 0;
+
+  if (isGroupNode) {
+    if (keyPriceMode === 'percent') {
+      const childIds = selectedNode?.data?.childNodeIds || [];
+      const nodeAmountsDict = selectedNode?.data?.nodeAmounts || {};
+      let computedCost = 0;
+      for (const cid of childIds) {
+        const amt = nodeAmountsDict[cid] || 0;
+        computedCost += Math.max(1, (amt * keyPricePercent) / 100);
+      }
+      totalKeyCost = keysCount * computedCost;
+      effectivePrice = childIds.length > 0 ? computedCost / childIds.length : 0;
+    } else {
+      effectivePrice = pricePerKey;
+      totalKeyCost = keysCount * effectivePrice * (selectedNode?.data?.childCount || 0);
+    }
+  } else {
+    effectivePrice = keyPriceMode === 'percent'
+      ? Math.max(1, (nodeAmount * keyPricePercent) / 100)
+      : pricePerKey;
+    totalKeyCost = keysCount * effectivePrice;
+  }
   const availableBalance = user?.availableBalance || 0;
   const hasSufficientBalance = availableBalance >= totalKeyCost;
 

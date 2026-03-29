@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../config/env.js";
 import { ApiError } from "../middlewares/error.middleware.js";
+import GlobalSettings from "../models/global-settings.model.js";
 
 
 export const signUp = async (req, res, next) => {
@@ -26,7 +27,10 @@ export const signUp = async (req, res, next) => {
         //
         // const newUser = await User.create([{ name, email, password: hashedPassword, phone }], { session });
 
-        const newUser = await User.create([{ name, email, password, phone }], { session });
+        const settings = await GlobalSettings.findById('global_settings');
+        const defaultLevelTemplate = settings ? settings.defaultLevelTemplate : 'A';
+
+        const newUser = await User.create([{ name, email, password, phone, levelTemplate: defaultLevelTemplate }], { session });
 
         const token = jwt.sign({ userId: newUser[0]._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 

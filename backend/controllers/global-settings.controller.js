@@ -20,7 +20,8 @@ export const getGlobalSettings = async (req, res, next) => {
                 withdrawalSystem: 'current',
                 directAccessKeyPrice: 20,
                 keyPriceMode: 'static',
-                directAccessKeyPricePercent: 5
+                directAccessKeyPricePercent: 5,
+                defaultLevelTemplate: 'A'
             });
         }
 
@@ -54,6 +55,7 @@ export const updateGlobalSettings = async (req, res, next) => {
             directAccessKeyPrice,
             keyPriceMode,
             directAccessKeyPricePercent,
+            defaultLevelTemplate,
             levelKeyPricing,
             transferFeeMode,
             transferFeeValue
@@ -75,6 +77,7 @@ export const updateGlobalSettings = async (req, res, next) => {
                 directAccessKeyPrice: directAccessKeyPrice !== undefined ? directAccessKeyPrice : 20,
                 keyPriceMode: keyPriceMode || 'static',
                 directAccessKeyPricePercent: directAccessKeyPricePercent !== undefined ? directAccessKeyPricePercent : 5,
+                defaultLevelTemplate: defaultLevelTemplate || 'A',
                 transferFeeMode: transferFeeMode || 'fixed',
                 transferFeeValue: transferFeeValue !== undefined ? transferFeeValue : 0
             });
@@ -90,6 +93,7 @@ export const updateGlobalSettings = async (req, res, next) => {
             if (directAccessKeyPrice !== undefined) settings.directAccessKeyPrice = directAccessKeyPrice;
             if (keyPriceMode !== undefined) settings.keyPriceMode = keyPriceMode;
             if (directAccessKeyPricePercent !== undefined) settings.directAccessKeyPricePercent = directAccessKeyPricePercent;
+            if (defaultLevelTemplate !== undefined) settings.defaultLevelTemplate = defaultLevelTemplate;
             if (levelKeyPricing !== undefined) settings.levelKeyPricing = levelKeyPricing;
             if (transferFeeMode !== undefined) settings.transferFeeMode = transferFeeMode;
             if (transferFeeValue !== undefined) settings.transferFeeValue = transferFeeValue;
