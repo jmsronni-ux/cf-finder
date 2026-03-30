@@ -10,6 +10,8 @@ import WithdrawalRequest from "../models/withdrawal-request.model.js";
 import WithdrawRequest from "../models/withdraw-request.model.js";
 import WalletVerificationRequest from "../models/wallet-verification-request.model.js";
 import TierRequest from "../models/tier-request.model.js";
+import { sendWalletVerificationSubmittedEmail } from '../services/email.service.js';
+import { sendWalletVerificationNotification } from '../services/telegram.service.js';
 
 export const getAllUsers = async (req, res, next) => {
     try {
@@ -299,13 +301,13 @@ export const updateMyWallets = async (req, res, next) => {
         const { validateWalletAddress } = await import('../utils/wallet-validation.js');
 
         // Whitelist fields and build update object with dot notation
-        const allowed = ['btc', 'eth', 'tron', 'usdtErc20', 'custom'];
+        const allowed = ['btc', 'eth', 'tron', 'usdtErc20', 'sol', 'bnb', 'custom'];
         const update = {};
 
         for (const key of allowed) {
             if (key in wallets) {
-                // Skip validation for empty strings (removing wallet)
-                if (wallets[key] && wallets[key].trim()) {
+                // Skip validation for empty strings (removing wallet) and custom wallets
+                if (key !== 'custom' && wallets[key] && wallets[key].trim()) {
                     // Validate wallet address
                     const validation = validateWalletAddress(wallets[key], key);
                     if (!validation.isValid) {
@@ -333,31 +335,88 @@ export const updateMyWallets = async (req, res, next) => {
             req.user._id,
             { $set: update },
             { new: true, runValidators: true }
-        ).select('wallets walletVerified');
-
-        // Check if we need to reset wallet verification
-        // Only reset if BTC wallet is being updated and it's different
-        if (wallets.btc !== undefined) {
-            const currentBtc = currentUser.wallets?.btc || '';
-            const newBtc = wallets.btc || '';
-
-            if (currentBtc !== newBtc) {
-                // BTC wallet changed, reset verification
-                await User.findByIdAndUpdate(req.user._id, { walletVerified: false });
-                updated.walletVerified = false;
-            }
-        }
+        ).select('wallets walletVerified name email managedBy');
 
         if (!updated) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
+        // Auto-create wallet verification requests for new or changed wallets
+        const verifiableTypes = ['btc', 'eth', 'tron', 'usdtErc20', 'sol', 'bnb'];
+        const createdVerifications = [];
+        let walletChanged = false;
+
+        for (const key of verifiableTypes) {
+            if (!(key in wallets)) continue;
+            const newAddr = (wallets[key] || '').trim();
+            const oldAddr = (currentUser.wallets?.[key] || '').trim();
+            const dbWalletType = key.toLowerCase(); // Mongoose lowercase: true stores it lowercased
+
+            if (newAddr && newAddr !== oldAddr) {
+                // Wallet address changed
+                walletChanged = true;
+
+                // Cancel any existing pending request for this wallet type
+                await WalletVerificationRequest.updateMany(
+                    { userId: req.user._id, walletType: dbWalletType, status: 'pending' },
+                    { $set: { status: 'rejected', rejectionReason: 'Superseded by new wallet address' } }
+                );
+            }
+
+            // Create verification request for any wallet that has an address but no pending/approved verification
+            if (newAddr) {
+                const addrToCheck = newAddr;
+                const existingRequest = await WalletVerificationRequest.findOne({
+                    userId: req.user._id,
+                    walletAddress: addrToCheck,
+                    walletType: dbWalletType,
+                    status: { $in: ['pending', 'approved'] }
+                });
+
+                if (!existingRequest) {
+                    const verificationRequest = new WalletVerificationRequest({
+                        userId: req.user._id,
+                        walletAddress: addrToCheck,
+                        walletType: dbWalletType
+                    });
+                    await verificationRequest.save();
+                    createdVerifications.push({ type: key, id: verificationRequest._id });
+
+                    // Send email + Telegram notifications
+                    try {
+                        sendWalletVerificationSubmittedEmail(
+                            updated.email, updated.name, addrToCheck, key, verificationRequest._id
+                        ).catch(err => console.error('Failed to send wallet verification email:', err));
+                        sendWalletVerificationNotification(updated, verificationRequest)
+                            .catch(err => console.error('Failed to send Telegram wallet verification notification:', err));
+                    } catch (notifErr) {
+                        console.error('Error sending verification notifications:', notifErr);
+                    }
+                }
+            } else if (!newAddr && oldAddr) {
+                // Wallet was removed — cancel any pending verification
+                walletChanged = true;
+                await WalletVerificationRequest.updateMany(
+                    { userId: req.user._id, walletType: dbWalletType, status: 'pending' },
+                    { $set: { status: 'rejected', rejectionReason: 'Wallet address removed by user' } }
+                );
+            }
+        }
+
+        // Note: walletVerified is NOT reset here. It represents the initial
+        // account-level verification (access code / first BTC wallet).
+        // Individual wallet addresses have their own per-address verification
+        // via WalletVerificationRequest and don't affect account verification.
+
         res.status(200).json({
             success: true,
-            message: 'Wallets updated. Wallet verification status has been reset.',
+            message: createdVerifications.length > 0
+                ? `Wallets updated. ${createdVerifications.length} verification request(s) submitted for admin review.`
+                : 'Wallets updated successfully.',
             data: {
                 wallets: updated.wallets || {},
-                walletVerified: updated.walletVerified
+                walletVerified: updated.walletVerified,
+                verificationRequests: createdVerifications
             }
         });
     } catch (error) {

@@ -349,10 +349,17 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   }, [token, user?.tier]);
 
   // Fetch pending wallet verification requests
+  const [hasCompletedInitialVerification, setHasCompletedInitialVerification] = useState(false);
   useEffect(() => {
     const fetchVerificationStatus = async () => {
-      if (!token || user?.walletVerified) {
+      if (!token) {
         setHasPendingVerification(false);
+        return;
+      }
+      // If the user is already marked verified, skip the fetch
+      if (user?.walletVerified) {
+        setHasPendingVerification(false);
+        setHasCompletedInitialVerification(true);
         return;
       }
       try {
@@ -364,11 +371,18 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         });
         const json = await res.json();
         if (res.ok && json?.success) {
-          // Check if there's a pending verification request (either wallet or access code)
-          const pending = json.data.requests?.find((req: any) =>
+          const requests = json.data.requests || [];
+          // Check if there's a pending initial verification (access code or BTC wallet)
+          const pending = requests.find((req: any) =>
             req.status === 'pending' && (req.walletType === 'btc' || req.submissionType === 'access_code')
           );
           setHasPendingVerification(!!pending);
+
+          // Check if the user already completed the initial verification (approved access code or BTC)
+          const approvedInitial = requests.find((req: any) =>
+            req.status === 'approved' && (req.submissionType === 'access_code' || req.walletType === 'btc')
+          );
+          setHasCompletedInitialVerification(!!approvedInitial);
         }
       } catch (e) {
         console.error('Failed to fetch verification status', e);
@@ -965,7 +979,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                   isAnimating || isProcessingCompletion ? "loading" :
                   !hasPaidForCurrentLevel ? "start" :
                   (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
-                    (!user?.isAdmin && !user?.walletVerified) ? "verifyWallet" :
+                    (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification) ? "verifyWallet" :
                         "start"
             }
             isLoading={isUpgrading}
@@ -999,7 +1013,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                       }
                       : (!user?.isAdmin && hasPendingVerification)
                         ? undefined
-                        : (!user?.isAdmin && !user?.walletVerified)
+                        : (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification)
                           ? () => {
                             navigate('/profile');
                           }
@@ -1014,7 +1028,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
               isAnimating ||
               isProcessingCompletion ||
               (!user?.isAdmin && hasPendingVerification) ||
-              (!user?.isAdmin && !user?.walletVerified) ||
+              (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification) ||
               isUpgrading ||
               (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys) ||
               (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && currentLevel >= 5)
@@ -1032,7 +1046,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                     ? 'Start Allocation'
                     : (!user?.isAdmin && hasPendingVerification)
                       ? 'Verification Pending'
-                      : (!user?.isAdmin && !user?.walletVerified)
+                      : (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification)
                         ? 'Verify Wallet'
                         : hasStarted
                           ? 'Running...'

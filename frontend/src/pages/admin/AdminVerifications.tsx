@@ -929,6 +929,10 @@ const AdminVerifications: React.FC = () => {
         return 'text-red-500';
       case 'usdtErc20':
         return 'text-green-500';
+      case 'sol':
+        return 'text-purple-500';
+      case 'bnb':
+        return 'text-yellow-500';
       default:
         return 'text-gray-500';
     }

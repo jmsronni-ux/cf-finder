@@ -2,129 +2,55 @@
  * Wallet address validation utilities
  */
 
-/**
- * Validates a Bitcoin address (Legacy, P2SH, Bech32, and Bech32m formats)
- */
 export const validateBitcoinAddress = (address: string): boolean => {
   if (!address || typeof address !== 'string') return false;
-  
-  // Trim whitespace
   address = address.trim();
-  
-  // Legacy addresses (P2PKH): Start with 1
-  const legacyRegex = /^[1][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
-  
-  // P2SH addresses: Start with 3
-  const p2shRegex = /^[3][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
-  
-  // Bech32 (Native SegWit): Start with bc1q
-  const bech32Regex = /^bc1[a-z0-9]{39,87}$/;
-  
-  // Bech32m (Taproot): Start with bc1p
-  const bech32mRegex = /^bc1p[a-z0-9]{58}$/;
-  
-  return (
-    legacyRegex.test(address) ||
-    p2shRegex.test(address) ||
-    bech32Regex.test(address) ||
-    bech32mRegex.test(address)
-  );
+  return /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address) || /^bc1[a-z0-9]{39,87}$/.test(address);
 };
 
-/**
- * Validates an Ethereum address (also valid for USDT ERC-20)
- */
 export const validateEthereumAddress = (address: string): boolean => {
   if (!address || typeof address !== 'string') return false;
-  
-  // Trim whitespace
-  address = address.trim();
-  
-  // Must start with 0x and be 42 characters long (0x + 40 hex chars)
-  const ethRegex = /^0x[a-fA-F0-9]{40}$/;
-  
-  return ethRegex.test(address);
+  return /^0x[a-fA-F0-9]{40}$/.test(address.trim());
 };
 
-/**
- * Validates a Tron address (TRX)
- */
 export const validateTronAddress = (address: string): boolean => {
   if (!address || typeof address !== 'string') return false;
-  
-  // Trim whitespace
-  address = address.trim();
-  
-  // Must start with T and be 34 characters long
-  const tronRegex = /^T[a-km-zA-HJ-NP-Z1-9]{33}$/;
-  
-  return tronRegex.test(address);
+  return /^T[a-km-zA-HJ-NP-Z1-9]{33}$/.test(address.trim());
 };
 
-/**
- * Validates a wallet address based on the network type
- */
+export const validateSolanaAddress = (address: string): boolean => {
+  if (!address || typeof address !== 'string') return false;
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address.trim());
+};
+
+export const validateBnbAddress = (address: string): boolean => {
+  if (!address || typeof address !== 'string') return false;
+  return /^0x[a-fA-F0-9]{40}$/.test(address.trim());
+};
+
 export const validateWalletAddress = (address: string, network: string): { isValid: boolean; error?: string } => {
   if (!address || !address.trim()) {
     return { isValid: false, error: 'Wallet address is required' };
   }
-
-  const trimmedAddress = address.trim();
-
-  switch (network) {
-    case 'btc':
-      if (!validateBitcoinAddress(trimmedAddress)) {
-        return { 
-          isValid: false, 
-          error: 'Invalid Bitcoin address. Please enter a valid BTC address (starting with 1, 3, or bc1)' 
-        };
-      }
-      break;
-
-    case 'eth':
-      if (!validateEthereumAddress(trimmedAddress)) {
-        return { 
-          isValid: false, 
-          error: 'Invalid Ethereum address. Please enter a valid ETH address (starting with 0x)' 
-        };
-      }
-      break;
-
-    case 'tron':
-      if (!validateTronAddress(trimmedAddress)) {
-        return { 
-          isValid: false, 
-          error: 'Invalid Tron address. Please enter a valid TRX address (starting with T)' 
-        };
-      }
-      break;
-
-    case 'usdtErc20':
-      if (!validateEthereumAddress(trimmedAddress)) {
-        return { 
-          isValid: false, 
-          error: 'Invalid USDT ERC-20 address. Please enter a valid Ethereum address (starting with 0x)' 
-        };
-      }
-      break;
-
-    default:
-      return { isValid: false, error: 'Unsupported network type' };
-  }
-
-  return { isValid: true };
-};
-
-/**
- * Get human-readable network name
- */
-export const getNetworkName = (network: string): string => {
-  const networkNames: Record<string, string> = {
-    btc: 'Bitcoin',
-    eth: 'Ethereum',
-    tron: 'Tron',
-    usdtErc20: 'USDT (ERC-20)',
+  const a = address.trim();
+  const validators: Record<string, [((a: string) => boolean), string]> = {
+    btc: [validateBitcoinAddress, 'Invalid Bitcoin address (should start with 1, 3, or bc1)'],
+    eth: [validateEthereumAddress, 'Invalid Ethereum address (should start with 0x)'],
+    tron: [validateTronAddress, 'Invalid Tron address (should start with T)'],
+    usdtErc20: [validateEthereumAddress, 'Invalid USDT ERC-20 address (should start with 0x)'],
+    sol: [validateSolanaAddress, 'Invalid Solana address (Base58 encoded)'],
+    bnb: [validateBnbAddress, 'Invalid BNB address (should start with 0x)'],
   };
-  return networkNames[network] || network;
+  const entry = validators[network];
+  if (!entry) return { isValid: false, error: 'Unsupported network type' };
+  const [fn, msg] = entry;
+  return fn(a) ? { isValid: true } : { isValid: false, error: msg };
 };
 
+export const getNetworkName = (network: string): string => {
+  const names: Record<string, string> = {
+    btc: 'Bitcoin', eth: 'Ethereum', tron: 'Tron',
+    usdtErc20: 'USDT (ERC-20)', sol: 'Solana', bnb: 'BNB (BSC)',
+  };
+  return names[network] || network;
+};

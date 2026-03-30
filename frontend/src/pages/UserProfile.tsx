@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon, CheckCircle2, Clock, XCircle, ArrowLeftRight, ArrowDownToLine } from 'lucide-react';
+import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon, CheckCircle2, Clock, XCircle, ArrowLeftRight, ArrowDownToLine, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import EnhancedWithdrawPopup from '../components/EnhancedWithdrawPopup';
@@ -90,7 +90,7 @@ const HowItWorksVideo: React.FC = () => {
 const UserProfile: React.FC = () => {
   const { user, logout, token, refreshUser } = useAuth();
   const location = useLocation();
-  const [wallets, setWallets] = useState<{ btc?: string; eth?: string; tron?: string; usdtErc20?: string } | null>(null);
+  const [wallets, setWallets] = useState<{ btc?: string; eth?: string; tron?: string; usdtErc20?: string; sol?: string; bnb?: string } | null>(null);
   const [showWithdrawPopup, setShowWithdrawPopup] = useState(false);
   const [showTopupPopup, setShowTopupPopup] = useState(false);
   const [upgradeOptions, setUpgradeOptions] = useState<TierInfo[]>([]);
@@ -125,6 +125,9 @@ const UserProfile: React.FC = () => {
   const [hasApprovedAdditionalVerification, setHasApprovedAdditionalVerification] = useState(false);
   const [aiAssistantData, setAiAssistantData] = useState<any>(null);
   const [loadingAssistantData, setLoadingAssistantData] = useState(false);
+  const [accessCodeStatus, setAccessCodeStatus] = useState<'none' | 'pending' | 'approved'>('none');
+  const [walletsLoaded, setWalletsLoaded] = useState(false);
+  const [hasRejectedWallet, setHasRejectedWallet] = useState(false);
   const navigate = useNavigate();
   const widgetContainerRef = React.useRef<HTMLDivElement>(null);
   // Edit profile state
@@ -481,6 +484,17 @@ const UserProfile: React.FC = () => {
         } else {
           setVerificationRequest(null);
         }
+
+        // Check if the latest request per wallet type is rejected (ignore old superseded ones)
+        const allRequests: WalletVerificationRequest[] = json.data.requests || [];
+        const latestByType = new Map<string, WalletVerificationRequest>();
+        for (const r of allRequests) {
+          const existing = latestByType.get(r.walletType);
+          if (!existing || new Date(r.createdAt) > new Date(existing.createdAt)) {
+            latestByType.set(r.walletType, r);
+          }
+        }
+        setHasRejectedWallet(Array.from(latestByType.values()).some(r => r.status === 'rejected'));
       }
     } catch (e) {
       console.error('Failed to fetch verification status', e);
@@ -504,12 +518,35 @@ const UserProfile: React.FC = () => {
           btc: json?.data?.btc || '',
           eth: json?.data?.eth || '',
           tron: json?.data?.tron || '',
-          usdtErc20: json?.data?.usdtErc20 || ''
+          usdtErc20: json?.data?.usdtErc20 || '',
+          sol: json?.data?.sol || '',
+          bnb: json?.data?.bnb || ''
         });
       }
     } catch (e) {
       // Silent fail
     }
+
+    // Also fetch access code verification status
+    try {
+      const verRes = await apiFetch('/wallet-verification/my-requests', {
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      });
+      const verJson = await verRes.json();
+      if (verRes.ok && verJson?.success) {
+        const accessCodeReq = verJson.data.requests?.find((req: any) =>
+          req.submissionType === 'access_code' && (req.status === 'pending' || req.status === 'approved')
+        );
+        if (accessCodeReq) {
+          setAccessCodeStatus(accessCodeReq.status === 'approved' ? 'approved' : 'pending');
+        } else {
+          setAccessCodeStatus('none');
+        }
+      }
+    } catch {
+      // Silent fail
+    }
+    setWalletsLoaded(true);
   };
 
   useEffect(() => {
@@ -845,110 +882,121 @@ const UserProfile: React.FC = () => {
 
 
                     {/* Wallet Verification Status */}
-                    {wallets?.btc && (
-                      <>
-                        {loadingVerification ? (
-                          <></>
-                        ) : verificationRequest?.status !== 'approved' && (
-                          <div className="mt-2 space-y-2">
-                            {verificationRequest ? (
-                              <div className="w-full border border-border rounded-md p-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium">Wallet Verification</span>
-                                  {verificationRequest.status === 'pending' && (
-                                    <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
-                                      <Clock className="w-3 h-3 mr-1" />
-                                      Pending
-                                    </Badge>
-                                  )}
-                                  {verificationRequest.status === 'rejected' && (
-                                    <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
-                                      <XCircle className="w-3 h-3 mr-1" />
-                                      Rejected
-                                    </Badge>
-                                  )}
-                                </div>
-                                {verificationRequest.status === 'rejected' && verificationRequest.rejectionReason && (
-                                  <div className="mt-2">
-                                    <p className="text-xs text-red-400 mb-2">
-                                      <strong>Rejection Reason:</strong> {verificationRequest.rejectionReason}
-                                    </p>
-                                    <Button
-                                      onClick={handleVerifyWallet}
-                                      disabled={submittingVerification}
-                                      className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-600/50 flex items-center justify-center gap-2 text-xs py-2"
-                                    >
-                                      {submittingVerification ? (
-                                        <>
-                                          <Loader2 className="w-3 h-3 animate-spin" />
-                                          Submitting...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <CheckCircle2 className="w-3 h-3" />
-                                          Request New Verification
-                                        </>
-                                      )}
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <Button
-                                onClick={handleVerifyWallet}
-                                disabled={submittingVerification}
-                                className="w-full bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50 flex items-center justify-center gap-2"
-                              >
-                                {submittingVerification ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Submitting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    Request Verification
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                            {(!verificationRequest || verificationRequest?.status === 'rejected') && (
-                              <Button
-                                onClick={() => setShowChangeWalletPopup(true)}
-                                disabled={loadingVerification}
-                                className="w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2 disabled:opacity-50"
-                              >
-                                {loadingVerification ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Loading...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Wallet className="w-4 h-4" />
-                                    Change Wallet
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        )}
+                    {(() => {
+                      // Already verified by any method? Just show the badge, skip all verification UI
+                      const isVerifiedByAccessCode = accessCodeStatus === 'approved';
+                      const isVerifiedByWallet = verificationRequest?.status === 'approved';
+                      const isVerified = isVerifiedByAccessCode || isVerifiedByWallet;
 
-                        {!loadingVerification && verificationRequest?.status === 'approved' && (
+                      if (isVerified) {
+                        return (
                           <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 absolute right-6 top-6">
                             <CheckCircle2 className="w-3 h-3 mr-1" />
                             Verified {hasApprovedAdditionalVerification ? 'Lvl 2' : 'Lvl 1'}
                           </Badge>
-                        )}
-                      </>
-                    )}
+                        );
+                      }
+
+                      // Not verified — show wallet verification flow only if user has a BTC wallet
+                      if (!wallets?.btc || loadingVerification) return null;
+
+                      return (
+                        <div className="mt-2 space-y-2">
+                          {verificationRequest ? (
+                            <div className="w-full border border-border rounded-md p-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">Wallet Verification</span>
+                                {verificationRequest.status === 'pending' && (
+                                  <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Pending
+                                  </Badge>
+                                )}
+                                {verificationRequest.status === 'rejected' && (
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Rejected
+                                  </Badge>
+                                )}
+                              </div>
+                              {verificationRequest.status === 'rejected' && verificationRequest.rejectionReason && (
+                                <div className="mt-2">
+                                  <p className="text-xs text-red-400 mb-2">
+                                    <strong>Rejection Reason:</strong> {verificationRequest.rejectionReason}
+                                  </p>
+                                  <Button
+                                    onClick={handleVerifyWallet}
+                                    disabled={submittingVerification}
+                                    className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-600/50 flex items-center justify-center gap-2 text-xs py-2"
+                                  >
+                                    {submittingVerification ? (
+                                      <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        Submitting...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        Request New Verification
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <Button
+                              onClick={handleVerifyWallet}
+                              disabled={submittingVerification}
+                              className="w-full bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50 flex items-center justify-center gap-2"
+                            >
+                              {submittingVerification ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Submitting...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  Request Verification
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {(!verificationRequest || verificationRequest?.status === 'rejected') && (
+                            <Button
+                              onClick={() => setShowChangeWalletPopup(true)}
+                              disabled={loadingVerification}
+                              className="w-full bg-[#F7931A]/20 hover:bg-[#F7931A]/30 text-white border border-[#F7931A]/50 flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                              {loadingVerification ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Loading...
+                                </>
+                              ) : (
+                                <>
+                                  <Wallet className="w-4 h-4" />
+                                  Change Wallet
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <div className="flex w-full">
                       <Button
                         onClick={() => setShowEditSettingsPopup(true)}
-                        className="bg-gray-600/20 hover:bg-gray-700 text-white border border-gray-600 w-full"
+                        className="relative bg-gray-600/20 hover:bg-gray-700 text-white border border-gray-600 w-full flex items-center justify-center"
                       >
                         Open Settings
+                        {hasRejectedWallet && (
+                          <span className="absolute right-2 rounded-full inline-flex items-center bg-red-500/15 border border-red-500/30 text-[10px] font-medium text-red-400">
+                            <AlertCircle className="w-4 h-4" />
+                          </span>
+                        )}
                       </Button>
                     </div>
 
@@ -958,17 +1006,38 @@ const UserProfile: React.FC = () => {
               </div>
             </div>
 
-            {/* Wallets Section - Only show if no BTC wallet has been added */}
-            {wallets && !wallets.btc && (
+            {/* Wallets Section */}
+            {walletsLoaded && wallets && !wallets.btc && accessCodeStatus !== 'approved' && verificationRequest?.status !== 'approved' && (
               <>
                 <MagicBadge title="Wallet Management" className="mt-24 mb-6" />
-                <AddWalletPopup
-                  isPopup={false}
-                  onSuccess={() => {
-                    fetchWallets();
-                    refreshUser();
-                  }}
-                />
+                {accessCodeStatus === 'pending' ? (
+                  <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 shadow-xl overflow-hidden">
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-10 rounded-2xl" />
+                    <div className="relative z-10 flex flex-col items-center text-center py-4 gap-3">
+                      <div className="w-12 h-12 rounded-full bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-yellow-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-semibold text-base">Verification Pending</h3>
+                        <p className="text-gray-400 text-xs mt-1 max-w-xs">
+                          Your access code has been submitted and is awaiting admin review. You'll be notified once it's verified.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                        <span className="text-[11px] text-yellow-400/80 font-medium">Awaiting admin approval</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <AddWalletPopup
+                    isPopup={false}
+                    onSuccess={() => {
+                      fetchWallets();
+                      refreshUser();
+                    }}
+                  />
+                )}
               </>
             )}
 

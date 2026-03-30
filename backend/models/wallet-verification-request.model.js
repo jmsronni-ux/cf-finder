@@ -24,7 +24,7 @@ const walletVerificationRequestSchema = new mongoose.Schema({
     walletType: {
         type: String,
         required: [true, 'Wallet type is required'],
-        enum: ['btc', 'eth', 'tron', 'usdtErc20'],
+        enum: ['btc', 'eth', 'tron', 'usdterc20', 'sol', 'bnb'],
         lowercase: true
     },
     status: {

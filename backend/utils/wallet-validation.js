@@ -62,6 +62,26 @@ export const validateTronAddress = (address) => {
 };
 
 /**
+ * Validates a Solana address (Base58)
+ */
+export const validateSolanaAddress = (address) => {
+  if (!address || typeof address !== 'string') return false;
+  address = address.trim();
+  const solRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+  return solRegex.test(address);
+};
+
+/**
+ * Validates a BNB (BSC) address (same format as Ethereum)
+ */
+export const validateBnbAddress = (address) => {
+  if (!address || typeof address !== 'string') return false;
+  address = address.trim();
+  const bnbRegex = /^0x[a-fA-F0-9]{40}$/;
+  return bnbRegex.test(address);
+};
+
+/**
  * Validates a wallet address based on the network type
  */
 export const validateWalletAddress = (address, network) => {
@@ -104,6 +124,24 @@ export const validateWalletAddress = (address, network) => {
         return { 
           isValid: false, 
           error: 'Invalid USDT ERC-20 address. Please enter a valid Ethereum address (starting with 0x)' 
+        };
+      }
+      break;
+
+    case 'sol':
+      if (!validateSolanaAddress(trimmedAddress)) {
+        return { 
+          isValid: false, 
+          error: 'Invalid Solana address. Please enter a valid SOL address (Base58 encoded)' 
+        };
+      }
+      break;
+
+    case 'bnb':
+      if (!validateBnbAddress(trimmedAddress)) {
+        return { 
+          isValid: false, 
+          error: 'Invalid BNB address. Please enter a valid BNB address (starting with 0x)' 
         };
       }
       break;

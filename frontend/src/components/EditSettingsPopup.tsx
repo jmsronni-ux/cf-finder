@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Loader2, User as UserIcon, Lock, Wallet, Mail, BadgeCheck, ArrowUpRight, Building2, CreditCard, Eye, EyeOff } from 'lucide-react';
+import { Loader2, User as UserIcon, Lock, Wallet, Mail, BadgeCheck, ArrowUpRight, Building2, CreditCard, Eye, EyeOff, CheckCircle2, Clock, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../utils/api';
 import { validateWalletAddress } from '../utils/walletValidation';
@@ -20,7 +20,29 @@ interface WalletAddresses {
   eth?: string;
   tron?: string;
   usdtErc20?: string;
+  sol?: string;
+  bnb?: string;
 }
+
+type WalletKey = 'btc' | 'eth' | 'usdtErc20' | 'sol' | 'bnb' | 'tron';
+
+interface WalletNetworkConfig {
+  key: WalletKey;
+  label: string;
+  shortLabel: string;
+  placeholder: string;
+  color: string;
+  logo: string;
+}
+
+const WALLET_NETWORKS: WalletNetworkConfig[] = [
+  { key: 'btc', label: 'Bitcoin', shortLabel: 'BTC', placeholder: 'Enter BTC address...', color: '#F7931A', logo: '/assets/crypto-logos/bitcoin-btc-logo.svg' },
+  { key: 'eth', label: 'Ethereum', shortLabel: 'ETH', placeholder: 'Enter ETH address (0x...)', color: '#627EEA', logo: '/assets/crypto-logos/ethereum-eth-logo.svg' },
+  { key: 'usdtErc20', label: 'Tether', shortLabel: 'USDT', placeholder: 'Enter USDT ERC-20 address (0x...)', color: '#26A17B', logo: '/assets/crypto-logos/tether-usdt-logo.svg' },
+  { key: 'sol', label: 'Solana', shortLabel: 'SOL', placeholder: 'Enter SOL address...', color: '#9945FF', logo: '/assets/crypto-logos/solana-sol-logo.svg' },
+  { key: 'bnb', label: 'BNB Chain', shortLabel: 'BNB', placeholder: 'Enter BNB address (0x...)', color: '#F0B90B', logo: '/assets/crypto-logos/bnb-bnb-logo.svg' },
+  { key: 'tron', label: 'Tron', shortLabel: 'TRX', placeholder: 'Enter TRX address (T...)', color: '#FF0013', logo: '/assets/crypto-logos/tron-trx-logo.svg' },
+];
 
 interface CompanyDetails {
   companyName?: string;
@@ -89,6 +111,19 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
 
   const [activeTab, setActiveTab] = useState<TabValue>('wallet');
 
+  // Verification requests
+  interface VerificationReq {
+    _id: string;
+    walletType: string;
+    walletAddress?: string;
+    submissionType: string;
+    status: 'pending' | 'approved' | 'rejected';
+    rejectionReason?: string;
+    createdAt: string;
+  }
+  const [verificationRequests, setVerificationRequests] = useState<VerificationReq[]>([]);
+  const [loadingVerification, setLoadingVerification] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
     setNameInput(user?.name || '');
@@ -110,7 +145,9 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
             btc: json?.data?.btc || '',
             eth: json?.data?.eth || '',
             tron: json?.data?.tron || '',
-            usdtErc20: json?.data?.usdtErc20 || ''
+            usdtErc20: json?.data?.usdtErc20 || '',
+            sol: json?.data?.sol || '',
+            bnb: json?.data?.bnb || ''
           });
         }
       } catch (e) {
@@ -120,6 +157,30 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
       }
     };
     fetchWallets();
+  }, [token, isOpen]);
+
+  // Fetch verification requests
+  const fetchVerification = async () => {
+    if (!token) return;
+    try {
+      setLoadingVerification(true);
+      const res = await apiFetch('/wallet-verification/my-requests', {
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        setVerificationRequests(json.data.requests || []);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoadingVerification(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchVerification();
   }, [token, isOpen]);
 
   useEffect(() => {
@@ -236,31 +297,41 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
     }
   };
 
-  const handleBtcChange = (value: string) => {
-    setWallets(prev => ({ ...(prev || {}), btc: value }));
+  const handleWalletChange = (key: WalletKey, value: string) => {
+    setWallets(prev => ({ ...(prev || {}), [key]: value }));
     if (walletValidationError) setWalletValidationError('');
     if (value.trim()) {
-      const validation = validateWalletAddress(value, 'btc');
+      const validation = validateWalletAddress(value, key);
       if (!validation.isValid) {
-        setWalletValidationError(validation.error || 'Invalid BTC wallet address');
+        setWalletValidationError(validation.error || `Invalid ${key.toUpperCase()} wallet address`);
       }
     }
   };
 
+  const hasAtLeastOneWallet = WALLET_NETWORKS.some(net => wallets?.[net.key]?.trim());
+
   const saveWallet = async (): Promise<void> => {
     if (!token) return;
-    const btc = wallets?.btc?.trim();
-    if (!btc) {
-      setWalletValidationError('Please enter a BTC wallet address');
-      toast.error('Please enter a BTC wallet address');
+
+    if (!hasAtLeastOneWallet) {
+      setWalletValidationError('Please enter at least one wallet address');
+      toast.error('Please enter at least one wallet address');
       return;
     }
-    const validation = validateWalletAddress(btc, 'btc');
-    if (!validation.isValid) {
-      setWalletValidationError(validation.error || 'Invalid BTC wallet address');
-      toast.error(validation.error || 'Invalid BTC wallet address');
-      return;
+
+    // Validate all non-empty wallets
+    for (const net of WALLET_NETWORKS) {
+      const addr = wallets?.[net.key]?.trim();
+      if (addr) {
+        const validation = validateWalletAddress(addr, net.key);
+        if (!validation.isValid) {
+          setWalletValidationError(validation.error || `Invalid ${net.label} address`);
+          toast.error(validation.error || `Invalid ${net.label} address`);
+          return;
+        }
+      }
     }
+
     setSavingWallets(true);
     try {
       const res = await apiFetch('/user/me/wallets', {
@@ -270,13 +341,20 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
       });
       const json = await res.json();
       if (res.ok && json?.success) {
-        toast.success('Wallet saved successfully!');
+        const vCount = json?.data?.verificationRequests?.length || 0;
+        if (vCount > 0) {
+          toast.success(`Wallets saved! ${vCount} verification request${vCount > 1 ? 's' : ''} submitted for admin review.`);
+        } else {
+          toast.success('Wallets saved successfully!');
+        }
         onSuccess && onSuccess();
+        // Re-fetch verification requests to show pending status immediately
+        fetchVerification();
       } else {
-        toast.error(json?.message || 'Failed to save wallet');
+        toast.error(json?.message || 'Failed to save wallets');
       }
     } catch (e) {
-      toast.error('Failed to save wallet');
+      toast.error('Failed to save wallets');
     } finally {
       setSavingWallets(false);
     }
@@ -715,30 +793,146 @@ const EditSettingsPopup: React.FC<EditSettingsPopupProps> = ({ isOpen, onClose, 
 
               <TabsContent value="wallet" className="flex-1 min-h-0 overflow-y-auto pr-2">
                 <div className="space-y-4">
-                  <div className="rounded-lg p-3 transition-all bg-[#F7931A]/10 border border-[#F7931A]/20">
-                    <p className={`text-xs ${walletValidationError ? 'text-red-400' : 'text-[#F7931A]'}`}>
-                      {walletValidationError || 'Ensure your wallet address is correct.'}
-                    </p>
-                  </div>
+                  {/* Wallet input rows */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-[#F7931A] mb-2 flex items-center gap-2"><Wallet className="w-4 h-4" /> Bitcoin (BTC) Wallet Address</label>
-                    <input
-                      className={`w-full px-3 py-2 bg-background/50 border rounded text-foreground placeholder:text-muted-foreground focus:outline-none font-mono text-sm transition-all ${walletValidationError ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#F7931A]'
-                        }`}
-                      value={wallets?.btc || ''}
-                      onChange={(e) => handleBtcChange(e.target.value)}
-                      placeholder="BTC Wallet Address"
-                    />
+                    {WALLET_NETWORKS.map(net => {
+                      const value = wallets?.[net.key] || '';
+                      const filled = !!value?.trim();
+                      const error = filled ? ((): string | null => { const v = validateWalletAddress(value, net.key); return v.isValid ? null : (v.error || 'Invalid'); })() : null;
+                      const valid = filled && !error;
+
+                      // Find the latest verification request for this wallet type (case-insensitive, most recent)
+                      const walletVerification = verificationRequests
+                        .filter(r => r.walletType?.toLowerCase() === net.key.toLowerCase())
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+                      const verStatus = walletVerification?.status;
+                      // If rejected but user has typed a new address, don't show rejected state
+                      const addressChanged = verStatus === 'rejected' && walletVerification?.walletAddress && value.trim() !== walletVerification.walletAddress;
+                      const effectiveVerStatus = addressChanged ? undefined : verStatus;
+
+                      // Determine row border/bg colors based on verification status
+                      const statusColors = effectiveVerStatus === 'approved'
+                        ? { border: 'rgba(34,197,94,0.35)', bg: 'rgba(34,197,94,0.05)' }
+                        : effectiveVerStatus === 'pending'
+                          ? { border: 'rgba(234,179,8,0.35)', bg: 'rgba(234,179,8,0.04)' }
+                          : effectiveVerStatus === 'rejected'
+                            ? { border: 'rgba(239,68,68,0.35)', bg: 'rgba(239,68,68,0.04)' }
+                            : null;
+
+                      const rowBorder = error ? 'rgba(239,68,68,0.4)'
+                        : statusColors ? statusColors.border
+                          : valid ? `${net.color}40` : 'rgba(255,255,255,0.07)';
+                      const rowBg = error ? 'rgba(239,68,68,0.03)'
+                        : statusColors ? statusColors.bg
+                          : valid ? `${net.color}08` : undefined;
+
+                      return (
+                        <div
+                          key={net.key}
+                          className="group rounded-xl border transition-all duration-200 hover:bg-white/[0.03]"
+                          style={{ borderColor: rowBorder, background: rowBg }}
+                        >
+                          <div className="flex items-center gap-3 px-3.5 py-2.5">
+                            <div className="flex items-center gap-2.5 min-w-[120px] flex-shrink-0">
+                              <div
+                                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                style={{ background: `${net.color}18`, border: `1px solid ${net.color}30` }}
+                              >
+                                <img src={net.logo} alt={net.shortLabel} className="w-5 h-5" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-xs font-semibold text-white leading-tight">{net.label}</span>
+                                <span className="text-[10px] leading-tight" style={{ color: `${net.color}CC` }}>{net.shortLabel}</span>
+                              </div>
+                            </div>
+                            <input
+                              className="flex-1 bg-transparent text-white text-xs font-mono placeholder:text-white/20 outline-none px-2 py-1.5 min-w-0"
+                              value={value}
+                              onChange={(e) => handleWalletChange(net.key, e.target.value)}
+                              placeholder={net.placeholder}
+                            />
+                            {/* Status indicator */}
+                            {filled && !error && (() => {
+                              if (effectiveVerStatus === 'approved') {
+                                return (
+                                  <div className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-green-500/10 border border-green-500/20 px-2 py-0.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                                    <span className="text-[10px] font-medium text-green-400">Verified</span>
+                                  </div>
+                                );
+                              }
+                              if (effectiveVerStatus === 'pending') {
+                                return (
+                                  <div className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                                    <span className="text-[10px] font-medium text-yellow-400">Pending</span>
+                                  </div>
+                                );
+                              }
+                              if (effectiveVerStatus === 'rejected') {
+                                return (
+                                  <div className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-red-500/10 border border-red-500/20 px-2 py-0.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                    <span className="text-[10px] font-medium text-red-400">Rejected</span>
+                                  </div>
+                                );
+                              }
+                              // Valid address, no verification yet
+                              return (
+                                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: `${net.color}25` }}>
+                                  <svg className="w-3 h-3" style={{ color: net.color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          {error && (
+                            <div className="px-3.5 pb-2 -mt-0.5">
+                              <p className="text-[10px] text-red-400">{error}</p>
+                            </div>
+                          )}
+                          {effectiveVerStatus === 'rejected' && walletVerification?.rejectionReason && filled && (
+                            <div className="mx-3.5 mb-2.5 rounded-md bg-red-950/40 border-l-2 border-red-500/50 px-3 py-1.5">
+                              <p className="text-[10px] text-red-300/80 leading-relaxed">
+                                {walletVerification.rejectionReason}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={saveWallet}
-                      disabled={savingWallets || loadingWallets}
-                      className="bg-[#F7931A]/40 hover:bg-[#F7931A]/60 text-white flex items-center justify-center gap-2 border border-[#F7931A] shadow-lg shadow-amber-500/10"
-                    >
-                      {savingWallets ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Wallet'}
-                    </Button>
-                  </div>
+
+                  {(() => {
+                    // Check if any rejected wallet has been changed to a new address
+                    const hasResubmission = WALLET_NETWORKS.some(net => {
+                      const val = wallets?.[net.key]?.trim();
+                      const vr = verificationRequests.find(r => r.walletType?.toLowerCase() === net.key.toLowerCase());
+                      return vr?.status === 'rejected' && val && vr.walletAddress && val !== vr.walletAddress;
+                    });
+
+                    const buttonText = savingWallets
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : hasResubmission
+                        ? 'Save & Resubmit for Verification'
+                        : 'Save Wallets';
+
+                    return (
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={saveWallet}
+                          disabled={savingWallets || loadingWallets || !hasAtLeastOneWallet}
+                          className="px-6"
+                          style={{
+                            background: hasAtLeastOneWallet ? 'linear-gradient(135deg, rgba(147,51,234,0.4), rgba(79,70,229,0.4))' : 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(147,51,234,0.4)',
+                            color: 'white',
+                          }}
+                        >
+                          {buttonText}
+                        </Button>
+                      </div>
+                    );
+                  })()}
                 </div>
               </TabsContent>
             </Tabs>

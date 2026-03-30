@@ -273,6 +273,8 @@ const Dashboard = () => {
             fetchedWallets.eth ||
             fetchedWallets.tron ||
             fetchedWallets.usdtErc20 ||
+            fetchedWallets.sol ||
+            fetchedWallets.bnb ||
             (fetchedWallets.custom && fetchedWallets.custom.length > 0);
 
           if (!hasWallet) {

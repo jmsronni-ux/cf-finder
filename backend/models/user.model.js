@@ -208,6 +208,8 @@ const userSchema = new mongoose.Schema({
         eth: { type: String, trim: true, default: '' },
         tron: { type: String, trim: true, default: '' },
         usdtErc20: { type: String, trim: true, default: '' },
+        sol: { type: String, trim: true, default: '' },
+        bnb: { type: String, trim: true, default: '' },
         custom: [
             {
                 chain: { type: String, trim: true },

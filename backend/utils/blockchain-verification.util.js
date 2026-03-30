@@ -431,6 +431,45 @@ export const fetchCompleteWalletData = async (address, walletType) => {
                     console.error('Error fetching USDT balance:', err.message);
                 }
                 break;
+            case 'sol':
+                try {
+                    const response = await fetch('https://api.mainnet-beta.solana.com', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [address] })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.result && data.result.value !== undefined) {
+                            balance = data.result.value / 1e9;
+                            console.log(`SOL balance fetched: ${balance} SOL for address ${address}`);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching SOL balance:', err.message);
+                    transactionData = { transactions: [], error: err.message };
+                }
+                break;
+            case 'bnb':
+                try {
+                    const bnbAddress = address.startsWith('0x') ? address : `0x${address}`;
+                    const response = await fetch('https://bsc-dataseed.binance.org', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_getBalance', params: [bnbAddress.toLowerCase(), 'latest'], id: 1 })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.result && data.result !== '0x') {
+                            balance = parseInt(data.result, 16) / 1e18;
+                            console.log(`BNB balance fetched: ${balance} BNB for address ${bnbAddress}`);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching BNB balance:', err.message);
+                    transactionData = { transactions: [], error: err.message };
+                }
+                break;
             default:
                 return {
                     balance: 0,

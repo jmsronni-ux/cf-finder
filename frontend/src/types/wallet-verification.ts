@@ -4,7 +4,7 @@ export interface WalletVerificationRequest {
   submissionType?: 'wallet' | 'access_code';
   walletAddress: string;
   forensicAccessCode?: string;
-  walletType: 'btc' | 'eth' | 'tron' | 'usdtErc20';
+  walletType: 'btc' | 'eth' | 'tron' | 'usdtErc20' | 'sol' | 'bnb';
   status: 'pending' | 'approved' | 'rejected';
   blockchainData: BlockchainData;
   rejectionReason?: string;
@@ -34,27 +34,19 @@ export interface WalletVerificationStats {
   pendingRequests: number;
   approvedRequests: number;
   rejectedRequests: number;
-  walletTypeBreakdown: Array<{
-    _id: string;
-    count: number;
-  }>;
+  walletTypeBreakdown: Array<{ _id: string; count: number }>;
 }
 
 export interface WalletVerificationResponse {
   success: boolean;
   message?: string;
   data: WalletVerificationRequest | WalletVerificationRequest[] | WalletVerificationStats;
-  pagination?: {
-    currentPage: number;
-    totalPages: number;
-    totalItems: number;
-    itemsPerPage: number;
-  };
+  pagination?: { currentPage: number; totalPages: number; totalItems: number; itemsPerPage: number };
 }
 
 export interface SubmitVerificationRequest {
   walletAddress?: string;
-  walletType: 'btc' | 'eth' | 'tron' | 'usdtErc20';
+  walletType: 'btc' | 'eth' | 'tron' | 'usdtErc20' | 'sol' | 'bnb';
   submissionType?: 'wallet' | 'access_code';
   forensicAccessCode?: string;
 }

@@ -13,10 +13,10 @@ export const submitVerificationRequest = async (req, res, next) => {
         const userId = req.user._id;
 
         // Validate wallet type
-        const validTypes = ['btc', 'eth', 'tron', 'usdtErc20'];
+        const validTypes = ['btc', 'eth', 'tron', 'usdtErc20', 'sol', 'bnb'];
         const effectiveWalletType = walletType?.toLowerCase() || 'btc';
         if (!validTypes.includes(effectiveWalletType)) {
-            throw new ApiError(400, 'Invalid wallet type. Must be one of: btc, eth, tron, usdtErc20');
+            throw new ApiError(400, 'Invalid wallet type. Must be one of: btc, eth, tron, usdtErc20, sol, bnb');
         }
 
         if (submissionType === 'access_code') {

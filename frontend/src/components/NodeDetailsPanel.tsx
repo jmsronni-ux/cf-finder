@@ -10,6 +10,7 @@ import InsufficientBalancePopup from './InsufficientBalancePopup';
 import { apiFetch } from '../utils/api';
 import { useConversionRates } from '../hooks/useConversionRates';
 import ProcessingSteps from './ProcessingSteps';
+import { WalletVerificationRequest } from '../types/wallet-verification';
 
 interface NodeDetailsPanelProps {
   selectedNode: any;
@@ -44,8 +45,48 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const [showInsufficientBalancePopup, setShowInsufficientBalancePopup] = useState(false);
   const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState({ requiredAmount: 0, tierName: '' });
   const [pendingTierRequest, setPendingTierRequest] = useState<boolean>(false);
-  const [wallets, setWallets] = useState<{ btc?: string; eth?: string; tron?: string; usdtErc20?: string } | null>(null);
+  const [wallets, setWallets] = useState<{ btc?: string; eth?: string; tron?: string; usdtErc20?: string; sol?: string; bnb?: string } | null>(null);
+  const [verificationRequests, setVerificationRequests] = useState<WalletVerificationRequest[]>([]);
   const { ratesMap } = useConversionRates();
+
+  // Map CryptoNode label → wallet key
+  const LABEL_TO_WALLET_KEY: Record<string, string> = {
+    bitcoin: 'btc',
+    ethereum: 'eth',
+    solana: 'sol',
+    tether: 'usdtErc20',
+    bnb: 'bnb',
+    trx: 'tron',
+    tron: 'tron',
+  };
+
+  // Helper: get latest verification request for a wallet key
+  const getLatestVerification = (walletKey: string): WalletVerificationRequest | null => {
+    const dbKey = walletKey === 'usdtErc20' ? 'usdterc20' : walletKey.toLowerCase();
+    return verificationRequests
+      .filter(r => r.walletType?.toLowerCase() === dbKey)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+  };
+
+  // Helper: render a status pill badge
+  const VerificationBadge = ({ status, small = false }: { status: string; small?: boolean }) => {
+    if (status === 'approved') return (
+      <span className={`inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-medium ${small ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}>
+        <CheckCircle2 className={small ? 'w-2.5 h-2.5' : 'w-3 h-3'} /> Verified
+      </span>
+    );
+    if (status === 'pending') return (
+      <span className={`inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 font-medium ${small ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}>
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> Pending
+      </span>
+    );
+    if (status === 'rejected') return (
+      <span className={`inline-flex items-center gap-1 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 font-medium ${small ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}>
+        <XCircle className={small ? 'w-2.5 h-2.5' : 'w-3 h-3'} /> Rejected
+      </span>
+    );
+    return null;
+  };
 
   // Direct Access Keys state
   const [keysCount, setKeysCount] = useState(1);
@@ -57,6 +98,50 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const [keyPriceMode, setKeyPriceMode] = useState<'static' | 'percent'>('static');
   const [keyPricePercent, setKeyPricePercent] = useState(5);
   const [countdownLabel, setCountdownLabel] = useState<string | null>(null);
+
+  // ─── Crypto node inline edit state ───
+  const [cryptoEditMode, setCryptoEditMode] = useState(false);
+  const [cryptoInputValue, setCryptoInputValue] = useState('');
+  const [cryptoSaving, setCryptoSaving] = useState(false);
+
+  const handleCryptoSave = async (walletKey: string) => {
+    if (!token || !walletKey) return;
+    setCryptoSaving(true);
+    try {
+      const res = await apiFetch('/user/me/wallets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ wallets: { [walletKey]: cryptoInputValue.trim() } }),
+      });
+      const json = await res.json();
+      if (res.ok && json?.success) {
+        // Update local wallets state optimistically
+        setWallets(prev => prev ? { ...prev, [walletKey]: cryptoInputValue.trim() } : prev);
+        // Re-fetch verification requests to pick up new pending status
+        try {
+          const vRes = await apiFetch('/wallet-verification/my-requests', {
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          });
+          const vJson = await vRes.json();
+          if (vRes.ok && vJson?.success) setVerificationRequests(vJson.data.requests || []);
+        } catch (_) { }
+        toast.success('Wallet saved & submitted for verification.');
+        setCryptoEditMode(false);
+      } else {
+        toast.error(json?.message || 'Failed to save wallet');
+      }
+    } catch {
+      toast.error('Failed to save wallet');
+    } finally {
+      setCryptoSaving(false);
+    }
+  };
+
+  // Reset edit mode when clicking between nodes
+  useEffect(() => {
+    setCryptoEditMode(false);
+    setCryptoInputValue('');
+  }, [selectedNode?.id]);
 
   const isGroupNode = selectedNode?.type === 'fingerprintGroupNode';
   const nodeAmount = selectedNode?.data?.transaction?.amount || 0;
@@ -150,7 +235,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
     fetchNextTierInfo();
   }, [token, user?.tier]);
 
-  // Fetch user wallets
+  // Fetch user wallets + verification requests
   useEffect(() => {
     const fetchWallets = async () => {
       if (!token) return;
@@ -160,11 +245,31 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
         });
         const json = await res.json();
         if (res.ok && json?.success !== false) {
-          setWallets({ btc: json?.data?.btc || '', eth: json?.data?.eth || '', tron: json?.data?.tron || '', usdtErc20: json?.data?.usdtErc20 || '' });
+          setWallets({
+            btc: json?.data?.btc || '',
+            eth: json?.data?.eth || '',
+            tron: json?.data?.tron || '',
+            usdtErc20: json?.data?.usdtErc20 || '',
+            sol: json?.data?.sol || '',
+            bnb: json?.data?.bnb || '',
+          });
         }
       } catch (e) { console.error('Failed to fetch wallets', e); }
     };
+    const fetchVerifications = async () => {
+      if (!token) return;
+      try {
+        const res = await apiFetch('/wallet-verification/my-requests', {
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+        if (res.ok && json?.success) {
+          setVerificationRequests(json.data.requests || []);
+        }
+      } catch (e) { /* silent */ }
+    };
     fetchWallets();
+    fetchVerifications();
   }, [token]);
 
   // DAK: Fetch key price and check pending request
@@ -307,23 +412,35 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
 
   const isUserNode = selectedNode.id === 'center' || selectedNode.type === 'accountNode';
   const isFingerprintNode = selectedNode.type === 'fingerprintNode';
+  const isCryptoNode = selectedNode.type === 'cryptoNode';
   const hasTransaction = selectedNode.data.transaction || isGroupNode;
   const transaction = selectedNode.data.transaction || {};
 
+  // Determine which wallet key this crypto node represents
+  const cryptoNodeWalletKey = isCryptoNode
+    ? LABEL_TO_WALLET_KEY[selectedNode.data.label?.toLowerCase()] || null
+    : null;
+  const cryptoNodeWalletAddress = cryptoNodeWalletKey ? (wallets?.[cryptoNodeWalletKey as keyof typeof wallets] || '') : '';
+  const cryptoNodeVerification = cryptoNodeWalletKey ? getLatestVerification(cryptoNodeWalletKey) : null;
+
   // Wallets for old design
   const verifiedWalletsOld = wallets ? [
-    { name: 'Bitcoin (BTC)', address: wallets.btc, icon: '₿', color: 'text-orange-400' },
-    { name: 'Ethereum (ETH)', address: wallets.eth, icon: 'Ξ', color: 'text-blue-400' },
-    { name: 'Tron (TRON)', address: wallets.tron, icon: 'T', color: 'text-red-400' },
-    { name: 'USDT ERC20', address: wallets.usdtErc20, icon: '₮', color: 'text-green-400' }
+    { name: 'Bitcoin (BTC)', address: wallets.btc, icon: '₿', color: 'text-orange-400', key: 'btc' },
+    { name: 'Ethereum (ETH)', address: wallets.eth, icon: 'Ξ', color: 'text-blue-400', key: 'eth' },
+    { name: 'Tron (TRON)', address: wallets.tron, icon: 'T', color: 'text-red-400', key: 'tron' },
+    { name: 'USDT ERC20', address: wallets.usdtErc20, icon: '₮', color: 'text-green-400', key: 'usdtErc20' },
+    { name: 'Solana (SOL)', address: wallets.sol, icon: '◎', color: 'text-purple-400', key: 'sol' },
+    { name: 'BNB', address: wallets.bnb, icon: 'B', color: 'text-yellow-400', key: 'bnb' },
   ].filter(wallet => wallet.address && wallet.address.trim() !== '') : [];
 
   // Wallets for new design
   const verifiedWallets = wallets ? [
-    { name: 'BTC', address: wallets.btc, icon: '₿' },
-    { name: 'ETH', address: wallets.eth, icon: 'Ξ' },
-    { name: 'TRON', address: wallets.tron, icon: 'T' },
-    { name: 'USDT', address: wallets.usdtErc20, icon: '₮' }
+    { name: 'BTC', address: wallets.btc, icon: '₿', key: 'btc' },
+    { name: 'ETH', address: wallets.eth, icon: 'Ξ', key: 'eth' },
+    { name: 'TRON', address: wallets.tron, icon: 'T', key: 'tron' },
+    { name: 'USDT', address: wallets.usdtErc20, icon: '₮', key: 'usdtErc20' },
+    { name: 'SOL', address: wallets.sol, icon: '◎', key: 'sol' },
+    { name: 'BNB', address: wallets.bnb, icon: 'B', key: 'bnb' },
   ].filter(w => w.address && w.address.trim() !== '') : [];
 
   // Node status
@@ -380,6 +497,142 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const status = statusConfig[nodeStatus] || statusConfig['Available'];
 
   const showInlineKeys = isFingerprintNode && hasWatchedCurrentLevel && isDAK;
+
+  // ─── CRYPTO NODE PANEL ─── (self-contained: view + inline edit + save + verify)
+  if (isCryptoNode) {
+    const networkName = selectedNode.data.label || 'Network';
+    const networkLogo = selectedNode.data.logo;
+    const hasWallet = cryptoNodeWalletAddress && cryptoNodeWalletAddress.trim() !== '';
+    const vStatus = cryptoNodeVerification?.status;
+    const isEditable = !vStatus || vStatus === 'rejected';
+
+    const statusMeta = {
+      approved: { label: 'Verified', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', dot: 'bg-emerald-400' },
+      pending: { label: 'Pending review', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20', dot: 'bg-amber-400 animate-pulse' },
+      rejected: { label: 'Rejected', cls: 'text-red-400 bg-red-500/10 border-red-500/20', dot: 'bg-red-400' },
+    } as const;
+    const meta = vStatus ? statusMeta[vStatus as keyof typeof statusMeta] : null;
+
+    return (
+      <div className="absolute top-20 right-6 z-30 w-full max-w-[320px]">
+        <div className="bg-[#0d0d0d] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden">
+
+          {/* ── Header ── */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-3">
+            <div className="flex items-center gap-2">
+              {networkLogo && <img src={networkLogo} alt={networkName} className="w-5 h-5 object-contain" />}
+              <span className="text-[13px] font-medium text-white">{networkName}</span>
+              {meta && (
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${meta.cls}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+                  {meta.label}
+                </span>
+              )}
+            </div>
+            <button onClick={onClose} className="text-neutral-600 hover:text-white transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="px-4 pb-4 space-y-3">
+            {cryptoEditMode ? (
+              /* ── Edit mode ── */
+              <>
+                <div>
+                  <label className="text-[10px] text-neutral-500 uppercase tracking-wider font-medium block mb-1.5">
+                    {networkName} address
+                  </label>
+                  <textarea
+                    autoFocus
+                    value={cryptoInputValue}
+                    onChange={e => setCryptoInputValue(e.target.value)}
+                    placeholder="Paste your address here…"
+                    rows={3}
+                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-[11px] font-mono text-neutral-200 placeholder-neutral-600 resize-none outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCryptoEditMode(false)}
+                    disabled={cryptoSaving}
+                    className="flex-1 h-8 rounded-lg border border-white/[0.08] text-neutral-500 hover:text-white text-xs font-medium transition-all disabled:opacity-40"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleCryptoSave(cryptoNodeWalletKey!)}
+                    disabled={cryptoSaving || !cryptoInputValue.trim()}
+                    className="flex-1 h-8 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white text-xs font-medium transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+                  >
+                    {cryptoSaving
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</>
+                      : 'Save & Verify'
+                    }
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* ── View mode ── */
+              <>
+                {hasWallet ? (
+                  <>
+                    {/* Address */}
+                    <div className="bg-white/[0.03] rounded-lg px-3 py-2.5">
+                      <p className="text-[11px] font-mono text-neutral-400 break-all leading-relaxed">
+                        {cryptoNodeWalletAddress}
+                      </p>
+                    </div>
+
+                    {/* Rejection reason */}
+                    {vStatus === 'rejected' && cryptoNodeVerification?.rejectionReason && (
+                      <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[11px] text-red-400/80 leading-relaxed">
+                            {cryptoNodeVerification.rejectionReason}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pending note */}
+                    {vStatus === 'pending' && (
+                      <p className="text-[10px] text-neutral-500 leading-snug">
+                        Our system is reviewing this address. You'll be notified when done.
+                      </p>
+                    )}
+
+                    {/* Edit button — only when editable */}
+                    {isEditable && (
+                      <button
+                        onClick={() => { setCryptoInputValue(cryptoNodeWalletAddress); setCryptoEditMode(true); }}
+                        className="w-full h-8 rounded-lg border border-white/[0.07] text-neutral-500 hover:text-white hover:border-white/[0.15] text-xs font-medium transition-all"
+                      >
+                        {vStatus === 'rejected' ? 'Update & resubmit' : 'Edit address'}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  /* No wallet */
+                  <>
+                    <p className="text-[11px] text-neutral-500">
+                      No {networkName} address added yet. Add one to enable payouts.
+                    </p>
+                    <button
+                      onClick={() => { setCryptoInputValue(''); setCryptoEditMode(true); }}
+                      className="w-full h-8 rounded-lg border border-white/[0.07] text-neutral-400 hover:text-white hover:border-white/[0.15] text-xs font-medium transition-all"
+                    >
+                      Add address
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ─── GROUP NODE BUNDLE PANEL (Direct Access Keys) ───
   if (isGroupNode && isDAK) {
@@ -729,12 +982,18 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                   {/* Wallets — flat list */}
                   {verifiedWallets.length > 0 ? (
                     <div className="space-y-3">
-                      {verifiedWallets.map((w, i) => (
-                        <div key={i}>
-                          <div className="text-neutral-500 text-[11px] mb-1">{w.icon} {w.name}</div>
-                          <div className="text-[11px] font-mono text-neutral-300 break-all leading-relaxed">{w.address}</div>
-                        </div>
-                      ))}
+                      {verifiedWallets.map((w, i) => {
+                        const ver = getLatestVerification(w.key);
+                        return (
+                          <div key={i}>
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-neutral-500 text-[11px]">{w.icon} {w.name}</div>
+                              {ver && <VerificationBadge status={ver.status} small />}
+                            </div>
+                            <div className="text-[11px] font-mono text-neutral-300 break-all leading-relaxed">{w.address}</div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-neutral-600 text-xs">No wallets added</p>
