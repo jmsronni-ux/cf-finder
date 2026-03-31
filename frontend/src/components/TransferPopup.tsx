@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, ArrowRightLeft, DollarSign, AlertCircle, Loader2, Clock, CheckCircle, XCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, ArrowDownUp, AlertCircle, Loader2, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,8 +39,8 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
   const [feeSettings, setFeeSettings] = useState<FeeSettings>({ mode: 'fixed', value: 0 });
   const [transfers, setTransfers] = useState<TransferHistory[]>([]);
   const [loadingTransfers, setLoadingTransfers] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch fee settings + all transfers on open
   useEffect(() => {
     if (!isOpen) return;
 
@@ -64,9 +64,7 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
       try {
         const response = await apiFetch('/transfer-request/my-requests', {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: { 'Authorization': `Bearer ${token}` },
         });
         const data = await response.json();
         if (response.ok && data.success) {
@@ -81,6 +79,9 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
 
     fetchFeeSettings();
     fetchTransfers();
+
+    // Auto-focus input
+    setTimeout(() => inputRef.current?.focus(), 300);
   }, [isOpen, token]);
 
   if (!isOpen || !user) return null;
@@ -88,7 +89,6 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
   const currentSourceBalance = direction === 'dashboard_to_available' ? user.balance : user.availableBalance;
   const isOnchainToAvailable = direction === 'dashboard_to_available';
   
-  // Calculate fee (only for onchain → available)
   const parsedAmount = parseFloat(amount) || 0;
   const feeAmount = isOnchainToAvailable && feeSettings.value > 0
     ? feeSettings.mode === 'percent'
@@ -109,24 +109,20 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     const transferAmount = parseFloat(amount);
     
     if (!transferAmount || transferAmount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
-    
     if (transferAmount > currentSourceBalance) {
       toast.error('Amount exceeds available balance in source wallet');
       return;
     }
-
     if (isOnchainToAvailable && netAmount <= 0) {
       toast.error('Transfer amount is too small to cover the fee');
       return;
     }
-
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -137,35 +133,25 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          amount: transferAmount,
-          direction
-        }),
+        body: JSON.stringify({ amount: transferAmount, direction }),
       });
-
       const data = await response.json();
-
       if (response.ok && data.success) {
         if (isOnchainToAvailable) {
-          toast.success('📋 Transfer request submitted for admin approval!');
-          // Add to pending list immediately
-          if (data.data) {
-            setTransfers(prev => [data.data, ...prev]);
-          }
+          toast.success('Transfer request submitted for approval');
+          if (data.data) setTransfers(prev => [data.data, ...prev]);
         } else {
-          toast.success('🎉 Transfer successful!');
+          toast.success('Transfer completed');
         }
         onSuccess();
         setAmount('');
-        if (!isOnchainToAvailable) {
-          setTimeout(() => onClose(), 500);
-        }
+        if (!isOnchainToAvailable) setTimeout(() => onClose(), 500);
       } else {
-        toast.error(data.message || 'Transfer failed. Please try again.');
+        toast.error(data.message || 'Transfer failed');
       }
     } catch (error) {
       console.error('Transfer error:', error);
-      toast.error('An error occurred. Please try again.');
+      toast.error('An error occurred');
     } finally {
       setIsSubmitting(false);
     }
@@ -179,6 +165,8 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
   const hasTransfers = transfers.length > 0;
   const showHistoryPanel = loadingTransfers || hasTransfers;
 
+  const fmtBal = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const timeSince = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -189,230 +177,232 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
+  const isOverBalance = parsedAmount > currentSourceBalance;
+  const canSubmit = !isSubmitting && amount && parsedAmount > 0 && !isOverBalance && !(isOnchainToAvailable && netAmount <= 0 && parsedAmount > 0);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
+      className="fixed inset-0 z-50 flex items-center justify-center animate-[fadeIn_0.15s_ease-out]"
       onClick={(e) => { if (e.target === e.currentTarget && !isSubmitting) onClose(); }}
     >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70 cursor-pointer" onClick={() => { if (!isSubmitting) onClose(); }} />
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
+
       <div
-        className={`flex items-stretch gap-4 ${showHistoryPanel ? 'max-w-[740px]' : 'max-w-md'} w-full mx-4 animate-[popIn_0.25s_cubic-bezier(0.16,1,0.3,1)]`}
-        style={{ '--tw-enter-opacity': '0', '--tw-enter-scale': '.96', '--tw-enter-translate-y': '8px' } as React.CSSProperties}
+        className={`relative flex items-stretch gap-3 ${showHistoryPanel ? 'max-w-[680px]' : 'max-w-[400px]'} w-full mx-4 animate-[slideUp_0.3s_cubic-bezier(0.16,1,0.3,1)]`}
       >
-        <style>{`
-          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-          @keyframes popIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        `}</style>
-        
-        {/* Left: Transfer Form */}
-        <div className="flex-1 relative bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl p-8 min-w-0">
-          {/* Background pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-10 rounded-2xl" />
+        {/* ─── Main Form ─── */}
+        <div className="flex-1 bg-[#0c0c0c] border border-white/[0.07] rounded-xl overflow-hidden min-w-0">
           
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
-            disabled={isSubmitting}
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          <div className="relative z-10">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 aspect-square rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
-                <ArrowRightLeft className="text-purple-400" size={24} />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">Transfer Funds</h2>
-                <p className="text-gray-400 text-sm">Move balance between wallets</p>
-              </div>
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-5 pb-4">
+            <div>
+              <h2 className="text-[15px] font-semibold text-neutral-200 leading-none">Transfer</h2>
+              <p className="text-[11px] text-neutral-600 mt-1.5 font-mono">Move funds between wallets</p>
             </div>
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-600 hover:text-neutral-300 hover:bg-white/[0.04] transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Direction Toggle Card */}
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 relative overflow-hidden">
-                <div className="flex justify-between items-center relative z-10">
-                  <div className="flex-1 flex flex-col items-center">
-                    <span className="text-xs text-gray-400 mb-1 uppercase tracking-wider">From</span>
-                    <div className="font-semibold text-white">{fromLabel}</div>
-                    <div className="text-sm text-purple-400 mt-1">${fromBalance.toFixed(2)}</div>
+          <form onSubmit={handleSubmit}>
+            {/* Direction */}
+            <div className="mx-5 mb-4">
+              <div className="relative">
+                {/* From */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-mono text-neutral-600 uppercase tracking-widest">From · {fromLabel}</span>
+                    <span className="text-[11px] font-mono text-neutral-500">${fmtBal(fromBalance)}</span>
                   </div>
+
+                  {/* Amount input inline */}
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-neutral-500 text-lg font-light">$</span>
+                    <input
+                      ref={inputRef}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="flex-1 bg-transparent text-white text-xl font-medium placeholder:text-neutral-700 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      disabled={isSubmitting}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleMax}
+                      className="text-[10px] font-mono text-purple-400/80 hover:text-purple-300 uppercase tracking-wider transition-colors px-1.5 py-0.5 rounded bg-purple-500/[0.08] hover:bg-purple-500/[0.14]"
+                    >
+                      Max
+                    </button>
+                  </div>
+                </div>
+
+                {/* Swap button */}
+                <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 top-1/2 z-10 flex items-center justify-center" style={{ top: 'calc(50% + 2px)' }}>
                   <button 
                     type="button" 
                     onClick={handleSwap}
-                    className="mx-4 p-2 rounded-full bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/30 text-purple-400 transition-all hover:scale-110"
+                    className="w-8 h-8 rounded-lg bg-[#0c0c0c] border border-white/[0.1] flex items-center justify-center text-neutral-500 hover:text-purple-400 hover:border-purple-500/30 transition-all group"
                   >
-                    <ArrowRightLeft className="w-5 h-5" />
+                    <ArrowDownUp className="w-3.5 h-3.5" />
                   </button>
-                  <div className="flex-1 flex flex-col items-center">
-                    <span className="text-xs text-gray-400 mb-1 uppercase tracking-wider">To</span>
-                    <div className="font-semibold text-white">{toLabel}</div>
-                    <div className="text-sm text-green-400 mt-1">${toBalance.toFixed(2)}</div>
-                  </div>
                 </div>
-              </div>
 
-              {/* Amount Input */}
-              <div>
-                <div className="flex justify-between mb-2">
-                  <label className="text-sm text-gray-400">Amount to transfer</label>
-                  <button type="button" onClick={handleMax} className="text-xs text-purple-400 hover:text-purple-300">Max</button>
-                </div>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    <DollarSign className="w-5 h-5" />
+                {/* To */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3 mt-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-mono text-neutral-600 uppercase tracking-widest">To · {toLabel}</span>
+                    <span className="text-[11px] font-mono text-neutral-500">${fmtBal(toBalance)}</span>
                   </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={currentSourceBalance}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full bg-white/5 text-white pl-10 pr-16 py-3 rounded-lg border border-white/10 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 text-lg transition-all"
-                    disabled={isSubmitting}
-                    required
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <span className="text-sm text-gray-500 font-medium font-mono">USD</span>
-                  </div>
-                </div>
-                {parseFloat(amount) > currentSourceBalance && (
-                  <p className="mt-1 text-red-400 text-xs flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    Amount exceeds available balance
-                  </p>
-                )}
-              </div>
-
-              {/* Fee Preview (only for onchain → available with fee > 0) */}
-              {isOnchainToAvailable && parsedAmount > 0 && feeSettings.value > 0 && (
-                <div className="p-3 bg-white/5 border border-white/10 rounded-lg space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Transfer Amount</span>
-                    <span className="text-white">${parsedAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">
-                      Fee ({feeSettings.mode === 'percent' ? `${feeSettings.value}%` : `$${feeSettings.value}`})
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-neutral-500 text-lg font-light">$</span>
+                    <span className="text-neutral-400 text-xl font-medium">
+                      {parsedAmount > 0 ? fmtBal(isOnchainToAvailable ? netAmount : parsedAmount) : '0.00'}
                     </span>
-                    <span className="text-red-400">-${feeAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="border-t border-white/10 pt-1.5 flex justify-between text-sm">
-                    <span className="text-gray-300 font-medium">You'll receive</span>
-                    <span className="text-green-400 font-bold">${netAmount.toFixed(2)}</span>
                   </div>
                 </div>
-              )}
-
-              {/* Buttons */}
-              <div className="flex gap-3 mt-5">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                  className="flex-1 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || parseFloat(amount) > currentSourceBalance || !amount || (isOnchainToAvailable && netAmount <= 0 && parsedAmount > 0)}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-purple-600/40 hover:bg-purple-700 border border-purple-600 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : isOnchainToAvailable ? (
-                    'Submit Request'
-                  ) : (
-                    'Confirm Transfer'
-                  )}
-                </button>
               </div>
-            </form>
-          </div>
-        </div>
 
-        {/* Right: Transfer History Panel (separate element) */}
-        {showHistoryPanel && (
-          <div className="w-[260px] flex-shrink-0 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl p-5 flex flex-col max-h-[80vh]">
-            <div className="flex items-center gap-2 mb-4 flex-shrink-0">
-              <ArrowRightLeft className="w-4 h-4 text-purple-400" />
-              <h3 className="text-sm font-semibold text-white">Transfer History</h3>
-              <span className="ml-auto text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded-full font-medium">
-                {transfers.length}
-              </span>
+              {/* Validation error */}
+              {isOverBalance && (
+                <p className="mt-2 text-red-400/90 text-[11px] flex items-center gap-1.5">
+                  <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                  Exceeds source balance
+                </p>
+              )}
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2.5 min-h-0 pr-1 -mr-1 scrollbar-thin scrollbar-thumb-white/10">
+            {/* Fee breakdown */}
+            {isOnchainToAvailable && parsedAmount > 0 && feeSettings.value > 0 && (
+              <div className="mx-5 mb-4 border border-white/[0.06] rounded-lg overflow-hidden">
+                <div className="px-3.5 py-2 flex justify-between items-center text-[11px]">
+                  <span className="text-neutral-500 font-mono">
+                    Fee {feeSettings.mode === 'percent' ? `${feeSettings.value}%` : `$${feeSettings.value}`}
+                  </span>
+                  <span className="text-red-400/80 font-mono">−${feeAmount.toFixed(2)}</span>
+                </div>
+                <div className="px-3.5 py-2 flex justify-between items-center text-[11px] border-t border-white/[0.04]">
+                  <span className="text-neutral-400">Recipient gets</span>
+                  <span className="text-emerald-400 font-medium font-mono">${netAmount.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Submit */}
+            <div className="px-5 pb-5">
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className="w-full h-10 rounded-lg text-[13px] font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed bg-purple-500/[0.15] text-purple-300 border border-purple-500/[0.25] hover:bg-purple-500/[0.25] hover:border-purple-500/[0.4] active:scale-[0.98]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Processing
+                  </>
+                ) : isOnchainToAvailable ? (
+                  'Submit Request'
+                ) : (
+                  'Confirm Transfer'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* ─── History Panel ─── */}
+        {showHistoryPanel && (
+          <div className="w-[240px] flex-shrink-0 bg-[#0c0c0c] border border-white/[0.07] rounded-xl flex flex-col max-h-[480px] overflow-hidden">
+            {/* History header */}
+            <div className="flex items-center gap-2 px-4 pt-4 pb-3 flex-shrink-0">
+              <span className="text-[11px] font-mono text-neutral-500 uppercase tracking-widest">History</span>
+              {hasTransfers && (
+                <span className="text-[10px] font-mono text-neutral-600 bg-white/[0.04] px-1.5 py-0.5 rounded">
+                  {transfers.length}
+                </span>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5 min-h-0 scrollbar-thin scrollbar-thumb-white/5">
               {loadingTransfers ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="w-4 h-4 animate-spin text-neutral-700" />
                 </div>
               ) : (
-                transfers.map((transfer) => (
-                  <div
-                    key={transfer._id}
-                    className={`group relative bg-white/5 border rounded-lg p-3 transition-all ${
-                      transfer.status === 'pending' ? 'border-purple-500/20 hover:border-purple-500/40' :
-                      transfer.status === 'approved' ? 'border-green-500/20 hover:border-green-500/40' :
-                      'border-red-500/20 hover:border-red-500/40'
-                    }`}
-                  >
-                    {/* Status indicator */}
-                    <div className="absolute top-2.5 right-2.5">
-                      {transfer.status === 'pending' ? (
-                        <div className="relative w-3.5 h-3.5">
-                          <div className="absolute inset-0 rounded-full border-2 border-purple-500/20" />
-                          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-purple-400 animate-spin" />
-                        </div>
-                      ) : transfer.status === 'approved' ? (
-                        <CheckCircle className="w-3.5 h-3.5 text-green-400" />
-                      ) : (
-                        <XCircle className="w-3.5 h-3.5 text-red-400" />
-                      )}
-                    </div>
+                transfers.map((transfer, i) => {
+                  const isPending = transfer.status === 'pending';
+                  const isApproved = transfer.status === 'approved';
+                  const isRejected = transfer.status === 'rejected';
 
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <DollarSign className={`w-3.5 h-3.5 ${
-                        transfer.status === 'pending' ? 'text-purple-400' :
-                        transfer.status === 'approved' ? 'text-green-400' : 'text-red-400'
-                      }`} />
-                      <span className="text-sm font-bold text-white">${transfer.amount.toFixed(2)}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <Clock className="w-2.5 h-2.5" />
-                        {timeSince(transfer.createdAt)}
-                      </span>
-                      {transfer.feeAmount > 0 && (
-                        <span className="text-gray-500">
-                          Fee: <span className="text-red-400/80">${transfer.feeAmount.toFixed(2)}</span>
+                  return (
+                    <div
+                      key={transfer._id}
+                      className="rounded-lg px-3 py-2.5 bg-white/[0.02] border border-white/[0.04] hover:border-white/[0.08] transition-colors"
+                      style={{ animationDelay: `${i * 40}ms` }}
+                    >
+                      {/* Top row: amount + status */}
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[13px] font-medium text-neutral-200 font-mono">
+                          ${transfer.amount.toFixed(2)}
                         </span>
+                        <div className="flex items-center gap-1">
+                          {isPending && (
+                            <div className="relative w-3 h-3">
+                              <div className="absolute inset-0 rounded-full border border-purple-500/30" />
+                              <div className="absolute inset-0 rounded-full border border-transparent border-t-purple-400 animate-spin" />
+                            </div>
+                          )}
+                          {isApproved && <CheckCircle className="w-3 h-3 text-emerald-500/70" />}
+                          {isRejected && <XCircle className="w-3 h-3 text-red-400/70" />}
+                          <span className={`text-[10px] font-mono uppercase tracking-wider ${
+                            isPending ? 'text-purple-400/60' :
+                            isApproved ? 'text-emerald-500/60' :
+                            'text-red-400/60'
+                          }`}>
+                            {transfer.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Bottom row: time + fee */}
+                      <div className="flex items-center justify-between text-[10px] text-neutral-600">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" />
+                          {timeSince(transfer.createdAt)}
+                        </span>
+                        {transfer.feeAmount > 0 && (
+                          <span className="font-mono">Fee ${transfer.feeAmount.toFixed(2)}</span>
+                        )}
+                      </div>
+
+                      {/* Rejected admin note */}
+                      {isRejected && transfer.adminNote && (
+                        <div className="mt-1.5 px-2 py-1 rounded bg-red-500/[0.06] border border-red-500/[0.1] text-[10px] text-red-300/80 leading-snug">
+                          {transfer.adminNote}
+                        </div>
+                      )}
+
+                      {/* Pending indicator */}
+                      {isPending && (
+                        <div className="mt-1.5 h-px bg-white/[0.04] rounded-full overflow-hidden">
+                          <div className="h-full w-1/3 bg-purple-500/30 rounded-full animate-pulse" />
+                        </div>
                       )}
                     </div>
-
-                    {/* Admin note for rejected */}
-                    {transfer.status === 'rejected' && transfer.adminNote && (
-                      <div className="mt-2 p-1.5 bg-red-500/10 border border-red-500/20 rounded text-[10px] text-red-300 leading-tight">
-                        {transfer.adminNote}
-                      </div>
-                    )}
-
-                    {/* Processing bar for pending */}
-                    {transfer.status === 'pending' && (
-                      <div className="mt-2 h-0.5 rounded-full bg-white/5 overflow-hidden">
-                        <div className="h-full w-1/2 bg-gradient-to-r from-purple-500/60 to-transparent rounded-full animate-pulse" />
-                      </div>
-                    )}
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
