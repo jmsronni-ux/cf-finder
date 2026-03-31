@@ -11,6 +11,7 @@ import AddWalletPopup from "@/components/AddWalletPopup";
 import InsufficientBalancePopup from "@/components/InsufficientBalancePopup";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import AdminTemplateControls from "@/components/AdminTemplateControls";
+import DashboardBalances from "@/components/DashboardBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLevelData } from "@/hooks/useLevelData";
 import type { CryptoTransaction } from "@/components/CryptoTransactionTable";
@@ -424,6 +425,7 @@ const Dashboard = () => {
               }}
             />
           )}
+          <DashboardBalances />
           <FlowCanvas
             onNodeAppear={handleNodeAppear}
             externalSelectedNodeId={selectedNodeId}

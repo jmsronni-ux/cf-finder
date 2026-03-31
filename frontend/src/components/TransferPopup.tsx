@@ -177,6 +177,7 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
   const toBalance = direction === 'dashboard_to_available' ? (user.availableBalance || 0) : user.balance;
 
   const hasTransfers = transfers.length > 0;
+  const showHistoryPanel = loadingTransfers || hasTransfers;
 
   const timeSince = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -189,8 +190,18 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className={`flex items-stretch gap-4 transition-all duration-300 ${hasTransfers ? 'max-w-[740px]' : 'max-w-md'} w-full mx-4`}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
+      onClick={(e) => { if (e.target === e.currentTarget && !isSubmitting) onClose(); }}
+    >
+      <div
+        className={`flex items-stretch gap-4 ${showHistoryPanel ? 'max-w-[740px]' : 'max-w-md'} w-full mx-4 animate-[popIn_0.25s_cubic-bezier(0.16,1,0.3,1)]`}
+        style={{ '--tw-enter-opacity': '0', '--tw-enter-scale': '.96', '--tw-enter-translate-y': '8px' } as React.CSSProperties}
+      >
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes popIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        `}</style>
         
         {/* Left: Transfer Form */}
         <div className="flex-1 relative bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl p-8 min-w-0">
@@ -328,7 +339,7 @@ export const TransferPopup: React.FC<TransferPopupProps> = ({
         </div>
 
         {/* Right: Transfer History Panel (separate element) */}
-        {hasTransfers && (
+        {showHistoryPanel && (
           <div className="w-[260px] flex-shrink-0 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl p-5 flex flex-col max-h-[80vh]">
             <div className="flex items-center gap-2 mb-4 flex-shrink-0">
               <ArrowRightLeft className="w-4 h-4 text-purple-400" />

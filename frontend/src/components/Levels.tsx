@@ -36,7 +36,7 @@ export default function Levels({ currentLevel, maxLevel = 5, completedLevels = n
         {/* Collapsed header */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full px-4 py-3 flex items-center justify-between cursor-pointer group transition-colors hover:bg-white/[0.02]"
+          className="w-full px-4 h-[46px] flex items-center justify-between cursor-pointer group transition-colors hover:bg-white/[0.02]"
         >
           <div className="flex items-center gap-2.5">
             <div className="relative flex-shrink-0">
