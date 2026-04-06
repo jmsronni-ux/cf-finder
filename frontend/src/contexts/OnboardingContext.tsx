@@ -248,10 +248,21 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
       if (raw) {
         const persisted: OnboardingPersisted = JSON.parse(raw);
 
-        // Handle version migration: old version → restart fresh
+        // Handle version migration
         if (persisted.version !== ONBOARDING_VERSION) {
-          console.log('[Onboarding] Version mismatch, restarting fresh. Had:', persisted.version, 'Need:', ONBOARDING_VERSION);
-          // Start fresh with new version
+          console.log('[Onboarding] Version mismatch. Had:', persisted.version, 'Need:', ONBOARDING_VERSION);
+
+          // If both phases were already complete, don't force the user through again
+          // — just silently bump the stored version.
+          if (persisted.isComplete && persisted.phase2Complete) {
+            console.log('[Onboarding] Already completed — bumping version silently');
+            persist(user._id, { ...persisted, version: ONBOARDING_VERSION });
+            setIsActive(false);
+            return;
+          }
+
+          // User was mid-tutorial or dismissed before completing → restart fresh
+          console.log('[Onboarding] Not yet completed — restarting fresh');
           setCurrentPhase(1);
           setCurrentStep(1);
           setIsActive(true);
@@ -313,7 +324,28 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
       console.log('[Onboarding] Corrupt persisted data, starting fresh');
     }
 
-    // No persisted state → activate Phase 1 for new users
+    // No persisted state — could be a genuinely new user OR an existing user
+    // who was active before the onboarding feature was added.
+    // Detect pre-existing users by checking for activity signals:
+    const isPreExistingUser =
+      user.lvl1anim === 1 ||           // already watched a scan animation
+      user.walletVerified === true ||   // already verified wallets
+      (user.balance ?? 0) > 0 ||       // has balance
+      (user.availableBalance ?? 0) > 0; // has available balance
+
+    if (isPreExistingUser) {
+      console.log('[Onboarding] Pre-existing user detected — skipping onboarding');
+      persist(user._id, {
+        isComplete: true,
+        phase2Complete: true,
+        currentStep: TUTORIAL_STEPS.length,
+        version: ONBOARDING_VERSION,
+      });
+      setIsActive(false);
+      return;
+    }
+
+    // Genuinely new user → activate Phase 1
     console.log('[Onboarding] New user — activating Phase 1');
     setCurrentPhase(1);
     setCurrentStep(1);
