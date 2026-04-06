@@ -4,7 +4,7 @@ import { useOnboarding } from '../contexts/OnboardingContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon, CheckCircle2, Clock, XCircle, ArrowLeftRight, ArrowDownToLine, AlertCircle } from 'lucide-react';
+import { ArrowBigUpIcon, CrownIcon, ShieldIcon, ZapIcon, StarIcon, Loader2, Wallet, Plus, Users, UserIcon, CheckCircle2, Clock, XCircle, ArrowLeftRight, ArrowDownToLine, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import EnhancedWithdrawPopup from '../components/EnhancedWithdrawPopup';
@@ -129,6 +129,7 @@ const UserProfile: React.FC = () => {
   const [accessCodeStatus, setAccessCodeStatus] = useState<'none' | 'pending' | 'approved'>('none');
   const [walletsLoaded, setWalletsLoaded] = useState(false);
   const [hasRejectedWallet, setHasRejectedWallet] = useState(false);
+  const [showBalanceTooltip, setShowBalanceTooltip] = useState<'available' | 'onchain' | null>(null);
   const navigate = useNavigate();
   const widgetContainerRef = React.useRef<HTMLDivElement>(null);
   // Edit profile state
@@ -755,7 +756,23 @@ const UserProfile: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
               {/* Current Balance */}
               <div className="group h-full" data-onboarding-step="balance">
-                <Card className="h-full flex flex-col border border-border rounded-xl">
+                <Card className="h-full flex flex-col border border-border rounded-xl relative">
+                  {/* Balance info tooltip trigger */}
+                  <div className="absolute top-2.5 right-2.5 z-10">
+                    <span
+                      onMouseEnter={() => setShowBalanceTooltip('available')}
+                      onMouseLeave={() => setShowBalanceTooltip(null)}
+                      className="inline-flex cursor-help"
+                    >
+                      <Info className="w-3.5 h-3.5 text-gray-500 hover:text-gray-300 transition-colors" />
+                    </span>
+                    {showBalanceTooltip && (
+                      <div className="absolute bottom-full right-0 mb-5 bg-[#1a1a1a] border border-white/15 rounded-lg p-3 text-xs text-gray-300 w-64 z-50 shadow-xl font-normal space-y-2">
+                        <p><span className="text-white font-medium">Available:</span> The amount you can use for transactions, withdrawals, and key purchases right now.</p>
+                        <p><span className="text-white font-medium">Onchain:</span> The total value of confirmed blockchain transactions associated with your account.</p>
+                      </div>
+                    )}
+                  </div>
                   <CardHeader className="pb-4 flex flex-row justify-between items-center">
                     <CardTitle className="text-white text-xl flex items-center gap-2">
                       <Wallet className="w-5 h-5" />
@@ -1012,37 +1029,37 @@ const UserProfile: React.FC = () => {
               <>
                 <MagicBadge title="Wallet Management" className="mt-24 mb-6" />
                 <div data-onboarding-step="verification">
-                {accessCodeStatus === 'pending' ? (
-                  <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 shadow-xl overflow-hidden">
-                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-10 rounded-2xl" />
-                    <div className="relative z-10 flex flex-col items-center text-center py-4 gap-3">
-                      <div className="w-12 h-12 rounded-full bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center">
-                        <Clock className="w-6 h-6 text-yellow-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-base">Verification Pending</h3>
-                        <p className="text-gray-400 text-xs mt-1 max-w-xs">
-                          Your access code has been submitted and is awaiting admin review. You'll be notified once it's verified.
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
-                        <span className="text-[11px] text-yellow-400/80 font-medium">Awaiting admin approval</span>
+                  {accessCodeStatus === 'pending' ? (
+                    <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 shadow-xl overflow-hidden">
+                      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-10 rounded-2xl" />
+                      <div className="relative z-10 flex flex-col items-center text-center py-4 gap-3">
+                        <div className="w-12 h-12 rounded-full bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center">
+                          <Clock className="w-6 h-6 text-yellow-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-white font-semibold text-base">Verification Pending</h3>
+                          <p className="text-gray-400 text-xs mt-1 max-w-xs">
+                            Your access code has been submitted and is awaiting admin review. You'll be notified once it's verified.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                          <span className="text-[11px] text-yellow-400/80 font-medium">Awaiting admin approval</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <AddWalletPopup
-                    isPopup={false}
-                    onSuccess={() => {
-                      fetchWallets();
-                      refreshUser();
-                      
-                      // Auto-advance onboarding tutorial (Phase 1, step 1)
-                      window.dispatchEvent(new Event('onboarding-auto-advance'));
-                    }}
-                  />
-                )}
+                  ) : (
+                    <AddWalletPopup
+                      isPopup={false}
+                      onSuccess={() => {
+                        fetchWallets();
+                        refreshUser();
+
+                        // Auto-advance onboarding tutorial (Phase 1, step 1)
+                        window.dispatchEvent(new Event('onboarding-auto-advance'));
+                      }}
+                    />
+                  )}
                 </div>
               </>
             )}

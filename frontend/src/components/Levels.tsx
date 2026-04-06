@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Lock, Check, ChevronDown, ChevronUp } from 'lucide-react'
+import { Lock, Check, ChevronDown, ChevronUp, Info } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface LevelsProps {
@@ -10,6 +10,7 @@ interface LevelsProps {
 
 export default function Levels({ currentLevel, maxLevel = 5, completedLevels = new Set() }: LevelsProps) {
   const [expanded, setExpanded] = useState(false);
+  const [showLevelTooltip, setShowLevelTooltip] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);
 
@@ -39,11 +40,12 @@ export default function Levels({ currentLevel, maxLevel = 5, completedLevels = n
           className="w-full px-4 h-[46px] flex items-center justify-between cursor-pointer group transition-colors hover:bg-white/[0.02]"
         >
           <div className="flex items-center gap-2.5">
-            <div className="relative flex-shrink-0">
-              <div className="w-2 h-2 rounded-full bg-purple-400" />
-              {getStatus(currentLevel) === 'current' && (
-                <div className="absolute inset-0 w-2 h-2 rounded-full bg-purple-400 animate-ping opacity-30" />
-              )}
+            <div
+              className="relative flex-shrink-0 cursor-help"
+              onMouseEnter={(e) => { e.stopPropagation(); setShowLevelTooltip(true); }}
+              onMouseLeave={() => setShowLevelTooltip(false)}
+            >
+              <Info className="w-3.5 h-3.5 text-purple-400 hover:text-purple-300 transition-colors" />
             </div>
             <span className="text-neutral-300 text-xs font-medium">
               Level {currentLevel}
@@ -51,6 +53,11 @@ export default function Levels({ currentLevel, maxLevel = 5, completedLevels = n
             <span className="text-neutral-600 text-[11px] font-mono">
               / {maxLevel}
             </span>
+            {showLevelTooltip && (
+              <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/15 rounded-lg p-3 text-xs text-gray-300 w-56 z-[60] shadow-xl font-normal">
+                Your current layer represents your progression level. Complete all transactions in a layer to unlock the next one.
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
