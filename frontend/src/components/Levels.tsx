@@ -31,7 +31,7 @@ export default function Levels({ currentLevel, maxLevel = 5, completedLevels = n
   const completedCount = levels.filter(l => getStatus(l) === 'completed').length;
 
   return (
-    <div className="absolute top-5 left-6 z-50 w-full max-w-[220px]">
+    <div className="absolute top-5 left-6 z-50 w-full max-w-[220px]" data-onboarding-step="network-levels">
       <div className="bg-[#0c0c0c] border border-white/[0.07] rounded-xl shadow-2xl overflow-hidden">
         {/* Collapsed header */}
         <button

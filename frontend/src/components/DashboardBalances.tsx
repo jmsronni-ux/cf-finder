@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, Plus } from 'lucide-react';
 import { TransferPopup } from './TransferPopup';
+import TopupRequestPopup from './TopupRequestPopup';
 
 export default function DashboardBalances() {
   const { user, refreshUser } = useAuth();
   const [showTransfer, setShowTransfer] = useState(false);
+  const [showTopup, setShowTopup] = useState(false);
 
   if (!user) return null;
 
   return (
     <>
-      <div className="absolute top-5 left-[260px] z-50 flex items-center">
+      <div className="absolute top-5 left-[260px] z-50 flex items-center" data-onboarding-step="dashboard-balances">
         <div className="bg-[#0c0c0c] border border-white/[0.07] shadow-2xl overflow-hidden flex items-stretch h-[46px] rounded-xl transition-colors hover:border-white/[0.12]">
           
           {/* Available */}
@@ -38,6 +40,16 @@ export default function DashboardBalances() {
             </div>
           </div>
 
+          {/* Top Up Action */}
+          <button 
+            onClick={() => setShowTopup(true)}
+            className="flex items-center justify-center px-3.5 border-l border-white/[0.05] bg-white/[0.02] hover:bg-purple-500/[0.12] transition-colors group text-neutral-400 hover:text-purple-400"
+            title="Top Up Balance"
+            data-onboarding-step="topup-button"
+          >
+            <Plus className="w-3.5 h-3.5 transform group-hover:scale-110 transition-transform" />
+          </button>
+
           {/* Transfer Action */}
           <button 
             onClick={() => setShowTransfer(true)}
@@ -56,6 +68,11 @@ export default function DashboardBalances() {
         onSuccess={() => {
           if (refreshUser) refreshUser();
         }} 
+      />
+
+      <TopupRequestPopup
+        isOpen={showTopup}
+        onClose={() => setShowTopup(false)}
       />
     </>
   );

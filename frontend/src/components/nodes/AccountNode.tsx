@@ -81,6 +81,7 @@ const AccountNode: React.FC<AccountNodeProps> = ({ data }) => {
     return (
       <div
         ref={rootRef}
+        data-onboarding-step="center-node"
         className={`cursor-pointer rounded-full size-20 p-4 flex flex-col items-center justify-center text-center shadow-lg relative transition-all duration-200
           bg-neutral-900 border-2 ${data.selected ? 'border-amber-400/60 ring-2 ring-amber-400/25' : 'border-neutral-600/50'}
         `}
@@ -116,6 +117,7 @@ const AccountNode: React.FC<AccountNodeProps> = ({ data }) => {
   return (
     <div
       ref={rootRef}
+      data-onboarding-step="center-node"
       className={`cursor-pointer bg-gradient-to-br from-purple-600/40 to-blue-600/40 border-2 rounded-full size-20 p-4 flex flex-col items-center justify-center text-center shadow-lg relative transition-all duration-200 ${
         data.selected 
           ? 'border-blue-400 ring-4 ring-blue-400' 

@@ -31,6 +31,7 @@ import { toast } from 'sonner';
 import { useNodeAnimation } from '../hooks/useNodeAnimation';
 import { usePendingStatus } from '../hooks/usePendingStatus';
 import { useAuth } from '../contexts/AuthContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
 import { useNavigate } from 'react-router-dom';
 import { createChildNode, createGroupNode, createCryptoChildNode, canDeleteNode, validateNodeDeletion } from './helpers/nodeOperations';
 import { computeAllowedNodeIds, mapNodesWithState, mapEdgesWithVisibility } from './helpers/visibilityHelpers';
@@ -215,6 +216,63 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const hasPaidForCurrentLevel = user?.tier !== undefined && user.tier >= currentLevel;
 
   // Custom onNodeAppear that initializes pending status
+  const { startPhase2, isActive: onboardingActive, currentPhase: onboardingPhase, currentStep: onboardingStep, setPhase2Ready } = useOnboarding();
+  const reactFlowInstanceRef = useRef<any>(null);
+  const onboardingNodeAdvancedRef = useRef(false);
+
+  // When Phase 2 resumes after page refresh, re-tag the first fingerprint node
+  // so the overlay spotlight has a DOM target to find, zoom into it, and auto-open NodeDetailsPanel.
+  // We depend on nodes.length so this only fires once nodes are actually loaded from the API.
+  const onboardingResumeTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!onboardingActive || onboardingPhase !== 2) return;
+
+    // Block the isCompleted effect from tagging the node prematurely — must happen
+    // BEFORE the nodes.length gate so it's set even on the first render when nodes are empty.
+    onboardingNodeAdvancedRef.current = true;
+
+    if (nodes.length === 0) return; // nodes not loaded yet
+    if (onboardingResumeTriggeredRef.current) return; // already ran once
+    onboardingResumeTriggeredRef.current = true;
+
+    // Wait for React Flow to fully initialize and settle its viewport
+    // (onInit centers on center node, setNodes triggers re-layout — both must finish first)
+    const timer = setTimeout(() => {
+      const fpNode = document.querySelector('.react-flow__node-fingerprintNode');
+      const rfInstance = reactFlowInstanceRef.current;
+
+      if (!fpNode || !rfInstance) return;
+
+      const nodeId = fpNode.getAttribute('data-id');
+      if (!nodeId || !rfInstance.getNode(nodeId)) return;
+
+      // Auto-select the node so NodeDetailsPanel opens (needed for steps 2+)
+      setSelectedNode((prevSelected: any) => {
+        if (prevSelected) return prevSelected;
+        return rfInstance.getNode(nodeId) || null;
+      });
+
+      // 1) Animate viewport to center on the node
+      rfInstance.fitView({
+        nodes: [{ id: nodeId }],
+        maxZoom: 1.1,
+        duration: 800,
+        padding: 0.5,
+      });
+
+      // 2) AFTER the fitView animation finishes, tag the element for the overlay.
+      // If we tag it before fitView completes, the overlay measures getBoundingClientRect()
+      // at the pre-animation position, causing a misaligned spotlight.
+      setTimeout(() => {
+        fpNode.setAttribute('data-onboarding-step', 'fingerprint-node');
+        // Signal the overlay that zoom is done and it can render now
+        setPhase2Ready();
+      }, 850);
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [onboardingActive, onboardingPhase, nodes.length]);
+
   const handleNodeAppear = useCallback((nodeId: string) => {
     initializePendingStatus(nodeId);
     if (onNodeAppear) {
@@ -222,7 +280,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     }
   }, [initializePendingStatus, onNodeAppear]);
 
-  // Animation hook - use current level's nodes
   const currentLevelNodes = useMemo(() => getLevelData(currentLevel, levels).nodes as any[], [currentLevel, levels]);
   const { startAnimation, isNodeVisible, hasStarted, isCompleted, resetAnimation, isAnimating } = useNodeAnimation(
     currentLevelNodes,
@@ -230,6 +287,38 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
     currentLevel,
     isNodePending
   );
+
+  // Trigger Phase 2 of onboarding when the entire level animation + pending timers complete
+  useEffect(() => {
+    if (isCompleted && !onboardingNodeAdvancedRef.current) {
+      onboardingNodeAdvancedRef.current = true;
+      // Small delay so users see the animation settled
+      setTimeout(() => {
+        const fpNode = document.querySelector('.react-flow__node-fingerprintNode');
+        if (fpNode) {
+          fpNode.setAttribute('data-onboarding-step', 'fingerprint-node');
+          const nodeId = fpNode.getAttribute('data-id');
+          if (nodeId && reactFlowInstanceRef.current) {
+            // Use fitView targeting this specific node — it handles all coordinate
+            // transforms correctly unlike setCenter which uses raw positions.
+            reactFlowInstanceRef.current.fitView({
+              nodes: [{ id: nodeId }],
+              maxZoom: 1.1,
+              duration: 800,
+              padding: 0.5,
+            });
+            // Auto-select the node to open NodeDetailsPanel
+            const fpNodeData = nodes.find((n: any) => n.id === nodeId);
+            if (fpNodeData) {
+              setSelectedNode(fpNodeData);
+            }
+          }
+        }
+        // Start phase 2 after the pan/zoom animation finishes
+        setTimeout(() => startPhase2(), 850);
+      }, 800);
+    }
+  }, [isCompleted, startPhase2, nodes]);
 
   // Auto-start next level animation after upgrade
   useEffect(() => {
@@ -952,6 +1041,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         minZoom={0.05}
         maxZoom={2}
         onInit={(instance: any) => {
+          reactFlowInstanceRef.current = instance;
           const centerNode = nodes.find((n: any) => n.id === 'center');
           if (centerNode) {
             instance.setCenter(centerNode.position.x + 40, centerNode.position.y, { zoom: 1, duration: 0 });
@@ -967,6 +1057,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           <FingerprintProgressBar
             completed={fingerprintProgress.completed}
             total={fingerprintProgress.total}
+            data-onboarding-step="start-scan"
           />
         ) : (
           <PulsatingButton
@@ -984,6 +1075,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
             }
             isLoading={isUpgrading}
             className="absolute top-5 right-[3.75rem] w-fit min-w-[10rem] mr-4"
+            data-onboarding-step="start-scan"
             onClick={
               pendingTierRequest
                 ? undefined

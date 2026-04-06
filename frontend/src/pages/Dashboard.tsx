@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -13,6 +14,7 @@ import AnimatedCounter from "@/components/AnimatedCounter";
 import AdminTemplateControls from "@/components/AdminTemplateControls";
 import DashboardBalances from "@/components/DashboardBalances";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useLevelData } from "@/hooks/useLevelData";
 import type { CryptoTransaction } from "@/components/CryptoTransactionTable";
 import { apiFetch } from "@/utils/api";
@@ -31,6 +33,15 @@ const getLevelData = (level: number, levels: any[]): any => {
 
 const Dashboard = () => {
   const { user, token } = useAuth();
+  const navigate = useNavigate();
+  const { isActive: isOnboardingActive, currentStepData } = useOnboarding();
+
+  // Redirect to /profile if tutorial is active and current step belongs to the profile page
+  useEffect(() => {
+    if (isOnboardingActive && currentStepData?.page === 'profile') {
+      navigate('/profile', { replace: true });
+    }
+  }, [isOnboardingActive, currentStepData?.page, navigate]);
   // For admins, this tracks the template they are editing (persisted in localStorage).
   // For regular users, this tracks the template assigned to them.
   const [editingTemplate, setEditingTemplate] = useState<string>(() => {

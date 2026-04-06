@@ -17,6 +17,8 @@ import UserTransactions from "./pages/UserTransactions";
 import ProtectedRoute from "./components/helpers/ProtectedRoute";
 import PublicOnlyRoute from "./components/helpers/PublicOnlyRoute";
 import { AuthProvider } from "./contexts/AuthContext";
+import { OnboardingProvider } from "./contexts/OnboardingContext";
+import OnboardingOverlay from "./components/OnboardingOverlay";
 import { Toaster } from "sonner";
 import AdminUserPasswords from "./pages/admin/AdminUserPasswords";
 
@@ -25,7 +27,9 @@ function App() {
 
   return (
     <AuthProvider>
+      <OnboardingProvider>
       <Toaster position="top-right" richColors />
+      <OnboardingOverlay />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
@@ -89,6 +93,7 @@ function App() {
           </ProtectedRoute>
         } />
       </Routes>
+      </OnboardingProvider>
     </AuthProvider>
   )
 }

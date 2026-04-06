@@ -514,7 +514,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
     const meta = vStatus ? statusMeta[vStatus as keyof typeof statusMeta] : null;
 
     return (
-      <div className="absolute top-20 right-6 z-30 w-full max-w-[320px]">
+      <div className="absolute top-20 right-6 z-30 w-full max-w-[320px]" data-onboarding-step="node-details-panel">
         <div className="bg-[#0d0d0d] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden">
 
           {/* ── Header ── */}
@@ -649,7 +649,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
     const overallPct = totalOriginalAmount > 0 ? Math.round((totalRecoveredAmount / totalOriginalAmount) * 100) : 100;
 
     return (
-      <div className="absolute top-20 right-6 z-30 w-full max-w-[340px] group-panel-enter">
+      <div className="absolute top-20 right-6 z-30 w-full max-w-[340px] group-panel-enter" data-onboarding-step="node-details-panel">
         <div className="group-panel-stack">
           <div className="bg-[#0c0c0c] border border-white/[0.07] rounded-xl shadow-2xl overflow-hidden">
 
@@ -853,7 +853,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                           </div>
                         ) : (
                           /* ─── Bundle key generation ─── */
-                          <div className="space-y-3">
+                          <div className="space-y-3" data-onboarding-step="node-key-section">
                             {/* Quantity row */}
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -909,6 +909,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                                 <button
                                   onClick={() => { onClose(); window.location.href = '/profile'; }}
                                   className="w-full h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                                  data-onboarding-step="node-topup-button"
                                 >
                                   <DollarSign className="w-3 h-3" /> Top Up Balance
                                 </button>
@@ -955,7 +956,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   // ─── NEW DESIGN (Direct Access Keys) ───
   if (isDAK) {
     return (
-      <div className="absolute top-20 right-6 z-30 w-full max-w-[340px]">
+      <div className="absolute top-20 right-6 z-30 w-full max-w-[340px]" data-onboarding-step="node-details-panel">
         <div className="bg-[#0c0c0c] border border-white/[0.07] rounded-xl shadow-2xl">
           <div className="p-5">
 
@@ -1155,7 +1156,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                         </div>
                       ) : (
                         /* Key generation */
-                        <div className="space-y-3">
+                        <div className="space-y-3" data-onboarding-step="node-key-section">
                           {/* Quantity + cost in one row */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -1207,6 +1208,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                               <button
                                 onClick={() => { onClose(); window.location.href = '/profile'; }}
                                 className="w-full h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                                data-onboarding-step="node-topup-button"
                               >
                                 <DollarSign className="w-3 h-3" /> Top Up Balance
                               </button>
@@ -1253,7 +1255,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
 
   // ─── OLD DESIGN (Re-allocate Funds) ───
   return (
-    <div className="absolute top-20 right-6 z-30 w-full max-w-sm">
+    <div className="absolute top-20 right-6 z-30 w-full max-w-sm" data-onboarding-step="node-details-panel">
       <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 shadow-2xl">
         {/* Background pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-15 rounded-2xl" />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -727,7 +728,7 @@ const UserProfile: React.FC = () => {
                     Admin Panel
                   </Link>
                 )}
-                <Link to='/dashboard' >
+                <Link to='/dashboard' data-onboarding-step="go-to-dashboard">
                   <Button className="bg-purple-600/50 hover:bg-purple-700 text-white flex items-center gap-2 border border-purple-600">
                     Go to Dashboard
                   </Button>
@@ -753,7 +754,7 @@ const UserProfile: React.FC = () => {
             {/* User Info Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
               {/* Current Balance */}
-              <div className="group h-full">
+              <div className="group h-full" data-onboarding-step="balance">
                 <Card className="h-full flex flex-col border border-border rounded-xl">
                   <CardHeader className="pb-4 flex flex-row justify-between items-center">
                     <CardTitle className="text-white text-xl flex items-center gap-2">
@@ -1010,6 +1011,7 @@ const UserProfile: React.FC = () => {
             {walletsLoaded && wallets && !wallets.btc && accessCodeStatus !== 'approved' && verificationRequest?.status !== 'approved' && (
               <>
                 <MagicBadge title="Wallet Management" className="mt-24 mb-6" />
+                <div data-onboarding-step="verification">
                 {accessCodeStatus === 'pending' ? (
                   <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 shadow-xl overflow-hidden">
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-10 rounded-2xl" />
@@ -1035,9 +1037,13 @@ const UserProfile: React.FC = () => {
                     onSuccess={() => {
                       fetchWallets();
                       refreshUser();
+                      
+                      // Auto-advance onboarding tutorial (Phase 1, step 1)
+                      window.dispatchEvent(new Event('onboarding-auto-advance'));
                     }}
                   />
                 )}
+                </div>
               </>
             )}
 

@@ -129,6 +129,7 @@ const CryptoNode: React.FC<CryptoNodeProps> = ({ data }) => {
     return (
       <div
         ref={rootRef}
+        data-onboarding-step="network-node"
         className={`${getDakNodeColor(data.label)} cursor-pointer rounded-full size-16 p-4 flex flex-col items-center justify-center text-center transition-all duration-200 ${
           data.selected ? 'ring-2 ring-amber-400/30 shadow-lg shadow-amber-500/15' : ''
         } ${data.withdrawn ? 'opacity-35' : ''}`}
@@ -157,6 +158,7 @@ const CryptoNode: React.FC<CryptoNodeProps> = ({ data }) => {
   return (
     <div
       ref={rootRef}
+      data-onboarding-step="network-node"
       className={`${getNodeColor(data.label)} cursor-pointer rounded-full size-16 p-4 flex flex-col items-center justify-center text-center transition-all duration-200 ${
         data.selected ? 'ring-4 ring-blue-400 shadow-lg shadow-blue-500/25' : ''
       } ${data.withdrawn ? 'opacity-40' : ''}`}

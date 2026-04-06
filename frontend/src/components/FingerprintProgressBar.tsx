@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from "@/lib/utils";
 
-interface FingerprintProgressBarProps {
+interface FingerprintProgressBarProps extends React.HTMLAttributes<HTMLDivElement> {
   completed: number;
   total: number;
   className?: string;
@@ -10,7 +10,8 @@ interface FingerprintProgressBarProps {
 export const FingerprintProgressBar: React.FC<FingerprintProgressBarProps> = ({
   completed,
   total,
-  className
+  className,
+  ...props
 }) => {
   const percentage = total > 0 ? Math.min((completed / total) * 100, 100) : 0;
 
@@ -20,6 +21,7 @@ export const FingerprintProgressBar: React.FC<FingerprintProgressBarProps> = ({
         "flex z-[100] flex-col items-center justify-center rounded-xl px-5 h-9 transition-all duration-200 border shadow-2xl bg-[#0c0c0c] border-amber-500/20 absolute top-5 right-[3.75rem] w-fit min-w-[12rem] mr-4 overflow-hidden",
         className
       )}
+      {...props}
     >
       {/* Border Progress Line at the bottom */}
       <div 
