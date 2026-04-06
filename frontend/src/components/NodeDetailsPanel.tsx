@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import InsufficientBalancePopup from './InsufficientBalancePopup';
+import TopupRequestPopup from './TopupRequestPopup';
 import { apiFetch } from '../utils/api';
 import { useConversionRates } from '../hooks/useConversionRates';
 import ProcessingSteps from './ProcessingSteps';
@@ -43,6 +44,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [nextTierInfo, setNextTierInfo] = useState<{ tier: number; price: number; name: string } | null>(null);
   const [showInsufficientBalancePopup, setShowInsufficientBalancePopup] = useState(false);
+  const [showTopup, setShowTopup] = useState(false);
   const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState({ requiredAmount: 0, tierName: '' });
   const [pendingTierRequest, setPendingTierRequest] = useState<boolean>(false);
   const [wallets, setWallets] = useState<{ btc?: string; eth?: string; tron?: string; usdtErc20?: string; sol?: string; bnb?: string } | null>(null);
@@ -907,7 +909,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                                   Insufficient balance
                                 </div>
                                 <button
-                                  onClick={() => { onClose(); window.location.href = '/profile'; }}
+                                  onClick={() => setShowTopup(true)}
                                   className="w-full h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5"
                                   data-onboarding-step="node-topup-button"
                                 >
@@ -948,6 +950,12 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
           requiredAmount={insufficientBalanceInfo.requiredAmount}
           currentBalance={user?.balance || 0}
           tierName={insufficientBalanceInfo.tierName}
+        />
+
+        {/* Top Up Popup */}
+        <TopupRequestPopup
+          isOpen={showTopup}
+          onClose={() => setShowTopup(false)}
         />
       </div>
     );
@@ -1206,7 +1214,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
                                 Insufficient balance
                               </div>
                               <button
-                                onClick={() => { onClose(); window.location.href = '/profile'; }}
+                                onClick={() => setShowTopup(true)}
                                 className="w-full h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5"
                                 data-onboarding-step="node-topup-button"
                               >
@@ -1248,6 +1256,12 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
           requiredAmount={insufficientBalanceInfo.requiredAmount}
           currentBalance={user?.balance || 0}
           tierName={insufficientBalanceInfo.tierName}
+        />
+
+        {/* Top Up Popup */}
+        <TopupRequestPopup
+          isOpen={showTopup}
+          onClose={() => setShowTopup(false)}
         />
       </div>
     );
@@ -1474,6 +1488,12 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
         requiredAmount={insufficientBalanceInfo.requiredAmount}
         currentBalance={user?.balance || 0}
         tierName={insufficientBalanceInfo.tierName}
+      />
+
+      {/* Top Up Popup */}
+      <TopupRequestPopup
+        isOpen={showTopup}
+        onClose={() => setShowTopup(false)}
       />
     </div>
   );
