@@ -46,8 +46,12 @@ export const handleHeyflowWebhook = async (req, res, next) => {
 
         const payload = req.body;
 
+        // Debug: log the full incoming payload to see exact field names
+        console.log("[Heyflow Webhook] Incoming payload:", JSON.stringify(payload, null, 2));
+
         // Validate basic Heyflow payload structure
         if (!payload || !payload.fields) {
+            console.error("[Heyflow Webhook] Missing 'fields' in payload. Top-level keys:", Object.keys(payload || {}));
             throw new ApiError(400, "Invalid Heyflow webhook payload: missing 'fields'");
         }
 
