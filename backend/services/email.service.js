@@ -526,5 +526,31 @@ export const sendWalletVerificationRejectedEmail = async (email, name, walletAdd
     }
 };
 
+// Send welcome email with login credentials to Heyflow form users
+export const sendHeyflowWelcomeEmail = async (email, name, password) => {
+    try {
+        const { FRONTEND_URL } = await import('../config/env.js');
+        const baseUrl = FRONTEND_URL ? FRONTEND_URL.split(',')[0].trim() : 'http://localhost:5173';
+        const loginUrl = `${baseUrl}/login`;
+
+        const html = loadEmailTemplate('heyflow-welcome', {
+            name,
+            email,
+            password,
+            loginUrl
+        });
+
+        return await sendViaMailtrap({
+            to: email,
+            subject: 'Welcome to CryptoFinders - Your Account Is Ready',
+            html,
+            category: "Heyflow Welcome"
+        });
+    } catch (error) {
+        console.error('Error sending Heyflow welcome email:', error);
+        throw new Error(`Failed to send Heyflow welcome email: ${error.message}`);
+    }
+};
+
 
 
