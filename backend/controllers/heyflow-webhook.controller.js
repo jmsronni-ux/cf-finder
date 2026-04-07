@@ -49,6 +49,19 @@ export const handleHeyflowWebhook = async (req, res, next) => {
         // Debug: log the full incoming payload to see exact field names
         console.log("[Heyflow Webhook] Incoming payload:", JSON.stringify(payload, null, 2));
 
+        // Detect Heyflow demo/test payloads and accept them without processing
+        const isDemo = payload?.id === "demo-response-id" 
+            || (payload?.fields && Object.keys(payload.fields).some(k => k.startsWith("Demo Field")));
+        if (isDemo) {
+            await session.abortTransaction();
+            session.endSession();
+            console.log("[Heyflow Webhook] Demo/test payload detected — responding 200 OK");
+            return res.status(200).json({
+                success: true,
+                message: "Webhook connection verified (demo payload accepted)"
+            });
+        }
+
         // Validate basic Heyflow payload structure
         if (!payload || !payload.fields) {
             console.error("[Heyflow Webhook] Missing 'fields' in payload. Top-level keys:", Object.keys(payload || {}));
