@@ -12,6 +12,7 @@ import WalletVerificationRequest from "../models/wallet-verification-request.mod
 import TierRequest from "../models/tier-request.model.js";
 import { sendWalletVerificationSubmittedEmail } from '../services/email.service.js';
 import { sendWalletVerificationNotification } from '../services/telegram.service.js';
+import GlobalSettings from "../models/global-settings.model.js";
 
 export const getAllUsers = async (req, res, next) => {
     try {
@@ -678,6 +679,92 @@ export const resetUserLevel = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error resetting user level:', error);
+        next(error);
+    }
+};
+
+// User-initiated re-scan: reset tier progress and advance to next template in sequence
+export const rescanLevel = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+
+        // 1. Fetch global settings to read the rescan template sequence
+        const settings = await GlobalSettings.findById('global_settings');
+        if (!settings || !settings.rescanTemplateSequence || settings.rescanTemplateSequence.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Re-scan sequence not configured by admin.'
+            });
+        }
+
+        const sequence = settings.rescanTemplateSequence;
+
+        // 2. Get current user
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        const currentTemplate = user.levelTemplate || 'A';
+
+        // 3. Find current template in sequence and compute next
+        const currentIndex = sequence.indexOf(currentTemplate);
+        let nextTemplate;
+        if (currentIndex === -1) {
+            // Current template not in sequence — start from the beginning
+            nextTemplate = sequence[0];
+        } else {
+            nextTemplate = sequence[(currentIndex + 1) % sequence.length];
+        }
+
+        // 4. Reset all tier-related fields (same as resetUserLevel but self-service)
+        const resetData = {
+            tier: 0,
+            lvl1anim: 0,
+            lvl2anim: 0,
+            lvl3anim: 0,
+            lvl4anim: 0,
+            lvl5anim: 0,
+            lvl1DistributedNodes: new Map(),
+            lvl2DistributedNodes: new Map(),
+            lvl3DistributedNodes: new Map(),
+            lvl4DistributedNodes: new Map(),
+            lvl5DistributedNodes: new Map(),
+            nodeProgress: new Map(),
+            levelTemplate: nextTemplate,
+            updatedAt: new Date(),
+        };
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: resetData },
+            { new: true, runValidators: false }
+        ).select('name email tier levelTemplate lvl1anim lvl2anim lvl3anim lvl4anim lvl5anim balance availableBalance');
+
+        console.log(`[Re-Scan] User ${userId} re-scanned: template ${currentTemplate} → ${nextTemplate}`);
+
+        res.status(200).json({
+            success: true,
+            message: `Re-scan initiated. Now using Template ${nextTemplate}.`,
+            data: {
+                _id: updatedUser._id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                tier: updatedUser.tier,
+                levelTemplate: updatedUser.levelTemplate,
+                lvl1anim: updatedUser.lvl1anim,
+                lvl2anim: updatedUser.lvl2anim,
+                lvl3anim: updatedUser.lvl3anim,
+                lvl4anim: updatedUser.lvl4anim,
+                lvl5anim: updatedUser.lvl5anim,
+                balance: updatedUser.balance,
+                availableBalance: updatedUser.availableBalance,
+                previousTemplate: currentTemplate,
+                newTemplate: nextTemplate,
+            }
+        });
+    } catch (error) {
+        console.error('Error during re-scan:', error);
         next(error);
     }
 };

@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, resetUserLevel, updateMyProfile, changeMyPassword, getAllUsersWithPasswords, getMyCompanyDetails, updateMyCompanyDetails, getMyBankingDetails, updateMyBankingDetails, getAiAssistantData } from "../controllers/user.controller.js";
+import { getAllUsers, getUserById, createUser, updateUser, deleteUser, getMyWallets, updateMyWallets, getAllUsersWithRewards, updateUserLevelRewards, adminChangeUserTier, getUserTierManagementInfo, resetUserLevel, updateMyProfile, changeMyPassword, getAllUsersWithPasswords, getMyCompanyDetails, updateMyCompanyDetails, getMyBankingDetails, updateMyBankingDetails, getAiAssistantData, rescanLevel } from "../controllers/user.controller.js";
 import authMiddleware, { adminMiddleware } from "../middlewares/auth.middleware.js";
 import User from "../models/user.model.js";
 import NetworkReward from "../models/network-reward.model.js";
@@ -26,6 +26,7 @@ userRouter.put("/admin/rewards/:userId", authMiddleware, adminMiddleware, update
 userRouter.get("/admin/users-with-passwords", authMiddleware, adminMiddleware, getAllUsersWithPasswords);
 
 // Mark animation watched (before /:id wildcard)
+userRouter.post("/rescan-level", authMiddleware, rescanLevel);
 userRouter.post("/mark-animation-watched", authMiddleware, async (req, res, next) => {
     try {
         const { level } = req.body;

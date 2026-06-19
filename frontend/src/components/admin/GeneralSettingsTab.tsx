@@ -7,7 +7,7 @@ import { Switch } from '../../components/ui/switch';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
-import { Save, Loader2, LayoutPanelTop, ArrowRightLeft, DollarSign, Percent } from 'lucide-react';
+import { Save, Loader2, LayoutPanelTop, ArrowRightLeft, DollarSign, Percent, ChevronUp, ChevronDown, X, Plus, RotateCcw } from 'lucide-react';
 import { apiFetch } from '../../utils/api';
 
 const GeneralSettingsTab: React.FC = () => {
@@ -19,6 +19,8 @@ const GeneralSettingsTab: React.FC = () => {
   const [availableTemplates, setAvailableTemplates] = useState<string[]>(['A']);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [rescanSequence, setRescanSequence] = useState<string[]>([]);
+  const [rescanTemplateToAdd, setRescanTemplateToAdd] = useState<string>('');
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -35,6 +37,7 @@ const GeneralSettingsTab: React.FC = () => {
           setTransferFeeMode(settingsData.data.transferFeeMode ?? 'fixed');
           setTransferFeeValue(String(settingsData.data.transferFeeValue ?? 0));
           setDefaultLevelTemplate(settingsData.data.defaultLevelTemplate ?? 'A');
+          setRescanSequence(settingsData.data.rescanTemplateSequence ?? []);
         }
 
         const templatesData = await templatesRes.json();
@@ -77,6 +80,7 @@ const GeneralSettingsTab: React.FC = () => {
           transferFeeMode,
           transferFeeValue: feeVal,
           defaultLevelTemplate,
+          rescanTemplateSequence: rescanSequence,
         }),
       });
       const data = await res.json();
@@ -153,6 +157,124 @@ const GeneralSettingsTab: React.FC = () => {
               </Select>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Re-Scan Template Sequence */}
+      <Card className="bg-white/5 border-white/10">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <RotateCcw className="w-5 h-5 text-cyan-400" />
+            Re-Scan Template Sequence
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Configure the ordered sequence of templates users will cycle through when they re-scan. Up to 10 templates. When a user re-scans, their progress resets and they advance to the next template in this list (looping back to the first after the last).
+          </p>
+
+          {/* Current sequence */}
+          {rescanSequence.length > 0 ? (
+            <div className="space-y-2">
+              {rescanSequence.map((tmpl, idx) => (
+                <div
+                  key={`${tmpl}-${idx}`}
+                  className="flex items-center gap-2 p-2.5 bg-white/5 border border-white/10 rounded-lg group"
+                >
+                  <span className="w-6 h-6 flex items-center justify-center rounded-md bg-cyan-500/20 text-cyan-400 text-xs font-bold flex-shrink-0">
+                    {idx + 1}
+                  </span>
+                  <span className="text-sm font-medium text-foreground flex-1">
+                    Template {tmpl}
+                  </span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => {
+                        if (idx === 0) return;
+                        const newSeq = [...rescanSequence];
+                        [newSeq[idx - 1], newSeq[idx]] = [newSeq[idx], newSeq[idx - 1]];
+                        setRescanSequence(newSeq);
+                      }}
+                      disabled={idx === 0}
+                      className="p-1 rounded hover:bg-white/10 disabled:opacity-30 transition-colors"
+                      title="Move up"
+                    >
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (idx === rescanSequence.length - 1) return;
+                        const newSeq = [...rescanSequence];
+                        [newSeq[idx], newSeq[idx + 1]] = [newSeq[idx + 1], newSeq[idx]];
+                        setRescanSequence(newSeq);
+                      }}
+                      disabled={idx === rescanSequence.length - 1}
+                      className="p-1 rounded hover:bg-white/10 disabled:opacity-30 transition-colors"
+                      title="Move down"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRescanSequence(rescanSequence.filter((_, i) => i !== idx));
+                      }}
+                      className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors"
+                      title="Remove"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 bg-white/5 border border-dashed border-white/10 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">No templates in the sequence yet. Add templates below.</p>
+            </div>
+          )}
+
+          {/* Add template control */}
+          {rescanSequence.length < 10 && (
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Select value={rescanTemplateToAdd} onValueChange={setRescanTemplateToAdd}>
+                  <SelectTrigger className="bg-background/50 border-border">
+                    <SelectValue placeholder="Select template to add" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999] bg-background border-border">
+                    {availableTemplates.map(template => (
+                      <SelectItem key={template} value={template}>
+                        Template {template}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                onClick={() => {
+                  if (!rescanTemplateToAdd) {
+                    toast.error('Select a template first');
+                    return;
+                  }
+                  if (rescanSequence.length >= 10) {
+                    toast.error('Maximum 10 templates allowed');
+                    return;
+                  }
+                  setRescanSequence([...rescanSequence, rescanTemplateToAdd]);
+                  setRescanTemplateToAdd('');
+                }}
+                variant="outline"
+                size="sm"
+                className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add
+              </Button>
+            </div>
+          )}
+          {rescanSequence.length >= 10 && (
+            <p className="text-xs text-amber-400">Maximum of 10 templates reached.</p>
+          )}
         </CardContent>
       </Card>
 

@@ -58,7 +58,8 @@ export const updateGlobalSettings = async (req, res, next) => {
             defaultLevelTemplate,
             levelKeyPricing,
             transferFeeMode,
-            transferFeeValue
+            transferFeeValue,
+            rescanTemplateSequence
         } = req.body;
 
         let settings = await GlobalSettings.findById('global_settings');
@@ -97,6 +98,7 @@ export const updateGlobalSettings = async (req, res, next) => {
             if (levelKeyPricing !== undefined) settings.levelKeyPricing = levelKeyPricing;
             if (transferFeeMode !== undefined) settings.transferFeeMode = transferFeeMode;
             if (transferFeeValue !== undefined) settings.transferFeeValue = transferFeeValue;
+            if (rescanTemplateSequence !== undefined) settings.rescanTemplateSequence = rescanTemplateSequence;
 
             settings.updatedAt = Date.now();
             await settings.save();

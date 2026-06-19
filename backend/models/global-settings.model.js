@@ -81,6 +81,15 @@ const globalSettingsSchema = new mongoose.Schema({
         default: '',
         trim: true
     },
+    // Ordered sequence of templates for the Re-Scan feature (max 10)
+    rescanTemplateSequence: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: (arr) => arr.length <= 10,
+            message: 'Re-scan sequence cannot exceed 10 templates'
+        }
+    },
     updatedAt: {
         type: Date,
         default: Date.now

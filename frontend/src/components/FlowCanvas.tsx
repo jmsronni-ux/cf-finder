@@ -35,7 +35,7 @@ import { useOnboarding } from '../contexts/OnboardingContext';
 import { useNavigate } from 'react-router-dom';
 import { createChildNode, createGroupNode, createCryptoChildNode, canDeleteNode, validateNodeDeletion } from './helpers/nodeOperations';
 import { computeAllowedNodeIds, mapNodesWithState, mapEdgesWithVisibility } from './helpers/visibilityHelpers';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, RotateCcw } from 'lucide-react';
 
 
 interface FlowCanvasProps {
@@ -63,7 +63,7 @@ const edgeTypes = {
 };
 
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedNodeId, editingTemplate = 'A', onCanvasUpdate }) => {
-  const { levels, loading: levelsLoading, setTemplateName } = useLevelData(editingTemplate);
+  const { levels, loading: levelsLoading, setTemplateName, refetch: refetchLevels } = useLevelData(editingTemplate);
 
   // Sync template name when prop changes from admin controls
   useEffect(() => {
@@ -105,6 +105,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   const [withdrawalSystem, setWithdrawalSystem] = useState<'current' | 'direct_access_keys'>('current');
   const [withdrawalSystemLoaded, setWithdrawalSystemLoaded] = useState(false);
   const [showDirectKeysPopup, setShowDirectKeysPopup] = useState(false);
+  const [rescanSequence, setRescanSequence] = useState<string[]>([]);
+  const [showRescanConfirm, setShowRescanConfirm] = useState(false);
+  const [isRescanning, setIsRescanning] = useState(false);
   const [nodeScheduledActions, setNodeScheduledActions] = useState<Record<string, { executeAt: string; createdAt: string; nodeStatusOutcome: string }>>({});
   const [nodeApprovedAmounts, setNodeApprovedAmounts] = useState<Record<string, number>>({});
   const [nodeAdminComments, setNodeAdminComments] = useState<Record<string, { comment: string; outcome: string }>>({});
@@ -124,7 +127,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
   } = usePendingStatus(nodes);
 
   // Sync current level from DB (user tier)
-  const { user, markAnimationWatched, refreshUser, token } = useAuth();
+  const { user, markAnimationWatched, refreshUser, token, rescanLevel } = useAuth();
 
   // Load user-scoped pending reveals from localStorage
   useEffect(() => {
@@ -518,6 +521,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         const json = await res.json();
         if (res.ok && json?.success) {
           setWithdrawalSystem(json.data.withdrawalSystem || 'current');
+          setRescanSequence(json.data.rescanTemplateSequence || []);
         }
       } catch (e) {
         console.error('Failed to fetch withdrawal system setting');
@@ -1068,10 +1072,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                 hasWatchedCurrentLevel ?
                   (withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys ? "verificationPending" : "withdraw") :
                   isAnimating || isProcessingCompletion ? "loading" :
-                  !hasPaidForCurrentLevel ? "start" :
-                  (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
-                    (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification) ? "verifyWallet" :
-                        "start"
+                    !hasPaidForCurrentLevel ? "start" :
+                      (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
+                        (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification) ? "verifyWallet" :
+                          "start"
             }
             isLoading={isUpgrading}
             className="absolute top-5 right-[3.75rem] w-fit min-w-[10rem] mr-4"
@@ -1110,10 +1114,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                             navigate('/profile');
                           }
                           : () => {
-                              resetPendingStatus();
-                              setAnimationStartedForLevel(currentLevel);
-                              startAnimation();
-                            }
+                            resetPendingStatus();
+                            setAnimationStartedForLevel(currentLevel);
+                            startAnimation();
+                          }
             }
             disabled={
               pendingTierRequest ||
@@ -1146,6 +1150,126 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           </PulsatingButton>
         )}
 
+        {/* Re-Scan Button — visible when rescan sequence is configured and user is not admin */}
+        {!user?.isAdmin && rescanSequence.length > 0 && (
+          <button
+            className="rescan-3d-btn"
+            disabled={isAnimating || isProcessingCompletion || isRescanning}
+            onClick={() => setShowRescanConfirm(true)}
+          >
+            <RotateCcw className="rescan-icon w-3.5 h-3.5" />
+            Re-Scan
+          </button>
+        )}
+
+        {/* Re-Scan Confirmation Dialog */}
+        {showRescanConfirm && (
+          <div
+            className="absolute inset-0 z-[200] flex items-center justify-center"
+            style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setShowRescanConfirm(false)}
+          >
+            <div
+              className="relative bg-[#0d0d0d] border border-white/[0.08] rounded-2xl w-full max-w-[22rem] mx-4 shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Green top accent bar */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-green-500/60 to-transparent" />
+
+              {/* Header */}
+              <div className="px-6 pt-6 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center flex-shrink-0">
+                    <RotateCcw className="text-green-400" style={{ width: '1.1rem', height: '1.1rem' }} />
+                  </div>
+                  <div>
+                    <h3 className="text-[0.9rem] font-semibold text-white leading-tight">Start a New Re-Scan?</h3>
+                    <p className="text-[0.7rem] text-neutral-500 mt-0.5">Your current scan will be reset</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="mx-6 h-px bg-white/[0.06]" />
+
+              {/* Body */}
+              <div className="px-6 py-4 space-y-3">
+                <p className="text-[0.8rem] text-neutral-400 leading-relaxed">
+                  A new scan may uncover deeper connections and{' '}
+                  <span className="text-green-400 font-medium">potentially higher findings</span> in your network.
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2.5 p-2.5 bg-white/[0.03] border border-white/[0.06] rounded-xl">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500/70 mt-1.5 flex-shrink-0" />
+                    <p className="text-[0.75rem] text-neutral-400">Your scan progress will reset from Level 1</p>
+                  </div>
+                  <div className="flex items-start gap-2.5 p-2.5 bg-green-500/[0.05] border border-green-500/[0.12] rounded-xl">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-1.5 flex-shrink-0" />
+                    <p className="text-[0.75rem] text-green-300/90">Your balance and earnings are fully preserved</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 pb-6 flex gap-2.5">
+                <button
+                  className="flex-1 px-4 py-2.5 rounded-xl text-[0.8rem] font-medium bg-white/[0.05] border border-white/[0.08] text-neutral-400 hover:bg-white/[0.09] hover:text-neutral-200 transition-all duration-150"
+                  onClick={() => setShowRescanConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="flex-1 px-4 py-2.5 rounded-xl text-[0.8rem] font-semibold bg-green-700/70 border border-green-600/30 text-green-100 hover:bg-green-700/90 hover:border-green-500/50 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isRescanning}
+                  onClick={async () => {
+                    setIsRescanning(true);
+                    try {
+                      const result = await rescanLevel();
+                      if (result.success) {
+                        setShowRescanConfirm(false);
+                        await refreshUser();
+                        toast.success('Re-scan started — new connections loading...');
+                        // Reset all animation/completion state BEFORE refetching levels
+                        resetAnimation();
+                        resetPendingStatus();
+                        setCompletionPopupShown(false);
+                        setAnimationStartedForLevel(null);
+                        setCurrentLevel(1);
+                        // Refetch level data for the new template, then auto-start animation
+                        await refetchLevels();
+                        // Use autoStartNextLevel flag — the useEffect on [currentLevel, levels]
+                        // will resetAnimation again when levels arrive, so we use a small
+                        // delay to let that effect settle, then start.
+                        setTimeout(() => {
+                          resetAnimation();
+                          resetPendingStatus();
+                          setAnimationStartedForLevel(1);
+                          startAnimation();
+                        }, 300);
+                      } else {
+                        toast.error('Re-scan failed. Please try again.');
+                      }
+                    } catch {
+                      toast.error('An error occurred during re-scan.');
+                    } finally {
+                      setIsRescanning(false);
+                    }
+                  }}
+                >
+                  {isRescanning ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Re-scanning…
+                    </span>
+                  ) : 'Start Re-Scan'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Data Visual Component - Admin users see edit panel, regular users see details panel */}
         {user?.isAdmin ? (

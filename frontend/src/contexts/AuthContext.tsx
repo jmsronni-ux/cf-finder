@@ -48,6 +48,7 @@ interface AuthContextType {
   isLoading: boolean;
   refreshUser: () => Promise<void>;
   markAnimationWatched: (level: number) => Promise<{ success: boolean; totalRewardUSDT?: number; networkRewards?: any }>;
+  rescanLevel: () => Promise<{ success: boolean; newTemplate?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -216,6 +217,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const rescanLevel = async (): Promise<{ success: boolean; newTemplate?: string }> => {
+    if (!token) {
+      console.error('[Frontend] No token available for re-scan');
+      return { success: false };
+    }
+    try {
+      const response = await apiFetch('/user/rescan-level', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const responseData = await response.json();
+      if (response.ok && responseData.success) {
+        // Merge updated user fields into context
+        if (user) {
+          const updatedUser = { ...user, ...responseData.data };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+        return {
+          success: true,
+          newTemplate: responseData.data.newTemplate,
+        };
+      }
+      console.error('[Frontend] Re-scan failed:', responseData);
+      return { success: false };
+    } catch (error) {
+      console.error('[Frontend] Re-scan error:', error);
+      return { success: false };
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -272,6 +307,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     refreshUser,
     markAnimationWatched,
+    rescanLevel,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
