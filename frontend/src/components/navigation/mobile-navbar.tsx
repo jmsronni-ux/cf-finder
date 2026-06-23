@@ -24,7 +24,9 @@ const MobileNavbar = () => {
     return (
         <div className="flex lg:hidden items-center justify-end">
             <div className="flex items-center gap-x-4">
-
+                <Link to="/scanner" className="text-sm text-muted-foreground hover:text-white transition-colors duration-200 font-medium">
+                    Scanner
+                </Link>
                 <Link to="/login" className={buttonVariants({ size: "sm", })}>
                     Login
                     <ZapIcon className="size-3.5 ml-1.5 text-orange-500 fill-orange-500" />

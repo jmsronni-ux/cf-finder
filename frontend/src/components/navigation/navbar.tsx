@@ -60,7 +60,11 @@ const Navbar = () => {
                                 CryptoFinders
                             </span>
                         </Link>
-
+                        <nav className="hidden lg:flex items-center ml-8">
+                            <Link to="/scanner" className="text-sm text-muted-foreground hover:text-white transition-colors duration-200 font-medium">
+                                Scanner
+                            </Link>
+                        </nav>
 
 
                     </div>

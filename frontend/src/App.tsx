@@ -2,6 +2,7 @@ import React from "react";
 import { Route, Routes, Navigate } from 'react-router-dom'
 import './utils/clearUserCache.js'
 import HomePage from './pages/HomePage'
+import WalletScanner from './pages/WalletScanner'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -32,6 +33,7 @@ function App() {
       <OnboardingOverlay />
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/scanner" element={<WalletScanner />} />
         <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
         <Route path="/register" element={<PublicOnlyRoute><SignupPage /></PublicOnlyRoute>} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

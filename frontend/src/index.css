@@ -839,3 +839,70 @@ body {
 .rescan-3d-btn:hover:not(:disabled) .rescan-icon {
   transform: rotate(-180deg);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   WALLET SCANNER PAGE STYLES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Subtle scanner sweep — a thin horizontal band that travels down the page */
+.scanner-sweep-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.scanner-sweep-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(16, 185, 129, 0.03) 35%,
+    rgba(16, 185, 129, 0.06) 50%,
+    rgba(16, 185, 129, 0.03) 65%,
+    transparent 100%
+  );
+  will-change: transform;
+}
+
+/* Fade-in for scanner results and scanning panel */
+.scanner-fade-in {
+  animation: scannerFadeIn 0.4s ease-out forwards;
+}
+
+@keyframes scannerFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom scrollbar for transaction tables */
+.scanner-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scanner-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scanner-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+
+.scanner-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}

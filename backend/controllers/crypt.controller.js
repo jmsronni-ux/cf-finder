@@ -1,6 +1,8 @@
 import { ApiError } from "../middlewares/error.middleware.js";
 import { ETHERSCAN_API_KEY } from "../config/env.js";
 import User from "../models/user.model.js";
+import { fetchCompleteWalletData } from "../utils/blockchain-verification.util.js";
+import { validateWalletAddress } from "../utils/wallet-validation.js";
 
 // Uses BlockCypher public API for BTC balances
 // Docs: https://www.blockcypher.com/dev/bitcoin/#address-balance-endpoint
@@ -152,3 +154,190 @@ export const getMyTransactions = async (req, res, next) => {
   }
 };
 
+// ─── Public wallet scanner ──────────────────────────────────────────────────
+// GET /crypt/scan/:network/:address
+// Fetches real blockchain data and computes threat index + forensic findings
+export const scanWallet = async (req, res, next) => {
+  try {
+    const { network, address } = req.params;
+    if (!network || !address) throw new ApiError(400, "Network and address are required");
+
+    // Normalise network key (frontend may send 'eth', 'btc', etc.)
+    const networkKey = network.toLowerCase();
+
+    // Validate the wallet address using existing utility
+    const validation = validateWalletAddress(address.trim(), networkKey);
+    if (!validation.isValid) {
+      throw new ApiError(400, validation.error || "Invalid wallet address");
+    }
+
+    // Fetch real blockchain data using existing utility
+    const walletData = await fetchCompleteWalletData(address.trim(), networkKey);
+
+    const balance = Number(walletData.balance) || 0;
+    const transactionCount = Number(walletData.transactionCount) || 0;
+    const transactions = walletData.transactions || [];
+
+    // ── Threat index computation from real data ──────────────────────────
+
+    // Network-specific thresholds for "large" transactions
+    const largeThresholds = {
+      btc: 1,        // 1 BTC
+      eth: 10,       // 10 ETH
+      tron: 50000,   // 50k TRX
+      usdterc20: 10000, // 10k USDT
+      sol: 100,      // 100 SOL
+      bnb: 50,       // 50 BNB
+    };
+
+    const dustThresholds = {
+      btc: 0.00001,
+      eth: 0.0001,
+      tron: 1,
+      usdterc20: 0.01,
+      sol: 0.001,
+      bnb: 0.0001,
+    };
+
+    const largeThreshold = largeThresholds[networkKey] || 1;
+    const dustThreshold = dustThresholds[networkKey] || 0.0001;
+
+    // Score components
+    const balanceScore = Math.min(Math.sqrt(balance) * 5, 35);
+    const txVolumeScore = Math.min(Math.sqrt(transactionCount) * 2, 25);
+
+    const largeTxs = transactions.filter(tx => Math.abs(Number(tx.amount)) >= largeThreshold);
+    const largeTransactionScore = Math.min(largeTxs.length * 5, 25);
+
+    const dustTxs = transactions.filter(tx => {
+      const amt = Math.abs(Number(tx.amount));
+      return amt > 0 && amt < dustThreshold;
+    });
+    const dustScore = Math.min(dustTxs.length * 3, 15);
+
+    const threatIndex = Math.round(Math.min(balanceScore + txVolumeScore + largeTransactionScore + dustScore, 100));
+
+    // ── Severity label ───────────────────────────────────────────────────
+    let severity, severityLabel;
+    if (threatIndex <= 25) { severity = 'clear'; severityLabel = 'LEGITIMATE'; }
+    else if (threatIndex <= 50) { severity = 'low'; severityLabel = 'LOW RISK'; }
+    else if (threatIndex <= 75) { severity = 'moderate'; severityLabel = 'MODERATE RISK'; }
+    else { severity = 'critical'; severityLabel = 'CRITICAL THREAT'; }
+
+    // ── Flagged transactions ─────────────────────────────────────────────
+    const flaggedTransactions = transactions.map(tx => {
+      const amt = Math.abs(Number(tx.amount));
+      let status = 'ok';
+      let reason = null;
+      if (amt >= largeThreshold) {
+        status = 'FLAGGED';
+        reason = 'High-value transaction';
+      } else if (amt > 0 && amt < dustThreshold) {
+        status = 'FLAGGED';
+        reason = 'Dust / possible poisoning';
+      }
+      return {
+        hash: tx.hash || '',
+        date: tx.date || new Date().toISOString(),
+        amount: Number(tx.amount) || 0,
+        type: tx.type || 'unknown',
+        explorerUrl: tx.explorerUrl || '',
+        status,
+        reason,
+      };
+    });
+
+    // ── Forensic findings ────────────────────────────────────────────────
+    const findings = [];
+
+    if (dustTxs.length > 0) {
+      findings.push({
+        severity: 'LOW',
+        title: `${dustTxs.length} possible dust / spam transfer${dustTxs.length > 1 ? 's' : ''}`,
+        description: `Received ${dustTxs.length} negligible-value transfer${dustTxs.length > 1 ? 's' : ''}. Likely a dust-attack / address-poisoning attempt — never interact with these tokens.`,
+      });
+    }
+
+    if (largeTxs.length >= 3) {
+      findings.push({
+        severity: 'HIGH',
+        title: `${largeTxs.length} large transactions detected`,
+        description: `Found ${largeTxs.length} transactions above the ${largeThreshold} ${networkKey.toUpperCase()} threshold. Large-value activity increases risk exposure.`,
+      });
+    }
+
+    if (threatIndex >= 75) {
+      findings.push({
+        severity: 'CRIT',
+        title: 'High-risk activity profile',
+        description: 'This address shows a pattern of high-value transactions combined with significant balance. Exercise extreme caution.',
+      });
+    }
+
+    if (balance === 0 && transactionCount === 0) {
+      findings.push({
+        severity: 'INFO',
+        title: 'Empty or inactive wallet',
+        description: 'This address has no balance and no transaction history on-chain.',
+      });
+    } else if (threatIndex <= 25) {
+      findings.push({
+        severity: 'INFO',
+        title: 'Normal activity profile',
+        description: 'This address shows a normal activity profile with no links to known bad actors.',
+      });
+    }
+
+    // ── Determine last active date ───────────────────────────────────────
+    let lastActive = null;
+    if (transactions.length > 0) {
+      const dates = transactions.map(tx => new Date(tx.date).getTime()).filter(d => !isNaN(d));
+      if (dates.length > 0) {
+        lastActive = new Date(Math.max(...dates)).toISOString();
+      }
+    }
+
+    // Network display names
+    const networkNames = {
+      btc: 'Bitcoin',
+      eth: 'Ethereum',
+      tron: 'Tron',
+      usdterc20: 'USDT (ERC-20)',
+      sol: 'Solana',
+      bnb: 'BNB (BSC)',
+    };
+
+    const networkCurrencies = {
+      btc: 'BTC',
+      eth: 'ETH',
+      tron: 'TRX',
+      usdterc20: 'USDT',
+      sol: 'SOL',
+      bnb: 'BNB',
+    };
+
+    return res.json({
+      success: true,
+      data: {
+        address: address.trim(),
+        network: networkKey,
+        networkName: networkNames[networkKey] || networkKey.toUpperCase(),
+        currency: networkCurrencies[networkKey] || networkKey.toUpperCase(),
+        scanTimestamp: new Date().toISOString(),
+        balance,
+        transactionCount,
+        lastActive,
+        threatIndex,
+        severity,
+        severityLabel,
+        dustCount: dustTxs.length,
+        flaggedCount: largeTxs.length,
+        transactions: flaggedTransactions,
+        findings,
+        error: walletData.error || null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
