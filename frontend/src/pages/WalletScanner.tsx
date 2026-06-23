@@ -393,10 +393,10 @@ const WalletScanner: React.FC = () => {
           <AnimationContainer delay={0.15} className="w-full max-w-2xl mx-auto mb-10">
             <div
               ref={inputCardRef}
-              className={`rounded-2xl border bg-[#0a0a0a] p-5 sm:p-6 transition-all duration-500 ease-out ${
+              className={`rounded-2xl border p-5 sm:p-6 transition-all duration-500 ease-out bg-gradient-to-b from-[#1e1e1e] to-[#131313] ${
                 sweepGlow
-                  ? 'border-emerald-500/25 shadow-[0_0_30px_-5px_rgba(16,185,129,0.12)]'
-                  : 'border-white/[0.08] shadow-none'
+                  ? 'border-emerald-500/30 shadow-[0_0_40px_-5px_rgba(16,185,129,0.15)]'
+                  : 'border-white/[0.14] shadow-[0_8px_32px_-6px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.04)]'
               }`}
             >
 
