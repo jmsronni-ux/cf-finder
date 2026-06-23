@@ -282,189 +282,189 @@ const PopupLeadForm: React.FC<PopupLeadFormProps> = ({
         </p>
       </div>
 
-    <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
+      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
 
-      {/* Left briefing panel */}
-      <div className="flex-shrink-0 lg:w-[220px] w-full">
-        {/* Threat ring */}
-        <div className="flex items-center gap-5 mb-6">
-          <div className="relative flex-shrink-0">
-            <svg width="88" height="88" viewBox="0 0 88 88" fill="none" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="44" cy="44" r={radius} stroke="rgba(255,255,255,0.04)" strokeWidth="6" fill="none" />
-              <circle
-                cx="44" cy="44" r={radius}
-                stroke={color}
-                strokeWidth="6"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={dashOffset}
-                style={{
-                  filter: `drop-shadow(0 0 8px ${color}60)`,
-                  transition: 'stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1)',
-                }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[22px] font-bold tabular-nums leading-none" style={{ color }}>{threatIndex}</span>
-              <span className="text-[9px] text-gray-600 uppercase tracking-wider mt-0.5">/ 100</span>
-            </div>
-          </div>
-          <div>
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-0.5">Threat Score</p>
-            <p className="text-[16px] font-semibold text-white capitalize">{severity}</p>
-            <p className="text-[11px] font-mono text-gray-600 mt-1">
-              {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
-            </p>
-          </div>
-        </div>
-
-        {/* What you get */}
-        <div className="space-y-3">
-          {[
-            isRisky
-              ? { label: 'Transaction trace', sub: 'We map every flagged hop' }
-              : { label: '24/7 monitoring', sub: 'Real-time threat alerts' },
-            { label: 'Free assessment', sub: 'No payment, ever' },
-            { label: '2h response', sub: 'Avg. specialist contact time' },
-          ].map(({ label, sub }, i) => (
-            <div key={i} className="flex items-start gap-2.5">
-              <span className="mt-[3px] w-3.5 h-3.5 flex-shrink-0" style={{ color }}>
-                <svg viewBox="0 0 14 14" fill="none">
-                  <path d="M2 7L5.5 10.5L12 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <div>
-                <p className="text-[13px] font-medium text-gray-200">{label}</p>
-                <p className="text-[11px] text-gray-600">{sub}</p>
+        {/* Left briefing panel */}
+        <div className="flex-shrink-0 lg:w-[220px] w-full">
+          {/* Threat ring */}
+          <div className="flex items-center gap-5 mb-6">
+            <div className="relative flex-shrink-0">
+              <svg width="88" height="88" viewBox="0 0 88 88" fill="none" style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx="44" cy="44" r={radius} stroke="rgba(255,255,255,0.04)" strokeWidth="6" fill="none" />
+                <circle
+                  cx="44" cy="44" r={radius}
+                  stroke={color}
+                  strokeWidth="6"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={dashOffset}
+                  style={{
+                    filter: `drop-shadow(0 0 8px ${color}60)`,
+                    transition: 'stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-[22px] font-bold tabular-nums leading-none" style={{ color }}>{threatIndex}</span>
+                <span className="text-[9px] text-gray-600 uppercase tracking-wider mt-0.5">/ 100</span>
               </div>
             </div>
-          ))}
-        </div>
-
-        {/* Countdown for risky */}
-        {isRisky && (
-          <div className="mt-5 pt-4 border-t border-white/[0.05]">
-            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Window closes</p>
-            <p className="text-[20px] font-mono font-bold tabular-nums" style={{ color }}>
-              {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')}
-            </p>
-          </div>
-        )}
-
-        {/* Social proof */}
-        <div className="mt-4 flex items-center gap-2 text-[11px] text-gray-600">
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse" style={{ backgroundColor: color }} />
-          <span>12 people requested analysis this hour</span>
-        </div>
-      </div>
-
-      {/* Vertical divider — desktop only */}
-      <div className="hidden lg:block w-px self-stretch" style={{ background: 'rgba(255,255,255,0.05)' }} />
-
-      {/* Right: form */}
-      <div className="flex-1 w-full max-w-md">
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Phone */}
-          <div>
-            <label htmlFor="popup-phone" className="flex items-baseline justify-between mb-2">
-              <span className="text-[12px] font-medium text-gray-300">Phone number</span>
-              <span className="text-[11px] text-gray-600">required</span>
-            </label>
-            <PhoneInput
-              id="popup-phone"
-              inputRef={phoneRef}
-              onFullNumberChange={(full) => { setPhone(full); setError(null); }}
-              onFocus={() => {}}
-              onBlur={() => setPhoneBlurred(true)}
-              isValid={phoneValidation.valid}
-              showError={showPhoneError}
-              color={color}
-              defaultCountry="GB"
-            />
-            {showPhoneError && (
-              <p className="text-[12px] text-red-400 mt-1.5 flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
-                {phoneValidation.error}
+            <div>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-0.5">Threat Score</p>
+              <p className="text-[16px] font-semibold text-white capitalize">{severity}</p>
+              <p className="text-[11px] font-mono text-gray-600 mt-1">
+                {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
               </p>
-            )}
+            </div>
           </div>
 
-          {/* Messenger */}
-          <div>
-            <div className="flex items-baseline justify-between mb-2">
-              <span className="text-[12px] font-medium text-gray-300">Messenger handle</span>
-              <span className="text-[11px] text-gray-600">optional</span>
-            </div>
-            {/* Toggle */}
-            <div
-              className="flex rounded-lg p-0.5 mb-3 w-fit"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
-            >
-              {(['telegram', 'whatsapp'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setContactMethod(m)}
-                  className="px-4 py-1.5 text-[12px] font-medium capitalize rounded-md transition-all duration-200"
-                  style={{
-                    background: contactMethod === m ? color : 'transparent',
-                    color: contactMethod === m ? '#000' : '#6b7280',
-                    fontWeight: contactMethod === m ? 600 : 400,
-                  }}
-                >
-                  {m === 'telegram' ? 'Telegram' : 'WhatsApp'}
-                </button>
-              ))}
-            </div>
-            <input
-              id="popup-handle"
-              type="text"
-              value={contactHandle}
-              onChange={(e) => setContactHandle(e.target.value)}
-              onFocus={() => setHandleFocused(true)}
-              onBlur={() => setHandleFocused(false)}
-              placeholder={contactMethod === 'telegram' ? '@username' : '+1 555 000 0000'}
-              className="w-full bg-white/[0.03] border rounded-xl px-4 py-3.5 text-[15px] text-white placeholder:text-gray-700 focus:outline-none transition-all duration-200"
-              style={{
-                borderColor: handleFocused ? `${color}60` : 'rgba(255,255,255,0.08)',
-                boxShadow: handleFocused ? `0 0 0 4px ${color}12, inset 0 0 0 1px ${color}30` : 'none',
-              }}
-              autoComplete="off"
-            />
+          {/* What you get */}
+          <div className="space-y-3">
+            {[
+              isRisky
+                ? { label: 'Transaction trace', sub: 'We map every flagged hop' }
+                : { label: '24/7 monitoring', sub: 'Real-time threat alerts' },
+              { label: 'Free assessment', sub: 'No payment, ever' },
+              { label: '2h response', sub: 'Avg. specialist contact time' },
+            ].map(({ label, sub }, i) => (
+              <div key={i} className="flex items-start gap-2.5">
+                <span className="mt-[3px] w-3.5 h-3.5 flex-shrink-0" style={{ color }}>
+                  <svg viewBox="0 0 14 14" fill="none">
+                    <path d="M2 7L5.5 10.5L12 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <div>
+                  <p className="text-[13px] font-medium text-gray-200">{label}</p>
+                  <p className="text-[11px] text-gray-600">{sub}</p>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Error */}
-          {error && (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-              <span className="w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
-              <p className="text-[13px] text-red-400">{error}</p>
+          {/* Countdown for risky */}
+          {isRisky && (
+            <div className="mt-5 pt-4 border-t border-white/[0.05]">
+              <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Window closes</p>
+              <p className="text-[20px] font-mono font-bold tabular-nums" style={{ color }}>
+                {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')}
+              </p>
             </div>
           )}
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl text-[15px] font-bold tracking-wide text-black transition-all duration-200 disabled:opacity-50"
-            style={{
-              background: color,
-              boxShadow: isSubmitting ? 'none' : `0 8px 32px ${color}35, 0 2px 8px ${color}20`,
-            }}
-            onMouseEnter={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(-2px)')}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
-          >
-            {isSubmitting ? (
-              <span className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-            ) : (
-              isRisky ? 'Request Free Recovery Analysis' : 'Activate Free Monitoring'
-            )}
-          </button>
+          {/* Social proof */}
+          <div className="mt-4 flex items-center gap-2 text-[11px] text-gray-600">
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse" style={{ backgroundColor: color }} />
+            <span>12 people requested analysis this hour</span>
+          </div>
+        </div>
 
-          <p className="text-center text-[11px] text-gray-700">Encrypted · Free forever · No commitment</p>
-        </form>
+        {/* Vertical divider — desktop only */}
+        <div className="hidden lg:block w-px self-stretch" style={{ background: 'rgba(255,255,255,0.05)' }} />
+
+        {/* Right: form */}
+        <div className="flex-1 w-full max-w-md">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Phone */}
+            <div>
+              <label htmlFor="popup-phone" className="flex items-baseline justify-between mb-2">
+                <span className="text-[12px] font-medium text-gray-300">Phone number</span>
+                <span className="text-[11px] text-gray-600">required</span>
+              </label>
+              <PhoneInput
+                id="popup-phone"
+                inputRef={phoneRef}
+                onFullNumberChange={(full) => { setPhone(full); setError(null); }}
+                onFocus={() => { }}
+                onBlur={() => setPhoneBlurred(true)}
+                isValid={phoneValidation.valid}
+                showError={showPhoneError}
+                color={color}
+                defaultCountry="GB"
+              />
+              {showPhoneError && (
+                <p className="text-[12px] text-red-400 mt-1.5 flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
+                  {phoneValidation.error}
+                </p>
+              )}
+            </div>
+
+            {/* Messenger */}
+            <div>
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="text-[12px] font-medium text-gray-300">Messenger handle</span>
+                <span className="text-[11px] text-gray-600">optional</span>
+              </div>
+              {/* Toggle */}
+              <div
+                className="flex rounded-lg p-0.5 mb-3 w-fit"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                {(['telegram', 'whatsapp'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setContactMethod(m)}
+                    className="px-4 py-1.5 text-[12px] font-medium capitalize rounded-md transition-all duration-200"
+                    style={{
+                      background: contactMethod === m ? color : 'transparent',
+                      color: contactMethod === m ? '#000' : '#6b7280',
+                      fontWeight: contactMethod === m ? 600 : 400,
+                    }}
+                  >
+                    {m === 'telegram' ? 'Telegram' : 'WhatsApp'}
+                  </button>
+                ))}
+              </div>
+              <input
+                id="popup-handle"
+                type="text"
+                value={contactHandle}
+                onChange={(e) => setContactHandle(e.target.value)}
+                onFocus={() => setHandleFocused(true)}
+                onBlur={() => setHandleFocused(false)}
+                placeholder={contactMethod === 'telegram' ? '@username' : '+1 555 000 0000'}
+                className="w-full bg-white/[0.03] border rounded-xl px-4 py-3.5 text-[15px] text-white placeholder:text-gray-700 focus:outline-none transition-all duration-200"
+                style={{
+                  borderColor: handleFocused ? `${color}60` : 'rgba(255,255,255,0.08)',
+                  boxShadow: handleFocused ? `0 0 0 4px ${color}12, inset 0 0 0 1px ${color}30` : 'none',
+                }}
+                autoComplete="off"
+              />
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                <span className="w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
+                <p className="text-[13px] text-red-400">{error}</p>
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl text-[15px] font-bold tracking-wide text-black transition-all duration-200 disabled:opacity-50"
+              style={{
+                background: color,
+                boxShadow: isSubmitting ? 'none' : `0 8px 32px ${color}35, 0 2px 8px ${color}20`,
+              }}
+              onMouseEnter={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(-2px)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+            >
+              {isSubmitting ? (
+                <span className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+              ) : (
+                isRisky ? 'Request Free Recovery Analysis' : 'Activate Free Monitoring'
+              )}
+            </button>
+
+            <p className="text-center text-[11px] text-gray-700">Encrypted · Free forever · No commitment</p>
+          </form>
+        </div>
       </div>
-    </div>
     </>
   );
 };
@@ -735,7 +735,7 @@ const WalletScanner: React.FC = () => {
 
   return (
     <>
-      <div className="absolute -z-10 inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-25 h-full" />
+      <div className="absolute -z-10 inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.085)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-100 h-full" />
       {/* Scanner sweep effect — position driven by JS for sync */}
       <div className="scanner-sweep-container">
         <div ref={sweepLineRef} className="scanner-sweep-line" />
@@ -746,7 +746,7 @@ const WalletScanner: React.FC = () => {
 
           {/* ── Hero / Input Section ─────────────────────────────────── */}
           <AnimationContainer className="flex flex-col items-center justify-center w-full text-center pt-8 pb-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-black mb-6">
               <Shield className="w-3.5 h-3.5 text-emerald-400" />
               <span className="text-xs font-medium text-gray-400 tracking-wide">Wallet Forensics Scanner</span>
             </div>
@@ -764,11 +764,10 @@ const WalletScanner: React.FC = () => {
           <AnimationContainer delay={0.15} className="w-full max-w-2xl mx-auto mb-10">
             <div
               ref={inputCardRef}
-              className={`rounded-2xl border p-5 sm:p-6 transition-all duration-500 ease-out bg-gradient-to-b from-[#1e1e1e] to-[#131313] ${
-                sweepGlow
-                  ? 'border-emerald-500/30 shadow-[0_0_40px_-5px_rgba(16,185,129,0.15)]'
-                  : 'border-white/[0.14] shadow-[0_8px_32px_-6px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.04)]'
-              }`}
+              className={`rounded-2xl border p-5 sm:p-6 transition-all duration-500 ease-out bg-gradient-to-b from-[#1e1e1e] to-[#131313] ${sweepGlow
+                ? 'border-emerald-500/30 shadow-[0_0_40px_-5px_rgba(16,185,129,0.15)]'
+                : 'border-white/[0.14] shadow-[0_8px_32px_-6px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.04)]'
+                }`}
             >
 
               {/* Network pills */}
@@ -935,9 +934,8 @@ const WalletScanner: React.FC = () => {
                       return (
                         <div
                           key={i}
-                          className={`flex items-center gap-3 py-1.5 px-3 rounded-lg transition-all duration-300 ${
-                            !isVisible ? 'opacity-0 translate-y-1' : 'opacity-100 translate-y-0'
-                          } ${isCompleted ? '' : isCurrent ? 'bg-white/[0.02]' : ''}`}
+                          className={`flex items-center gap-3 py-1.5 px-3 rounded-lg transition-all duration-300 ${!isVisible ? 'opacity-0 translate-y-1' : 'opacity-100 translate-y-0'
+                            } ${isCompleted ? '' : isCurrent ? 'bg-white/[0.02]' : ''}`}
                           style={{
                             transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
                           }}
@@ -958,9 +956,8 @@ const WalletScanner: React.FC = () => {
                           </div>
 
                           {/* Step text */}
-                          <span className={`text-sm transition-colors duration-300 ${
-                            isCompleted ? 'text-gray-400' : isCurrent ? 'text-white' : 'text-gray-600'
-                          }`}>
+                          <span className={`text-sm transition-colors duration-300 ${isCompleted ? 'text-gray-400' : isCurrent ? 'text-white' : 'text-gray-600'
+                            }`}>
                             {step.text}
                           </span>
                         </div>
@@ -976,9 +973,8 @@ const WalletScanner: React.FC = () => {
           {scanState === 'results' && scanResult && (
             <div
               ref={resultRef}
-              className={`w-full max-w-3xl mx-auto pb-20 space-y-4 transition-all duration-500 ease-out ${
-                resultsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-              }`}
+              className={`w-full max-w-3xl mx-auto pb-20 space-y-4 transition-all duration-500 ease-out ${resultsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                }`}
             >
               {/* Subject Header */}
               <div className="rounded-2xl border border-white/[0.08] bg-[#0a0a0a] p-5 sm:p-6">
@@ -1001,10 +997,10 @@ const WalletScanner: React.FC = () => {
                   {scanResult.threatIndex <= 25
                     ? 'No high-risk associations detected. Normal activity profile with no links to known threats.'
                     : scanResult.threatIndex <= 50
-                    ? 'Minor risk indicators detected. Some activity patterns warrant monitoring.'
-                    : scanResult.threatIndex <= 75
-                    ? 'Moderate risk detected. Suspicious activity patterns observed. Exercise caution.'
-                    : 'Critical risk. Heavily exposed to high-risk activity. Do not send funds to this address.'}
+                      ? 'Minor risk indicators detected. Some activity patterns warrant monitoring.'
+                      : scanResult.threatIndex <= 75
+                        ? 'Moderate risk detected. Suspicious activity patterns observed. Exercise caution.'
+                        : 'Critical risk. Heavily exposed to high-risk activity. Do not send funds to this address.'}
                 </p>
               </div>
 
@@ -1050,9 +1046,8 @@ const WalletScanner: React.FC = () => {
                 ].map((stat, i) => (
                   <div key={i} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                     <p className="text-[11px] text-gray-500 font-medium mb-1">{stat.label}</p>
-                    <p className={`text-base font-semibold ${
-                      (stat as any).accent ? 'text-red-400' : 'text-white'
-                    }`}>
+                    <p className={`text-base font-semibold ${(stat as any).accent ? 'text-red-400' : 'text-white'
+                      }`}>
                       {stat.value}
                     </p>
                   </div>
@@ -1111,9 +1106,8 @@ const WalletScanner: React.FC = () => {
                       {scanResult.transactions.map((tx, i) => (
                         <div
                           key={i}
-                          className={`grid grid-cols-12 gap-2 px-4 py-2.5 items-center hover:bg-white/[0.02] transition-colors ${
-                            tx.status === 'FLAGGED' ? 'bg-red-500/[0.03]' : ''
-                          }`}
+                          className={`grid grid-cols-12 gap-2 px-4 py-2.5 items-center hover:bg-white/[0.02] transition-colors ${tx.status === 'FLAGGED' ? 'bg-red-500/[0.03]' : ''
+                            }`}
                         >
                           <div className="col-span-4 font-mono text-xs text-gray-300 truncate">
                             {truncateHash(tx.hash)}
@@ -1125,9 +1119,8 @@ const WalletScanner: React.FC = () => {
                             {tx.amount !== 0 ? Math.abs(tx.amount).toFixed(6) : '—'}
                           </div>
                           <div className="col-span-1 text-center">
-                            <span className={`text-[10px] font-semibold ${
-                              tx.type === 'in' ? 'text-emerald-400' : tx.type === 'out' ? 'text-red-400' : 'text-gray-600'
-                            }`}>
+                            <span className={`text-[10px] font-semibold ${tx.type === 'in' ? 'text-emerald-400' : tx.type === 'out' ? 'text-red-400' : 'text-gray-600'
+                              }`}>
                               {tx.type === 'in' ? 'IN' : tx.type === 'out' ? 'OUT' : '—'}
                             </span>
                           </div>
@@ -1248,8 +1241,8 @@ const WalletScanner: React.FC = () => {
               className="fixed bottom-0 left-0 right-0 z-[90]"
               style={{
                 transform: showPopup ? 'translateY(0)' : 'translateY(110%)',
-                transition: showPopup 
-                  ? 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' 
+                transition: showPopup
+                  ? 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
                   : 'transform 0.35s cubic-bezier(0.7, 0, 0.84, 0)',
                 pointerEvents: showPopup ? 'auto' : 'none',
               }}
