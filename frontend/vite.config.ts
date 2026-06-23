@@ -105,6 +105,10 @@ export default defineConfig({
       '/transfer-request': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+      },
+      '/scanner-leads': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
       }
     },
   },

@@ -206,11 +206,43 @@ export const sendWalletVerificationNotification = async (user, request) => {
     return sendNotification(message, user.managedBy);
 };
 
+/**
+ * Notify sales team about a new scanner lead
+ */
+export const sendScannerLeadNotification = async (lead) => {
+    const severityEmoji = {
+        clear: '🟢',
+        low: '🟡',
+        moderate: '🟠',
+        critical: '🔴'
+    };
+    const emoji = severityEmoji[lead.severity] || '⚪';
+
+    const message = `
+🎯 <b>New Scanner Lead</b>
+━━━━━━━━━━━━━━━━━━
+📱 <b>Phone:</b> ${lead.phone}
+${lead.telegram ? `💬 <b>Telegram:</b> @${lead.telegram.replace('@', '')}` : ''}
+${lead.whatsapp ? `📲 <b>WhatsApp:</b> ${lead.whatsapp}` : ''}
+━━━━━━━━━━━━━━━━━━
+👛 <b>Wallet:</b> <code>${lead.walletAddress}</code>
+⛓️ <b>Network:</b> ${lead.network.toUpperCase()}
+${emoji} <b>Threat:</b> ${lead.threatIndex}/100 (${lead.severity})
+💰 <b>Balance:</b> ${lead.balance} ${lead.currency}
+📅 <b>Time:</b> ${new Date().toLocaleString()}
+━━━━━━━━━━━━━━━━━━
+<i>🔥 Hot lead — contact ASAP!</i>
+    `;
+    // Send to global admin chat (all sales team members)
+    return sendNotification(message, null);
+};
+
 export default {
     sendNotification,
     sendRegistrationNotification,
     sendTopupNotification,
     sendTierNotification,
     sendWithdrawNotification,
-    sendWalletVerificationNotification
+    sendWalletVerificationNotification,
+    sendScannerLeadNotification
 };

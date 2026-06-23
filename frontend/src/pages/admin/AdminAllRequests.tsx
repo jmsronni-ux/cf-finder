@@ -35,7 +35,10 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Target,
+  PhoneCall,
+  MessageCircle
 } from 'lucide-react';
 import MaxWidthWrapper from '../../components/helpers/max-width-wrapper';
 import MagicBadge from '../../components/ui/magic-badge';
@@ -221,13 +224,32 @@ interface TransferRequestData {
   createdAt: string;
 }
 
+interface ScannerLeadData {
+  _id: string;
+  walletAddress: string;
+  network: string;
+  phone: string;
+  telegram: string;
+  whatsapp: string;
+  threatIndex: number;
+  severity: string;
+  balance: number;
+  currency: string;
+  source: string;
+  contacted: boolean;
+  contactedAt: string | null;
+  adminNote: string;
+  createdAt: string;
+}
+
 type UnifiedRequest =
   | { type: 'registration'; data: RegistrationRequestData }
   | { type: 'tier'; data: TierRequestData }
   | { type: 'topup'; data: TopupRequestData }
   | { type: 'withdraw'; data: WithdrawRequestData }
   | { type: 'keygen-group'; data: KeyGenGroup }
-  | { type: 'transfer'; data: TransferRequestData };
+  | { type: 'transfer'; data: TransferRequestData }
+  | { type: 'scanner-lead'; data: ScannerLeadData };
 
 const PAGE_SIZE = 20;
 const TIER_NAMES: { [key: number]: string } = {
@@ -281,6 +303,7 @@ const AdminAllRequests: React.FC = () => {
   const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequestData[]>([]);
   const [keygenRequests, setKeygenRequests] = useState<KeyGenRequestData[]>([]);
   const [transferRequests, setTransferRequests] = useState<TransferRequestData[]>([]);
+  const [scannerLeads, setScannerLeads] = useState<ScannerLeadData[]>([]);
 
   // Loading states
   const [isLoadingRegistration, setIsLoadingRegistration] = useState(true);
@@ -289,6 +312,7 @@ const AdminAllRequests: React.FC = () => {
   const [isLoadingWithdraw, setIsLoadingWithdraw] = useState(true);
   const [isLoadingKeygen, setIsLoadingKeygen] = useState(true);
   const [isLoadingTransfer, setIsLoadingTransfer] = useState(true);
+  const [isLoadingScannerLeads, setIsLoadingScannerLeads] = useState(true);
 
   // Fetching more states
   const [isFetchingMoreRegistration, setIsFetchingMoreRegistration] = useState(false);
@@ -297,9 +321,10 @@ const AdminAllRequests: React.FC = () => {
   const [isFetchingMoreWithdraw, setIsFetchingMoreWithdraw] = useState(false);
   const [isFetchingMoreKeygen, setIsFetchingMoreKeygen] = useState(false);
   const [isFetchingMoreTransfer, setIsFetchingMoreTransfer] = useState(false);
+  const [isFetchingMoreScannerLeads, setIsFetchingMoreScannerLeads] = useState(false);
 
   // Filters
-  const [typeFilter, setTypeFilter] = useState<'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen' | 'transfer'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen' | 'transfer' | 'scanner-lead'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -311,6 +336,7 @@ const AdminAllRequests: React.FC = () => {
   const [withdrawPage, setWithdrawPage] = useState(1);
   const [keygenPage, setKeygenPage] = useState(1);
   const [transferPage, setTransferPage] = useState(1);
+  const [scannerLeadPage, setScannerLeadPage] = useState(1);
 
   const [registrationHasMore, setRegistrationHasMore] = useState(true);
   const [tierHasMore, setTierHasMore] = useState(true);
@@ -318,6 +344,7 @@ const AdminAllRequests: React.FC = () => {
   const [withdrawHasMore, setWithdrawHasMore] = useState(true);
   const [keygenHasMore, setKeygenHasMore] = useState(true);
   const [transferHasMore, setTransferHasMore] = useState(true);
+  const [scannerLeadHasMore, setScannerLeadHasMore] = useState(true);
 
   const [registrationTotalCount, setRegistrationTotalCount] = useState(0);
   const [tierTotalCount, setTierTotalCount] = useState(0);
@@ -325,6 +352,7 @@ const AdminAllRequests: React.FC = () => {
   const [withdrawTotalCount, setWithdrawTotalCount] = useState(0);
   const [keygenTotalCount, setKeygenTotalCount] = useState(0);
   const [transferTotalCount, setTransferTotalCount] = useState(0);
+  const [scannerLeadTotalCount, setScannerLeadTotalCount] = useState(0);
 
   // Processing states
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -873,6 +901,94 @@ const AdminAllRequests: React.FC = () => {
     }
   }, [PAGE_SIZE, token, statusFilter, debouncedSearch, typeFilter]);
 
+  // Fetch Scanner Leads
+  const fetchScannerLeads = useCallback(async (requestedPage = 1, append = false) => {
+    if (!token) return;
+    if (typeFilter !== 'all' && typeFilter !== 'scanner-lead') return;
+
+    if (append) {
+      setIsFetchingMoreScannerLeads(true);
+    } else {
+      setIsLoadingScannerLeads(true);
+      setScannerLeadHasMore(true);
+    }
+
+    try {
+      const params = new URLSearchParams();
+      params.set('page', String(requestedPage));
+      params.set('limit', String(PAGE_SIZE));
+
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+
+      const response = await apiFetch(`/scanner-leads?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        const incomingLeads: ScannerLeadData[] = data.data || [];
+        const pagination = data.pagination;
+
+        setScannerLeads(prev => append ? [...prev, ...incomingLeads] : incomingLeads);
+
+        setScannerLeadTotalCount(prevTotal => {
+          if (pagination && typeof pagination.total === 'number') {
+            return pagination.total;
+          }
+          return append ? prevTotal : incomingLeads.length;
+        });
+
+        const hasMoreResults = pagination && typeof pagination.totalPages === 'number'
+          ? requestedPage < Math.max(pagination.totalPages, 1)
+          : incomingLeads.length === PAGE_SIZE;
+        setScannerLeadHasMore(hasMoreResults);
+        setScannerLeadPage(requestedPage);
+      }
+    } catch (error) {
+      console.error('Error fetching scanner leads:', error);
+    } finally {
+      if (append) {
+        setIsFetchingMoreScannerLeads(false);
+      } else {
+        setIsLoadingScannerLeads(false);
+      }
+    }
+  }, [PAGE_SIZE, token, debouncedSearch, typeFilter]);
+
+  // Toggle scanner lead contacted status
+  const handleToggleScannerLeadContacted = async (leadId: string) => {
+    setProcessingId(leadId);
+    try {
+      const response = await apiFetch(`/scanner-leads/${leadId}/toggle-contacted`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(data.message);
+        fetchScannerLeads(1, false);
+      } else {
+        toast.error(data.message || 'Failed to update lead');
+      }
+    } catch (error) {
+      toast.error('An error occurred');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   // Keygen countdown timer
   useEffect(() => {
     const hasScheduled = keygenRequests.some(r => r.scheduledAction);
@@ -1170,7 +1286,15 @@ const AdminAllRequests: React.FC = () => {
       setTransferTotalCount(0);
       fetchTransferRequests(1, false);
     }
-  }, [user?.isAdmin, user?.isSubAdmin, typeFilter, statusFilter, debouncedSearch, fetchRegistrationRequests, fetchTierRequests, fetchTopupRequests, fetchWithdrawRequests, fetchKeygenRequests, fetchTransferRequests]);
+
+    if (typeFilter === 'all' || typeFilter === 'scanner-lead') {
+      setScannerLeads([]);
+      setScannerLeadPage(1);
+      setScannerLeadHasMore(true);
+      setScannerLeadTotalCount(0);
+      fetchScannerLeads(1, false);
+    }
+  }, [user?.isAdmin, user?.isSubAdmin, typeFilter, statusFilter, debouncedSearch, fetchRegistrationRequests, fetchTierRequests, fetchTopupRequests, fetchWithdrawRequests, fetchKeygenRequests, fetchTransferRequests, fetchScannerLeads]);
 
   // Infinite scroll
   useEffect(() => {
@@ -1208,6 +1332,11 @@ const AdminAllRequests: React.FC = () => {
         if (typeFilter === 'all' || typeFilter === 'transfer') {
           if (!isLoadingTransfer && transferHasMore && !isFetchingMoreTransfer) {
             fetchTransferRequests(transferPage + 1, true);
+          }
+        }
+        if (typeFilter === 'all' || typeFilter === 'scanner-lead') {
+          if (!isLoadingScannerLeads && scannerLeadHasMore && !isFetchingMoreScannerLeads) {
+            fetchScannerLeads(scannerLeadPage + 1, true);
           }
         }
       }
@@ -1249,7 +1378,12 @@ const AdminAllRequests: React.FC = () => {
     isLoadingTransfer,
     transferHasMore,
     isFetchingMoreTransfer,
-    transferPage
+    transferPage,
+    fetchScannerLeads,
+    isLoadingScannerLeads,
+    scannerLeadHasMore,
+    isFetchingMoreScannerLeads,
+    scannerLeadPage
   ]);
 
   // Get unified requests
@@ -1324,6 +1458,12 @@ const AdminAllRequests: React.FC = () => {
       });
     }
 
+    if (typeFilter === 'all' || typeFilter === 'scanner-lead') {
+      scannerLeads.forEach(lead => {
+        requests.push({ type: 'scanner-lead', data: lead });
+      });
+    }
+
     // Sort by creation date (newest first)
     return requests.sort((a, b) => {
       const getDate = (r: UnifiedRequest) => {
@@ -1341,7 +1481,8 @@ const AdminAllRequests: React.FC = () => {
     (typeFilter === 'all' || typeFilter === 'topup' ? topupTotalCount : 0) +
     (typeFilter === 'all' || typeFilter === 'withdraw' ? withdrawTotalCount : 0) +
     (typeFilter === 'all' || typeFilter === 'keygen' ? keygenTotalCount : 0) +
-    (typeFilter === 'all' || typeFilter === 'transfer' ? transferTotalCount : 0);
+    (typeFilter === 'all' || typeFilter === 'transfer' ? transferTotalCount : 0) +
+    (typeFilter === 'all' || typeFilter === 'scanner-lead' ? scannerLeadTotalCount : 0);
 
   const isLoading =
     (typeFilter === 'all' || typeFilter === 'registration' ? isLoadingRegistration : false) ||
@@ -1349,7 +1490,8 @@ const AdminAllRequests: React.FC = () => {
     (typeFilter === 'all' || typeFilter === 'topup' ? isLoadingTopup : false) ||
     (typeFilter === 'all' || typeFilter === 'withdraw' ? isLoadingWithdraw : false) ||
     (typeFilter === 'all' || typeFilter === 'keygen' ? isLoadingKeygen : false) ||
-    (typeFilter === 'all' || typeFilter === 'transfer' ? isLoadingTransfer : false);
+    (typeFilter === 'all' || typeFilter === 'transfer' ? isLoadingTransfer : false) ||
+    (typeFilter === 'all' || typeFilter === 'scanner-lead' ? isLoadingScannerLeads : false);
 
   const isInitialLoading = isLoading && unifiedRequests.length === 0;
 
@@ -1394,6 +1536,8 @@ const AdminAllRequests: React.FC = () => {
         return 'border-l-yellow-500';
       case 'transfer':
         return 'border-l-cyan-500';
+      case 'scanner-lead':
+        return 'border-l-emerald-500';
       default:
         return 'border-l-gray-500';
     }
@@ -1413,6 +1557,8 @@ const AdminAllRequests: React.FC = () => {
         return 'bg-yellow-500/15 border-yellow-500/20 text-yellow-500';
       case 'transfer':
         return 'bg-cyan-500/15 border-cyan-500/20 text-cyan-500';
+      case 'scanner-lead':
+        return 'bg-emerald-500/15 border-emerald-500/20 text-emerald-500';
       default:
         return 'bg-gray-500/15 border-gray-500/20 text-gray-500';
     }
@@ -1432,6 +1578,8 @@ const AdminAllRequests: React.FC = () => {
         return <KeyRound className="w-6 h-6 text-yellow-500" />;
       case 'transfer':
         return <ArrowRightLeft className="w-6 h-6 text-cyan-500" />;
+      case 'scanner-lead':
+        return <Target className="w-6 h-6 text-emerald-500" />;
       default:
         return <User className="w-6 h-6" />;
     }
@@ -1444,7 +1592,8 @@ const AdminAllRequests: React.FC = () => {
       topup: { text: 'Top-Up', color: 'bg-green-500/20 text-green-500 border-green-500/50' },
       withdraw: { text: 'Withdrawal', color: 'bg-orange-500/20 text-orange-500 border-orange-500/50' },
       'keygen-group': { text: 'Key Generation', color: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50' },
-      transfer: { text: 'Transfer', color: 'bg-cyan-500/20 text-cyan-500 border-cyan-500/50' }
+      transfer: { text: 'Transfer', color: 'bg-cyan-500/20 text-cyan-500 border-cyan-500/50' },
+      'scanner-lead': { text: 'Scanner Lead', color: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/50' }
     };
     return badges[type as keyof typeof badges] || badges.registration;
   };
@@ -1999,7 +2148,7 @@ const AdminAllRequests: React.FC = () => {
             {/* Filter & Search Section */}
             <div className="flex items-center gap-4 mt-10 mb-6 justify-between">
               <MagicBadge title="Requests" />
-              <Select value={typeFilter} onValueChange={(value: 'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen' | 'transfer') => setTypeFilter(value)}>
+              <Select value={typeFilter} onValueChange={(value: 'all' | 'registration' | 'tier' | 'topup' | 'withdraw' | 'keygen' | 'transfer' | 'scanner-lead') => setTypeFilter(value)}>
                 <SelectTrigger className="w-[220px] bg-background/50 border-border">
                   <SelectValue />
                 </SelectTrigger>
@@ -2011,6 +2160,7 @@ const AdminAllRequests: React.FC = () => {
                   <SelectItem value="withdraw">Withdrawal</SelectItem>
                   <SelectItem value="keygen">Key Generation</SelectItem>
                   <SelectItem value="transfer">Transfer</SelectItem>
+                  <SelectItem value="scanner-lead">Scanner Leads</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2340,6 +2490,128 @@ const AdminAllRequests: React.FC = () => {
                                 ))}
                               </div>
                             )}
+                          </CardContent>
+                        </div>
+                      </Card>
+                    );
+                  }
+
+                  // ── Scanner Lead Card ──
+                  if (request.type === 'scanner-lead') {
+                    const lead = request.data as ScannerLeadData;
+                    const severityColors: Record<string, string> = {
+                      clear: 'text-green-400',
+                      low: 'text-yellow-400',
+                      moderate: 'text-orange-400',
+                      critical: 'text-red-400',
+                    };
+                    const severityColor = severityColors[lead.severity] || 'text-gray-400';
+
+                    return (
+                      <Card key={`scanner-lead-${lead._id}`} className={`${typeColor} border border-border rounded-xl transition-colors overflow-hidden`}>
+                        <div className="flex items-stretch">
+                          {/* Type Bar */}
+                          <div className={`flex flex-col items-center justify-center w-[100px] self-stretch ${getTypeBarColor(request.type)} border rounded-l-2xl p-3 gap-2`}>
+                            {typeIcon}
+                            <span className="text-xs font-medium text-center leading-tight">{typeBadge.text}</span>
+                          </div>
+
+                          <CardContent className="p-6 flex-1">
+                            <div className="flex items-start justify-between gap-4">
+                              {/* Left: Lead Details */}
+                              <div className="flex-1 space-y-3">
+                                {/* Header */}
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h3 className="text-lg font-bold flex items-center gap-2">
+                                        <PhoneCall className="w-4 h-4 text-emerald-400" />
+                                        {lead.phone}
+                                      </h3>
+                                      <Badge className={`${lead.contacted ? 'bg-green-500/15 border-green-500/20 text-green-500' : 'bg-yellow-500/15 border-yellow-500/20 text-yellow-500'} flex items-center gap-1`}>
+                                        {lead.contacted ? (
+                                          <><CheckCircle className="w-3.5 h-3.5" /> Contacted</>
+                                        ) : (
+                                          <><Clock className="w-3.5 h-3.5" /> Not Contacted</>
+                                        )}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Contact details */}
+                                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                  {lead.telegram && (
+                                    <div className="flex items-center gap-1.5">
+                                      <MessageCircle className="w-3.5 h-3.5 text-blue-400" />
+                                      <span>@{lead.telegram.replace('@', '')}</span>
+                                    </div>
+                                  )}
+                                  {lead.whatsapp && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Phone className="w-3.5 h-3.5 text-green-400" />
+                                      <span>WhatsApp: {lead.whatsapp}</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Wallet & scan info */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-border">
+                                  <div>
+                                    <p className="text-xs text-gray-400">Wallet</p>
+                                    <p className="text-sm font-mono text-gray-300 truncate" title={lead.walletAddress}>
+                                      {lead.walletAddress.slice(0, 8)}…{lead.walletAddress.slice(-6)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-400">Network</p>
+                                    <p className="text-sm font-semibold">{lead.network.toUpperCase()}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-400">Threat Index</p>
+                                    <p className={`text-sm font-bold ${severityColor}`}>
+                                      {lead.threatIndex}/100 <span className="capitalize text-xs font-normal">({lead.severity})</span>
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-400">Balance</p>
+                                    <p className="text-sm font-semibold">{lead.balance} {lead.currency}</p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  {new Date(lead.createdAt).toLocaleString()}
+                                  {lead.contacted && lead.contactedAt && (
+                                    <span className="text-green-500 ml-2">
+                                      · Contacted {new Date(lead.contactedAt).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Right: Actions */}
+                              <div className="flex flex-col gap-2 flex-shrink-0">
+                                <Button
+                                  onClick={() => handleToggleScannerLeadContacted(lead._id)}
+                                  disabled={processingId === lead._id}
+                                  className={`flex items-center gap-2 text-xs ${
+                                    lead.contacted
+                                      ? 'bg-gray-600/50 hover:bg-gray-700 text-gray-300 border-gray-600'
+                                      : 'bg-emerald-600/50 hover:bg-emerald-700 text-white border-emerald-600'
+                                  } border`}
+                                  size="sm"
+                                >
+                                  {processingId === lead._id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : lead.contacted ? (
+                                    <><XCircle className="w-3.5 h-3.5" /> Unmark</>
+                                  ) : (
+                                    <><CheckCircle className="w-3.5 h-3.5" /> Mark Contacted</>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
                           </CardContent>
                         </div>
                       </Card>
@@ -3273,7 +3545,7 @@ const AdminAllRequests: React.FC = () => {
                   );
                 })}
                 <div ref={loadMoreRef} />
-                {(isFetchingMoreRegistration || isFetchingMoreTier || isFetchingMoreTopup || isFetchingMoreWithdraw) && (
+                {(isFetchingMoreRegistration || isFetchingMoreTier || isFetchingMoreTopup || isFetchingMoreWithdraw || isFetchingMoreScannerLeads) && (
                   <div className="flex items-center justify-center py-6">
                     <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
                   </div>

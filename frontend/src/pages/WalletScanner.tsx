@@ -7,6 +7,8 @@ import AnimationContainer from '@/components/helpers/animation-container';
 import { apiFetch } from '@/utils/api';
 import { validateWalletAddress, getNetworkName } from '@/utils/walletValidation';
 import { Shield, AlertTriangle, ChevronDown, ExternalLink, Copy, Check, RotateCcw } from 'lucide-react';
+import RecoveryLeadModal from '@/components/RecoveryLeadModal';
+import PhoneInput from '@/components/PhoneInput';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -134,6 +136,339 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
+// ─── Phone Validation ───────────────────────────────────────────
+
+const validatePhone = (raw: string): { valid: boolean; error: string | null } => {
+  const digits = raw.replace(/\D/g, '');
+  if (!raw.trim()) return { valid: false, error: 'Phone number is required' };
+  if (digits.length < 7) return { valid: false, error: 'Too short — enter a full phone number' };
+  if (digits.length > 15) return { valid: false, error: 'Too long — max 15 digits (E.164)' };
+  // Reject obviously fake numbers (all same digit)
+  if (/^(\d)\1+$/.test(digits)) return { valid: false, error: 'Enter a real phone number' };
+  return { valid: true, error: null };
+};
+
+// ─── Popup Lead Form (embedded inside bottom sheet) ──────────────────────────
+
+interface PopupLeadFormProps {
+  walletAddress: string;
+  network: string;
+  threatIndex: number;
+  severity: string;
+  balance: number;
+  currency: string;
+  color: string;
+  isRisky: boolean;
+  countdown: { hours: number; minutes: number; seconds: number };
+  isOpen: boolean;
+  onSuccess: () => void;
+  onRegister: () => void;
+}
+
+const PopupLeadForm: React.FC<PopupLeadFormProps> = ({
+  walletAddress, network, threatIndex, severity, balance, currency,
+  color, isRisky, countdown, isOpen, onSuccess, onRegister
+}) => {
+  const [phone, setPhone] = useState('');
+  const [phoneBlurred, setPhoneBlurred] = useState(false);
+  const [contactMethod, setContactMethod] = useState<'telegram' | 'whatsapp'>('telegram');
+  const [contactHandle, setContactHandle] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [handleFocused, setHandleFocused] = useState(false);
+  const phoneRef = useRef<HTMLInputElement>(null);
+
+  const phoneValidation = validatePhone(phone);
+  const showPhoneError = phoneBlurred && !phoneValidation.valid && phone.length > 0;
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => phoneRef.current?.focus(), 400); // Wait for slide up animation
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setPhoneBlurred(true);
+    const pv = validatePhone(phone);
+    if (!pv.valid) { setError(pv.error); return; }
+    setIsSubmitting(true);
+    try {
+      const body: Record<string, any> = { walletAddress, network, phone: phone.trim(), threatIndex, severity, balance, currency };
+      if (contactHandle.trim()) body[contactMethod] = contactHandle.trim();
+      const res = await apiFetch('/scanner-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (json.success) setSubmitted(true);
+      else setError(json.message || 'Something went wrong. Try again.');
+    } catch {
+      setError('Connection error. Check your internet.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Threat ring geometry
+  const radius = 38;
+  const circumference = 2 * Math.PI * radius;
+  const fillRatio = threatIndex / 100;
+  const dashOffset = circumference * (1 - fillRatio);
+
+  if (submitted) {
+    return (
+      <div style={{ animation: 'popupFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards' }}>
+        <div className="flex flex-col sm:flex-row items-start gap-8">
+          {/* Success mark */}
+          <div className="flex-shrink-0">
+            <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+              <circle cx="36" cy="36" r="34" stroke={color} strokeWidth="1.5" opacity="0.15" />
+              <circle cx="36" cy="36" r="34" stroke={color} strokeWidth="1.5"
+                strokeDasharray={`${2 * Math.PI * 34}`}
+                style={{ animation: 'ringFill 0.6s cubic-bezier(0.16,1,0.3,1) forwards', strokeDashoffset: `${2 * Math.PI * 34}` }}
+                strokeLinecap="round"
+              />
+              <path d="M23 36.5L31.5 45L49 27" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ animation: 'checkDraw 0.4s 0.3s cubic-bezier(0.16,1,0.3,1) forwards', opacity: 0 }}
+              />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.15em] mb-2" style={{ color }}>Case created</p>
+            <h3 className="text-[22px] font-semibold text-white tracking-tight leading-snug mb-2">We'll be in touch within 2 hours</h3>
+            <p className="text-[14px] text-gray-500 leading-relaxed max-w-sm">
+              Your case is with our forensic team. Expect a call or message from a specialist shortly.
+            </p>
+
+            <div className="mt-6 pt-5 border-t border-white/[0.05]">
+              <p className="text-[12px] text-gray-500 mb-4">
+                <span style={{ color }} className="font-medium">Registered users get priority</span> — personal dashboard, 2h response vs 48h standard.
+              </p>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/register"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-semibold text-black transition-all duration-200"
+                  style={{ background: color }}
+                >
+                  Create Free Account
+                </Link>
+                <button onClick={onSuccess} className="text-[12px] text-gray-600 hover:text-gray-400 transition-colors">
+                  Maybe later
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="mb-7">
+        <h2 className="text-[26px] sm:text-[30px] font-bold text-white tracking-[-0.03em] leading-[1.1] mb-2">
+          {isRisky
+            ? <>Your wallet has exposure.<br /><span style={{ color }}>Let's trace and recover it.</span></>
+            : <>Leave your details<br /><span style={{ color }}>we'll reach out for free.</span></>}
+        </h2>
+        <p className="text-[14px] text-gray-500 max-w-lg leading-relaxed">
+          {isRisky
+            ? 'Our forensic team will contact you with a full breakdown of flagged activity and available recovery paths.'
+            : 'Get instant alerts the moment this wallet interacts with a mixer, scam cluster, or flagged address.'}
+        </p>
+      </div>
+
+    <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
+
+      {/* Left briefing panel */}
+      <div className="flex-shrink-0 lg:w-[220px] w-full">
+        {/* Threat ring */}
+        <div className="flex items-center gap-5 mb-6">
+          <div className="relative flex-shrink-0">
+            <svg width="88" height="88" viewBox="0 0 88 88" fill="none" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="44" cy="44" r={radius} stroke="rgba(255,255,255,0.04)" strokeWidth="6" fill="none" />
+              <circle
+                cx="44" cy="44" r={radius}
+                stroke={color}
+                strokeWidth="6"
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashOffset}
+                style={{
+                  filter: `drop-shadow(0 0 8px ${color}60)`,
+                  transition: 'stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-[22px] font-bold tabular-nums leading-none" style={{ color }}>{threatIndex}</span>
+              <span className="text-[9px] text-gray-600 uppercase tracking-wider mt-0.5">/ 100</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-0.5">Threat Score</p>
+            <p className="text-[16px] font-semibold text-white capitalize">{severity}</p>
+            <p className="text-[11px] font-mono text-gray-600 mt-1">
+              {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+            </p>
+          </div>
+        </div>
+
+        {/* What you get */}
+        <div className="space-y-3">
+          {[
+            isRisky
+              ? { label: 'Transaction trace', sub: 'We map every flagged hop' }
+              : { label: '24/7 monitoring', sub: 'Real-time threat alerts' },
+            { label: 'Free assessment', sub: 'No payment, ever' },
+            { label: '2h response', sub: 'Avg. specialist contact time' },
+          ].map(({ label, sub }, i) => (
+            <div key={i} className="flex items-start gap-2.5">
+              <span className="mt-[3px] w-3.5 h-3.5 flex-shrink-0" style={{ color }}>
+                <svg viewBox="0 0 14 14" fill="none">
+                  <path d="M2 7L5.5 10.5L12 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <div>
+                <p className="text-[13px] font-medium text-gray-200">{label}</p>
+                <p className="text-[11px] text-gray-600">{sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Countdown for risky */}
+        {isRisky && (
+          <div className="mt-5 pt-4 border-t border-white/[0.05]">
+            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Window closes</p>
+            <p className="text-[20px] font-mono font-bold tabular-nums" style={{ color }}>
+              {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')}
+            </p>
+          </div>
+        )}
+
+        {/* Social proof */}
+        <div className="mt-4 flex items-center gap-2 text-[11px] text-gray-600">
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse" style={{ backgroundColor: color }} />
+          <span>12 people requested analysis this hour</span>
+        </div>
+      </div>
+
+      {/* Vertical divider — desktop only */}
+      <div className="hidden lg:block w-px self-stretch" style={{ background: 'rgba(255,255,255,0.05)' }} />
+
+      {/* Right: form */}
+      <div className="flex-1 w-full max-w-md">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Phone */}
+          <div>
+            <label htmlFor="popup-phone" className="flex items-baseline justify-between mb-2">
+              <span className="text-[12px] font-medium text-gray-300">Phone number</span>
+              <span className="text-[11px] text-gray-600">required</span>
+            </label>
+            <PhoneInput
+              id="popup-phone"
+              inputRef={phoneRef}
+              onFullNumberChange={(full) => { setPhone(full); setError(null); }}
+              onFocus={() => {}}
+              onBlur={() => setPhoneBlurred(true)}
+              isValid={phoneValidation.valid}
+              showError={showPhoneError}
+              color={color}
+              defaultCountry="GB"
+            />
+            {showPhoneError && (
+              <p className="text-[12px] text-red-400 mt-1.5 flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
+                {phoneValidation.error}
+              </p>
+            )}
+          </div>
+
+          {/* Messenger */}
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <span className="text-[12px] font-medium text-gray-300">Messenger handle</span>
+              <span className="text-[11px] text-gray-600">optional</span>
+            </div>
+            {/* Toggle */}
+            <div
+              className="flex rounded-lg p-0.5 mb-3 w-fit"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              {(['telegram', 'whatsapp'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setContactMethod(m)}
+                  className="px-4 py-1.5 text-[12px] font-medium capitalize rounded-md transition-all duration-200"
+                  style={{
+                    background: contactMethod === m ? color : 'transparent',
+                    color: contactMethod === m ? '#000' : '#6b7280',
+                    fontWeight: contactMethod === m ? 600 : 400,
+                  }}
+                >
+                  {m === 'telegram' ? 'Telegram' : 'WhatsApp'}
+                </button>
+              ))}
+            </div>
+            <input
+              id="popup-handle"
+              type="text"
+              value={contactHandle}
+              onChange={(e) => setContactHandle(e.target.value)}
+              onFocus={() => setHandleFocused(true)}
+              onBlur={() => setHandleFocused(false)}
+              placeholder={contactMethod === 'telegram' ? '@username' : '+1 555 000 0000'}
+              className="w-full bg-white/[0.03] border rounded-xl px-4 py-3.5 text-[15px] text-white placeholder:text-gray-700 focus:outline-none transition-all duration-200"
+              style={{
+                borderColor: handleFocused ? `${color}60` : 'rgba(255,255,255,0.08)',
+                boxShadow: handleFocused ? `0 0 0 4px ${color}12, inset 0 0 0 1px ${color}30` : 'none',
+              }}
+              autoComplete="off"
+            />
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+              <span className="w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
+              <p className="text-[13px] text-red-400">{error}</p>
+            </div>
+          )}
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl text-[15px] font-bold tracking-wide text-black transition-all duration-200 disabled:opacity-50"
+            style={{
+              background: color,
+              boxShadow: isSubmitting ? 'none' : `0 8px 32px ${color}35, 0 2px 8px ${color}20`,
+            }}
+            onMouseEnter={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(-2px)')}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+          >
+            {isSubmitting ? (
+              <span className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+            ) : (
+              isRisky ? 'Request Free Recovery Analysis' : 'Activate Free Monitoring'
+            )}
+          </button>
+
+          <p className="text-center text-[11px] text-gray-700">Encrypted · Free forever · No commitment</p>
+        </form>
+      </div>
+    </div>
+    </>
+  );
+};
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 const WalletScanner: React.FC = () => {
@@ -156,6 +491,42 @@ const WalletScanner: React.FC = () => {
   const sweepLineRef = useRef<HTMLDivElement>(null);
   const [sweepGlow, setSweepGlow] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Recovery CTA / Lead Modal state ──
+  const [showLeadModal, setShowLeadModal] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupDismissed, setPopupDismissed] = useState(false);
+  const [countdown, setCountdown] = useState({ hours: 23, minutes: 43, seconds: 12 });
+
+  // Countdown timer (cosmetic urgency — resets each visit)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        let { hours, minutes, seconds } = prev;
+        seconds--;
+        if (seconds < 0) { seconds = 59; minutes--; }
+        if (minutes < 0) { minutes = 59; hours--; }
+        if (hours < 0) { hours = 23; minutes = 59; seconds = 59; }
+        return { hours, minutes, seconds };
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-trigger popup 4s after results appear (only once per scan)
+  useEffect(() => {
+    if (!resultsVisible || popupDismissed) return;
+    const t = setTimeout(() => setShowPopup(true), 4000);
+    return () => clearTimeout(t);
+  }, [resultsVisible]);
+
+  // Reset popup state on new scan
+  useEffect(() => {
+    if (scanState === 'input') {
+      setShowPopup(false);
+      setPopupDismissed(false);
+    }
+  }, [scanState]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -785,6 +1156,43 @@ const WalletScanner: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* ── Minimal fallback bar (only after popup dismissed) ─── */}
+          {scanState === 'results' && scanResult && popupDismissed && (() => {
+            const ctaColor = { clear: '#22c55e', low: '#eab308', moderate: '#f97316', critical: '#ef4444' }[scanResult.severity] || '#22c55e';
+            return (
+              <div className={`w-full max-w-3xl mx-auto mt-4 mb-10 transition-all duration-500 ${resultsVisible ? 'opacity-100' : 'opacity-0'}`}>
+                <div className="flex items-center justify-between py-4 border-t border-white/[0.05]">
+                  <p className="text-[13px] text-gray-500">
+                    Want a free forensic assessment of this wallet?
+                  </p>
+                  <button
+                    onClick={() => { setPopupDismissed(false); setShowPopup(true); }}
+                    className="text-[13px] font-medium transition-colors flex-shrink-0 ml-4"
+                    style={{ color: ctaColor }}
+                  >
+                    Request analysis →
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Recovery Lead Modal (for register flow from popup) */}
+          {scanResult && (
+            <RecoveryLeadModal
+              isOpen={showLeadModal}
+              onClose={() => setShowLeadModal(false)}
+              walletAddress={scanResult.address}
+              network={selectedNetwork.key}
+              networkName={scanResult.networkName}
+              threatIndex={scanResult.threatIndex}
+              severity={scanResult.severity}
+              balance={scanResult.balance}
+              currency={scanResult.currency}
+            />
+          )}
+
         </MaxWidthWrapper>
 
         {/* Footer disclaimer */}
@@ -795,6 +1203,111 @@ const WalletScanner: React.FC = () => {
         </div>
       </main>
       <Footer />
+
+      {/* ── Auto-triggered bottom sheet popup ──────────────────────── */}
+      {scanResult && (() => {
+        const sheetColor: Record<string, string> = {
+          clear: '#22c55e', low: '#eab308', moderate: '#f97316', critical: '#ef4444'
+        };
+        const color = sheetColor[scanResult.severity] || '#22c55e';
+        const isRisky = scanResult.threatIndex > 25;
+
+        return (
+          <>
+            <style>{`
+              @keyframes popupFadeUp {
+                from { opacity: 0; transform: translateY(12px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+              @keyframes ringFill {
+                to { stroke-dashoffset: 0; }
+              }
+              @keyframes ringFill {
+                to { stroke-dashoffset: 0; }
+              }
+              @keyframes checkDraw {
+                to { opacity: 1; }
+              }
+            `}</style>
+
+            {/* Overlay */}
+            <div
+              className="fixed inset-0 z-[80]"
+              style={{
+                background: 'rgba(0,0,0,0.65)',
+                backdropFilter: 'blur(3px)',
+                opacity: showPopup ? 1 : 0,
+                transition: 'opacity 0.3s ease',
+                pointerEvents: showPopup ? 'auto' : 'none',
+              }}
+              onClick={() => { setShowPopup(false); setPopupDismissed(true); }}
+            />
+
+            {/* Sheet */}
+            <div
+              className="fixed bottom-0 left-0 right-0 z-[90]"
+              style={{
+                transform: showPopup ? 'translateY(0)' : 'translateY(110%)',
+                transition: showPopup 
+                  ? 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' 
+                  : 'transform 0.35s cubic-bezier(0.7, 0, 0.84, 0)',
+                pointerEvents: showPopup ? 'auto' : 'none',
+              }}
+            >
+              {/* Color bar — full width, solid not gradient */}
+              <div className="h-[3px]" style={{ background: color }} />
+
+              <div
+                className="border-t border-white/[0.05] px-5 sm:px-8 lg:px-10 pt-6 pb-8 sm:pb-10 overflow-y-auto"
+                style={{ background: '#0e0e0e', maxHeight: '85vh' }}
+              >
+                {/* Top bar: dismiss */}
+                <div className="flex items-center justify-between mb-7 max-w-4xl mx-auto">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] px-2 py-1 rounded"
+                      style={{ color, background: `${color}12`, border: `1px solid ${color}25` }}
+                    >
+                      {isRisky ? '◈ Recovery' : '◎ Monitoring'}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0" style={{ backgroundColor: color }} />
+                      12 people requested this hour
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setShowPopup(false); setPopupDismissed(true); }}
+                    className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-200 transition-all duration-150 rounded-lg hover:bg-white/[0.05] flex-shrink-0"
+                    aria-label="Close"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M2 2L12 12M12 2L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Main content */}
+                <div className="max-w-4xl mx-auto">
+                  <PopupLeadForm
+                    walletAddress={scanResult.address}
+                    network={selectedNetwork.key}
+                    threatIndex={scanResult.threatIndex}
+                    severity={scanResult.severity}
+                    balance={scanResult.balance}
+                    currency={scanResult.currency}
+                    color={color}
+                    isRisky={isRisky}
+                    countdown={countdown}
+                    isOpen={showPopup}
+                    onSuccess={() => { setShowPopup(false); setPopupDismissed(true); }}
+                    onRegister={() => { setShowPopup(false); setShowLeadModal(true); }}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </>
   );
 };

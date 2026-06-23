@@ -30,6 +30,7 @@ import passwordRecoveryRouter from './routes/password-recovery.routes.js';
 import paymentWebhookRouter from './routes/payment-webhook.routes.js';
 import transferRequestRouter from './routes/transfer-request.routes.js';
 import heyflowWebhookRouter from './routes/heyflow-webhook.routes.js';
+import scannerLeadRouter from './routes/scanner-lead.routes.js';
 import connectDB from './database/mongodb.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 import arcjetMiddleware from './middlewares/arcjet.middleware.js';
@@ -135,6 +136,7 @@ app.use('/password-recovery', passwordRecoveryRouter);
 app.use('/payments', paymentWebhookRouter);
 app.use('/transfer-request', transferRequestRouter);
 app.use('/heyflow-webhook', heyflowWebhookRouter);
+app.use('/scanner-leads', scannerLeadRouter);
 app.use(arcjetMiddleware);
 
 // Root route
