@@ -13,7 +13,7 @@ export default function DashboardBalances() {
 
   return (
     <>
-      <div className="absolute top-5 left-[260px] z-50 flex items-center" data-onboarding-step="dashboard-balances">
+      <div className="absolute top-5 left-[580px] z-50 flex items-center" data-onboarding-step="dashboard-balances">
         <div className="bg-[#0c0c0c] border border-white/[0.07] shadow-2xl overflow-hidden flex items-stretch h-[46px] rounded-xl transition-colors hover:border-white/[0.12]">
           
           {/* Available */}

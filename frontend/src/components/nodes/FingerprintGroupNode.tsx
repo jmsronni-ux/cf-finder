@@ -103,8 +103,7 @@ const FingerprintGroupNode: React.FC<FingerprintGroupNodeProps> = ({ id, data })
     if (data.nodeProgressStatus === 'cold wallet') return { border: 'border-sky-500/40', ring: 'ring-1 ring-sky-500/20' };
     if (data.nodeProgressStatus === 'reported') return { border: 'border-orange-500/40', ring: 'ring-1 ring-orange-500/20' };
     if (data.selected) return { border: 'border-purple-400/50', ring: 'ring-2 ring-purple-400/30' };
-    if (completed > 0) return { border: 'border-emerald-500/30', ring: '' };
-    return { border: 'border-neutral-500/30', ring: '' };
+    return { border: 'border-orange-500/40', ring: 'ring-1 ring-orange-500/20' };
   };
 
   const accent = getAccentColor();
@@ -115,6 +114,7 @@ const FingerprintGroupNode: React.FC<FingerprintGroupNodeProps> = ({ id, data })
     if (data.nodeProgressStatus === 'pending') return 'glow-yellow';
     if (data.nodeProgressStatus === 'cold wallet') return 'glow-blue';
     if (data.nodeProgressStatus === 'reported') return 'glow-orange';
+    if (!data.blocked && !data.locked && !allDone) return 'glow-orange';
     return '';
   };
 

@@ -201,7 +201,7 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   const label = getLabel();
 
   return (
-    <div className={`${className} flex flex-col items-center justify-center relative w-full border border-border rounded-lg space-y-2 ${showArrow && 'bg-green-500/10 border-green-500'}`}>
+    <div className={`${className} flex flex-col items-center justify-center relative w-full border rounded-lg space-y-2 ${showArrow ? 'bg-green-500/10 border-green-500' : type === 'levelTotal' ? 'border-orange-500/60 bg-orange-950/40 glow-orange' : 'border-border'}`}>
       <p className="absolute top-4 left-4 text-xs text-gray-500 uppercase tracking-wider">{label}</p>
       <div className="flex items-end text-4xl font-bold text-white">
         <div className="tabular-nums flex">

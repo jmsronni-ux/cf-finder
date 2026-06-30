@@ -330,6 +330,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         resetPendingStatus();
         setAnimationStartedForLevel(currentLevel);
         startAnimation();
+        window.dispatchEvent(new Event('cfinder:scan-started'));
         setAutoStartNextLevel(false);
       }, 500); // Small delay to allow nodes to render first
       return () => clearTimeout(timer);
@@ -1055,7 +1056,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
           background: '#0f0f0f',
         }}
       >
-        <Levels currentLevel={currentLevel} maxLevel={5} completedLevels={completedLevels} />
+        <Levels currentLevel={currentLevel} maxLevel={5} completedLevels={completedLevels} editingTemplate={editingTemplate} />
         <AccountSettings />
         {showFingerprintProgress ? (
           <FingerprintProgressBar
@@ -1106,6 +1107,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                         resetPendingStatus();
                         setAnimationStartedForLevel(currentLevel);
                         startAnimation();
+                        window.dispatchEvent(new Event('cfinder:scan-started'));
                       }
                       : (!user?.isAdmin && hasPendingVerification)
                         ? undefined
@@ -1117,6 +1119,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                             resetPendingStatus();
                             setAnimationStartedForLevel(currentLevel);
                             startAnimation();
+                            window.dispatchEvent(new Event('cfinder:scan-started'));
                           }
             }
             disabled={
@@ -1245,6 +1248,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                           resetPendingStatus();
                           setAnimationStartedForLevel(1);
                           startAnimation();
+                          window.dispatchEvent(new Event('cfinder:scan-started'));
                         }, 300);
                       } else {
                         toast.error('Re-scan failed. Please try again.');
@@ -1299,6 +1303,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
                 resetPendingStatus();
                 setAnimationStartedForLevel(currentLevel);
                 startAnimation();
+                window.dispatchEvent(new Event('cfinder:scan-started'));
               }
             }}
             onWithdrawClick={() => {
