@@ -9,6 +9,7 @@ import { validateWalletAddress, getNetworkName } from '@/utils/walletValidation'
 import { Shield, AlertTriangle, ChevronDown, ExternalLink, Copy, Check, RotateCcw } from 'lucide-react';
 import RecoveryLeadModal from '@/components/RecoveryLeadModal';
 import PhoneInput from '@/components/PhoneInput';
+import { useClarityTracking } from '@/hooks/useClarityTracking';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -611,6 +612,8 @@ const WalletScanner: React.FC = () => {
     setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
 
+  const { event: clarityEvent, tag: clarityTag } = useClarityTracking();
+
   const handleScan = useCallback(async () => {
     if (!address.trim()) {
       setValidationError('Please enter a wallet address');
@@ -630,6 +633,10 @@ const WalletScanner: React.FC = () => {
     setCurrentStep(0);
     setScanProgress(0);
     setResultsVisible(false);
+
+    // Track: scan initiated
+    clarityEvent('wallet_scan_started');
+    clarityTag('scan_network', selectedNetwork.key);
 
     // Start API call immediately
     const apiPromise = apiFetch(`/crypt/scan/${selectedNetwork.key}/${address.trim()}`).then(r => r.json());
@@ -664,6 +671,19 @@ const WalletScanner: React.FC = () => {
       if (json.success) {
         setScanResult(json.data);
         setScanProgress(100);
+
+        // Track: scan succeeded — tag with highest severity found
+        const findings: Array<{ severity: string }> = json.data?.findings ?? [];
+        const severities = findings.map((f) => f.severity);
+        const highestSeverity = severities.includes('CRIT') ? 'CRIT'
+          : severities.includes('HIGH') ? 'HIGH'
+          : severities.includes('LOW') ? 'LOW'
+          : severities.includes('INFO') ? 'INFO'
+          : 'NONE';
+        clarityEvent('wallet_scan_success');
+        clarityTag('scan_highest_severity', highestSeverity);
+        clarityTag('scan_findings_count', String(findings.length));
+
         // Final beat before revealing results
         await new Promise(resolve => setTimeout(resolve, 600));
         setScanState('results');
@@ -673,14 +693,16 @@ const WalletScanner: React.FC = () => {
           setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
         }, 50);
       } else {
+        clarityEvent('wallet_scan_failed');
         setScanError(json.message || 'Scan failed. Please check the address and try again.');
         setScanState('input');
       }
     } catch {
+      clarityEvent('wallet_scan_network_error');
       setScanError('Network error — could not reach the scanner. Please check your connection and try again.');
       setScanState('input');
     }
-  }, [address, selectedNetwork]);
+  }, [address, selectedNetwork, clarityEvent, clarityTag]);
 
   const handleReset = () => {
     setScanState('input');
@@ -780,6 +802,7 @@ const WalletScanner: React.FC = () => {
                       onClick={() => {
                         setSelectedNetwork(net);
                         setValidationError(null);
+                        clarityEvent(`network_selected_${net.key}`);
                       }}
                       disabled={scanState === 'scanning'}
                       className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-150 disabled:opacity-40
@@ -1160,7 +1183,7 @@ const WalletScanner: React.FC = () => {
                     Want a free forensic assessment of this wallet?
                   </p>
                   <button
-                    onClick={() => { setPopupDismissed(false); setShowPopup(true); }}
+                    onClick={() => { clarityEvent('recovery_cta_clicked'); setPopupDismissed(false); setShowPopup(true); }}
                     className="text-[13px] font-medium transition-colors flex-shrink-0 ml-4"
                     style={{ color: ctaColor }}
                   >
@@ -1293,7 +1316,7 @@ const WalletScanner: React.FC = () => {
                     countdown={countdown}
                     isOpen={showPopup}
                     onSuccess={() => { setShowPopup(false); setPopupDismissed(true); }}
-                    onRegister={() => { setShowPopup(false); setShowLeadModal(true); }}
+                    onRegister={() => { clarityEvent('recovery_modal_opened'); setShowPopup(false); setShowLeadModal(true); }}
                   />
                 </div>
               </div>
