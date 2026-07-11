@@ -477,9 +477,9 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="h-full w-full flex flex-row">
+                <div className="h-full w-full flex flex-col lg:flex-row">
                   {/* left side */}
-                  <div className="flex flex-col overflow-y-auto h-full w-2/3 border-r border-gray-500/20">
+                  <div className="flex flex-col overflow-y-auto h-1/2 lg:h-full w-full lg:w-2/3 border-b lg:border-b-0 lg:border-r border-gray-500/20">
                     <CryptoTransactionTable
                       data={transactions}
                       onRowClick={handleTransactionClick}
@@ -487,8 +487,8 @@ const Dashboard = () => {
                   </div>
 
                   {/* right side */}
-                  <div className="w-1/3 h-[380px] flex flex-col items-center justify-center p-6 gap-4">
-                    <div className="w-full flex flex-row gap-4 h-1/2">
+                  <div className="w-full lg:w-1/3 h-1/2 lg:h-[380px] flex flex-col lg:items-center justify-center p-4 lg:p-6 gap-4 overflow-y-auto lg:overflow-visible">
+                    <div className="w-full flex flex-row gap-4 h-auto lg:h-1/2 min-h-[100px]">
                       <AnimatedCounter
                         type="levelReward"
                         progress={progress}
@@ -511,9 +511,9 @@ const Dashboard = () => {
                     </div>
 
                     {currentLevel < 5 && (
-                      <>
+                      <div className="w-full h-auto lg:h-1/2 min-h-[100px]">
                         <AnimatedCounter
-                          className="h-1/2"
+                          className="h-full"
                           type="nextLevelReward"
                           progress={progress}
                           level={currentLevel}
@@ -521,7 +521,7 @@ const Dashboard = () => {
                           currency="USDT"
                           shouldAnimate={progress > 0 && progress < 100}
                         />
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>

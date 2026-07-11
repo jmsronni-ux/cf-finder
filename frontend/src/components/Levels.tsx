@@ -107,7 +107,7 @@ export default function Levels({
 
   return (
     <div
-      className="absolute top-5 left-6 z-50"
+      className="absolute top-4 left-4 sm:top-5 sm:left-6 z-50 max-w-[calc(100vw-32px)] sm:max-w-none"
       data-onboarding-step="network-levels"
     >
       <div className="bg-[#0c0c0c] border border-white/[0.07] shadow-2xl overflow-visible flex items-stretch h-[46px] rounded-xl transition-colors hover:border-white/[0.12]">
@@ -124,8 +124,8 @@ export default function Levels({
           return (
             <div
               key={level}
-              className={`flex flex-col justify-center px-3.5 border-r border-white/[0.05] transition-colors ${
-                isCurrent ? 'bg-purple-500/[0.04]' : isLocked ? '' : 'bg-white/[0.02]'
+              className={`flex-col justify-center px-3 sm:px-3.5 border-r border-white/[0.05] transition-colors ${
+                isCurrent ? 'flex bg-purple-500/[0.04]' : isLocked ? 'hidden sm:flex' : 'hidden sm:flex bg-white/[0.02]'
               }`}
             >
               {/* Label */}
@@ -134,7 +134,8 @@ export default function Levels({
                 <span className={`text-[9px] font-mono uppercase tracking-widest leading-none ${
                   isLocked ? 'text-neutral-700' : 'text-neutral-500'
                 }`}>
-                  Level {level}
+                  <span className="hidden sm:inline">Level </span>
+                  <span className="sm:hidden">L</span>{level}
                 </span>
               </div>
 
@@ -143,7 +144,7 @@ export default function Levels({
                 {isLocked ? (
                   <div className="flex items-center gap-1">
                     <Lock className="w-3 h-3 text-neutral-800" />
-                    <span className="text-[10px] text-neutral-800 leading-none">Locked</span>
+                    <span className="hidden sm:inline text-[10px] text-neutral-800 leading-none">Locked</span>
                   </div>
                 ) : total === 0 ? (
                   <span className="text-neutral-700 text-sm font-medium leading-none">—</span>
@@ -165,7 +166,7 @@ export default function Levels({
         })}
 
         {/* Timer + info icon */}
-        <div className={`relative flex flex-col justify-center px-3.5 rounded-r-xl ${timerColor} ${
+        <div className={`relative flex flex-col justify-center px-2 sm:px-3.5 rounded-r-xl ${timerColor} ${
           isExpired ? 'bg-red-500/[0.08]' : timerUrgent ? 'bg-red-500/[0.06]' : hoursLeft <= 12 ? 'bg-amber-500/[0.04]' : 'bg-white/[0.01]'
         }`}>
           {/* Label row with info icon */}
@@ -174,7 +175,8 @@ export default function Levels({
             <span className={`text-[9px] font-mono uppercase tracking-widest leading-none ${
               isExpired ? 'text-red-400' : timerUrgent ? 'text-red-400/80' : hoursLeft <= 12 ? 'text-amber-400/60' : 'text-neutral-500'
             }`}>
-              {isExpired ? 'Expired' : 'Scan valid'}
+              <span className="hidden sm:inline">{isExpired ? 'Expired' : 'Scan valid'}</span>
+              <span className="sm:hidden">{isExpired ? 'Exp' : 'Scan'}</span>
             </span>
             {/* Info icon */}
             <div
@@ -197,7 +199,7 @@ export default function Levels({
           {/* Tooltip — positioned below the entire pill, right-aligned */}
           {showInfoTooltip && (
             <div
-              className="absolute top-[calc(100%+10px)] right-0 z-[200]"
+              className="absolute top-[calc(100%+10px)] right-0 z-[200] max-w-[calc(100vw-32px)]"
               style={{ width: '268px' }}
               onMouseEnter={() => setShowInfoTooltip(true)}
               onMouseLeave={() => setShowInfoTooltip(false)}

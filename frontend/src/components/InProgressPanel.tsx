@@ -337,7 +337,7 @@ const InProgressPanel: React.FC<InProgressPanelProps> = ({ nodeScheduledActions,
   }, [allItems.length, showCelebration]);
 
   return (
-    <div className="absolute bottom-5 left-6 z-30 w-full max-w-[340px]">
+    <div className="absolute bottom-4 left-4 right-4 sm:bottom-5 sm:left-6 sm:right-auto z-30 w-auto sm:w-[340px] max-w-none">
       <div className="bg-[#0c0c0c] border border-white/[0.07] rounded-xl shadow-2xl overflow-hidden">
         <div className="px-5 py-4">
           {/* Header */}

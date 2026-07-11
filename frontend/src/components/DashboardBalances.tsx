@@ -13,7 +13,7 @@ export default function DashboardBalances() {
 
   return (
     <>
-      <div className="absolute top-5 left-[580px] z-50 flex items-center" data-onboarding-step="dashboard-balances">
+      <div className="absolute top-[4.5rem] left-4 lg:top-5 lg:left-[580px] z-50 flex items-center" data-onboarding-step="dashboard-balances">
         <div className="bg-[#0c0c0c] border border-white/[0.07] shadow-2xl overflow-hidden flex items-stretch h-[46px] rounded-xl transition-colors hover:border-white/[0.12]">
           
           {/* Available */}
@@ -29,7 +29,7 @@ export default function DashboardBalances() {
           </div>
 
           {/* Onchain */}
-          <div className="flex flex-col justify-center px-4 bg-white/[0.01]">
+          <div className="hidden sm:flex flex-col justify-center px-4 bg-white/[0.01]">
             <div className="flex items-center gap-1.5 mb-0.5">
               <div className="w-1 h-1 bg-purple-500 rounded-full" />
               <span className="text-[9px] font-mono text-neutral-500 uppercase tracking-widest leading-none">Onchain</span>

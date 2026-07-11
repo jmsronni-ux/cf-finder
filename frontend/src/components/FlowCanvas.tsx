@@ -1057,113 +1057,123 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onNodeAppear, externalSelectedN
         }}
       >
         <Levels currentLevel={currentLevel} maxLevel={5} completedLevels={completedLevels} editingTemplate={editingTemplate} />
-        <AccountSettings />
-        {showFingerprintProgress ? (
-          <FingerprintProgressBar
-            completed={fingerprintProgress.completed}
-            total={fingerprintProgress.total}
-            data-onboarding-step="start-scan"
-          />
-        ) : (
-          <PulsatingButton
-            pulseColor="#764FCB"
-            duration="1.5s"
-            variant={
-              pendingTierRequest ? "upgradePending" :
-                hasWatchedCurrentLevel ?
-                  (withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys ? "verificationPending" : "withdraw") :
-                  isAnimating || isProcessingCompletion ? "loading" :
-                    !hasPaidForCurrentLevel ? "start" :
-                      (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
-                        (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification) ? "verifyWallet" :
-                          "start"
-            }
-            isLoading={isUpgrading}
-            className="absolute top-5 right-[3.75rem] w-fit min-w-[10rem] mr-4"
-            data-onboarding-step="start-scan"
-            onClick={
-              pendingTierRequest
-                ? undefined
-                : isAnimating || isProcessingCompletion
-                  ? undefined
-                  : hasWatchedCurrentLevel
-                    ? async () => {
-                      if (withdrawalSystem === 'direct_access_keys') {
-                        if (isLevelCompletedWithKeys && currentLevel < 5) {
-                          const success = await handleUpgradeClick();
-                          if (success) {
-                            const nextLevel = currentLevel + 1;
-                            toast.success(`Upgraded to Level ${nextLevel}!`);
-                            setAutoStartNextLevel(true);
-                            setCurrentLevel(nextLevel);
+        {/* Action Buttons Container */}
+        <div className="absolute z-[100] top-4 right-4 sm:top-5 sm:right-6 flex flex-row items-center gap-2 pointer-events-none">
+          {/* Re-Scan Button — visible when rescan sequence is configured and user is not admin */}
+          {!user?.isAdmin && rescanSequence.length > 0 && (
+            <div className="pointer-events-auto flex justify-center">
+              <button
+                className="rescan-3d-btn !w-[46px] sm:!w-auto !h-[46px] sm:!h-[2.25rem] !px-0 sm:!px-4 !min-w-0 sm:!min-w-[7rem] !justify-center"
+                disabled={isAnimating || isProcessingCompletion || isRescanning}
+                onClick={() => setShowRescanConfirm(true)}
+              >
+                <RotateCcw className="rescan-icon w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden sm:inline">Re-Scan</span>
+              </button>
+            </div>
+          )}
+
+          {/* Scan / Progress Button */}
+          <div className="pointer-events-auto flex justify-center w-auto">
+            {showFingerprintProgress ? (
+              <FingerprintProgressBar
+                completed={fingerprintProgress.completed}
+                total={fingerprintProgress.total}
+                data-onboarding-step="start-scan"
+              />
+            ) : (
+              <PulsatingButton
+                pulseColor="#764FCB"
+                duration="1.5s"
+                variant={
+                  pendingTierRequest ? "upgradePending" :
+                    hasWatchedCurrentLevel ?
+                      (withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys ? "verificationPending" : "withdraw") :
+                      isAnimating || isProcessingCompletion ? "loading" :
+                        !hasPaidForCurrentLevel ? "start" :
+                          (!user?.isAdmin && hasPendingVerification) ? "verificationPending" :
+                            (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification) ? "verifyWallet" :
+                              "start"
+                }
+                isLoading={isUpgrading}
+                className="w-[46px] sm:w-fit !px-0 sm:!px-5 min-w-0 sm:min-w-[10rem]"
+                data-onboarding-step="start-scan"
+                onClick={
+                  pendingTierRequest
+                    ? undefined
+                    : isAnimating || isProcessingCompletion
+                      ? undefined
+                      : hasWatchedCurrentLevel
+                        ? async () => {
+                          if (withdrawalSystem === 'direct_access_keys') {
+                            if (isLevelCompletedWithKeys && currentLevel < 5) {
+                              const success = await handleUpgradeClick();
+                              if (success) {
+                                const nextLevel = currentLevel + 1;
+                                toast.success(`Upgraded to Level ${nextLevel}!`);
+                                setAutoStartNextLevel(true);
+                                setCurrentLevel(nextLevel);
+                              }
+                            }
+                          } else {
+                            setShowCompletionPopup(!showCompletionPopup);
                           }
                         }
-                      } else {
-                        setShowCompletionPopup(!showCompletionPopup);
-                      }
-                    }
-                    : !hasPaidForCurrentLevel
-                      ? () => {
-                        resetPendingStatus();
-                        setAnimationStartedForLevel(currentLevel);
-                        startAnimation();
-                        window.dispatchEvent(new Event('cfinder:scan-started'));
-                      }
-                      : (!user?.isAdmin && hasPendingVerification)
-                        ? undefined
-                        : (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification)
+                        : !hasPaidForCurrentLevel
                           ? () => {
-                            navigate('/profile');
-                          }
-                          : () => {
                             resetPendingStatus();
                             setAnimationStartedForLevel(currentLevel);
                             startAnimation();
                             window.dispatchEvent(new Event('cfinder:scan-started'));
                           }
-            }
-            disabled={
-              pendingTierRequest ||
-              isAnimating ||
-              isProcessingCompletion ||
-              (!user?.isAdmin && hasPendingVerification) ||
-              (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification) ||
-              isUpgrading ||
-              (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys) ||
-              (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && currentLevel >= 5)
-            }
-          >
-            {pendingTierRequest
-              ? 'Upgrade Pending'
-              : isUpgrading
-                ? 'Upgrading...'
-                : hasWatchedCurrentLevel
-                  ? withdrawalSystem === 'direct_access_keys'
-                    ? (isLevelCompletedWithKeys ? (currentLevel >= 5 ? 'Max Level Reached' : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')) : 'Complete Node Keys to Upgrade')
-                    : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')
-                  : !hasPaidForCurrentLevel
-                    ? 'Start Allocation'
-                    : (!user?.isAdmin && hasPendingVerification)
-                      ? 'Verification Pending'
-                      : (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification)
-                        ? 'Verify Wallet'
-                        : hasStarted
-                          ? 'Running...'
-                          : 'Start Allocation'}
-          </PulsatingButton>
-        )}
+                          : (!user?.isAdmin && hasPendingVerification)
+                            ? undefined
+                            : (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification)
+                              ? () => {
+                                navigate('/profile');
+                              }
+                              : () => {
+                                resetPendingStatus();
+                                setAnimationStartedForLevel(currentLevel);
+                                startAnimation();
+                                window.dispatchEvent(new Event('cfinder:scan-started'));
+                              }
+                }
+                disabled={
+                  pendingTierRequest ||
+                  isAnimating ||
+                  isProcessingCompletion ||
+                  (!user?.isAdmin && hasPendingVerification) ||
+                  (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification) ||
+                  isUpgrading ||
+                  (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && !isLevelCompletedWithKeys) ||
+                  (hasWatchedCurrentLevel && withdrawalSystem === 'direct_access_keys' && currentLevel >= 5)
+                }
+              >
+                {pendingTierRequest
+                  ? 'Upgrade Pending'
+                  : isUpgrading
+                    ? 'Upgrading...'
+                    : hasWatchedCurrentLevel
+                      ? withdrawalSystem === 'direct_access_keys'
+                        ? (isLevelCompletedWithKeys ? (currentLevel >= 5 ? 'Max Level Reached' : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')) : 'Complete Node Keys to Upgrade')
+                        : (currentLevel >= 2 ? 'Start deeper scan' : 'Start scan')
+                      : !hasPaidForCurrentLevel
+                        ? 'Start Allocation'
+                        : (!user?.isAdmin && hasPendingVerification)
+                          ? 'Verification Pending'
+                          : (!user?.isAdmin && !user?.walletVerified && !hasCompletedInitialVerification)
+                            ? 'Verify Wallet'
+                            : hasStarted
+                              ? 'Running...'
+                              : 'Start Allocation'}
+              </PulsatingButton>
+            )}
+          </div>
 
-        {/* Re-Scan Button — visible when rescan sequence is configured and user is not admin */}
-        {!user?.isAdmin && rescanSequence.length > 0 && (
-          <button
-            className="rescan-3d-btn"
-            disabled={isAnimating || isProcessingCompletion || isRescanning}
-            onClick={() => setShowRescanConfirm(true)}
-          >
-            <RotateCcw className="rescan-icon w-3.5 h-3.5" />
-            Re-Scan
-          </button>
-        )}
+          {/* Account Profile Button */}
+          <AccountSettings />
+        </div>
 
         {/* Re-Scan Confirmation Dialog */}
         {showRescanConfirm && (

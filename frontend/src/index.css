@@ -776,10 +776,6 @@ body {
 
 /* ── Re-Scan 3D Button ── */
 .rescan-3d-btn {
-  position: absolute;
-  top: 1.25rem;
-  right: calc(3.75rem + 14rem);
-  z-index: 100;
   display: flex;
   align-items: center;
   gap: 0.4rem;

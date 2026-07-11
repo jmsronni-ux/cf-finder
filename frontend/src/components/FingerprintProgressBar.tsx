@@ -18,7 +18,7 @@ export const FingerprintProgressBar: React.FC<FingerprintProgressBarProps> = ({
   return (
     <div 
       className={cn(
-        "flex z-[100] flex-col items-center justify-center rounded-xl px-5 h-9 transition-all duration-200 border shadow-2xl bg-[#0c0c0c] border-amber-500/20 absolute top-5 right-[3.75rem] w-fit min-w-[12rem] mr-4 overflow-hidden",
+        "flex z-[100] flex-col items-center justify-center rounded-xl px-0 sm:px-5 h-[46px] sm:h-9 transition-all duration-200 border shadow-2xl bg-[#0c0c0c] border-amber-500/20 w-[46px] sm:w-fit min-w-0 sm:min-w-[12rem] overflow-hidden",
         className
       )}
       {...props}
@@ -29,11 +29,11 @@ export const FingerprintProgressBar: React.FC<FingerprintProgressBarProps> = ({
         style={{ width: `${percentage}%` }}
       />
 
-      <div className="relative z-10 w-full flex items-center justify-between gap-4">
-        <span className="text-amber-400/80 text-[10px] uppercase tracking-wider font-bold">
+      <div className="relative z-10 w-full flex items-center justify-center sm:justify-between h-full gap-0 sm:gap-4">
+        <span className="hidden sm:inline text-amber-400/80 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap">
           Nodes Completed
         </span>
-        <span className="text-amber-400/90 text-xs font-mono font-bold">
+        <span className="text-amber-400/90 text-[10px] sm:text-xs font-mono font-bold tracking-tighter">
           {completed}/{total}
         </span>
       </div>

@@ -1,6 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Loader2, ArrowRight, Wallet } from "lucide-react";
+import { Loader2, ArrowRight, Wallet, Play } from "lucide-react";
 
 type ButtonVariant = "start" | "loading" | "upgrade" | "upgradePending" | "withdraw" | "verifyWallet" | "verificationPending";
 
@@ -56,30 +56,30 @@ export const PulsatingButton = React.forwardRef<
     const getContent = () => {
       if (isLoading) {
         return (
-          <span className="flex items-center gap-2">
-            <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-400" />
-            <span className="text-neutral-300">{typeof children === 'string' ? children : 'Loading...'}</span>
+          <span className="flex items-center gap-0 sm:gap-2 justify-center w-full">
+            <Loader2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 animate-spin text-neutral-400" />
+            <span className="hidden sm:inline text-neutral-300">{typeof children === 'string' ? children : 'Loading...'}</span>
           </span>
         );
       }
 
       if (variant === "loading") {
         return (
-          <span className="flex items-center gap-2">
-            <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400/60" />
-            <span className="text-neutral-300">{children}</span>
+          <span className="flex items-center gap-0 sm:gap-2 justify-center w-full">
+            <Loader2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 animate-spin text-purple-400/60" />
+            <span className="hidden sm:inline text-neutral-300">{children}</span>
           </span>
         );
       }
 
       if (variant === "upgradePending") {
         return (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-0 sm:gap-2 justify-center w-full">
             <div className="relative flex-shrink-0">
-              <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-              <div className="absolute inset-0 w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping opacity-40" />
+              <div className="w-2 h-2 sm:w-1.5 sm:h-1.5 bg-amber-400 rounded-full" />
+              <div className="absolute inset-0 w-2 h-2 sm:w-1.5 sm:h-1.5 bg-amber-400 rounded-full animate-ping opacity-40" />
             </div>
-            <span className="text-amber-400/80 text-xs font-medium">
+            <span className="hidden sm:inline text-amber-400/80 text-xs font-medium">
               {children || 'Upgrade Pending'}
             </span>
           </span>
@@ -88,12 +88,12 @@ export const PulsatingButton = React.forwardRef<
 
       if (variant === "verificationPending") {
         return (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-0 sm:gap-2 justify-center w-full">
             <div className="relative flex-shrink-0">
-              <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-              <div className="absolute inset-0 w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping opacity-40" />
+              <div className="w-2 h-2 sm:w-1.5 sm:h-1.5 bg-amber-400 rounded-full" />
+              <div className="absolute inset-0 w-2 h-2 sm:w-1.5 sm:h-1.5 bg-amber-400 rounded-full animate-ping opacity-40" />
             </div>
-            <span className="text-amber-400/80 text-xs font-medium">
+            <span className="hidden sm:inline text-amber-400/80 text-xs font-medium">
               {children || 'Verification Pending'}
             </span>
           </span>
@@ -102,34 +102,39 @@ export const PulsatingButton = React.forwardRef<
 
       if (variant === "upgrade") {
         return (
-          <span className="flex items-center gap-2">
-            <span className="text-purple-300/90 text-xs font-medium">{children || 'UPGRADE'}</span>
-            <ArrowRight className="w-3.5 h-3.5 text-purple-400/60" />
+          <span className="flex items-center gap-0 sm:gap-2 justify-center w-full">
+            <span className="hidden sm:inline text-purple-300/90 text-xs font-medium">{children || 'UPGRADE'}</span>
+            <ArrowRight className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-purple-400/60" />
           </span>
         );
       }
 
       if (variant === "verifyWallet") {
         return (
-          <span className="flex items-center gap-2">
-            <Wallet className="w-3.5 h-3.5 text-emerald-400/60" />
-            <span className="text-emerald-300/90 text-xs font-medium">{children || 'Verify Wallet'}</span>
+          <span className="flex items-center gap-0 sm:gap-2 justify-center w-full">
+            <Wallet className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-emerald-400/60" />
+            <span className="hidden sm:inline text-emerald-300/90 text-xs font-medium">{children || 'Verify Wallet'}</span>
           </span>
         );
       }
 
       if (variant === "withdraw") {
         return (
-          <span className="flex items-center gap-2">
-            <Wallet className="w-3.5 h-3.5 text-amber-400/60" />
-            <span className="text-amber-300/90 text-xs font-medium">Start scan</span>
+          <span className="flex items-center gap-0 sm:gap-2 justify-center w-full">
+            <Wallet className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-amber-400/60" />
+            <span className="hidden sm:inline text-amber-300/90 text-xs font-medium">Start scan</span>
           </span>
         );
       }
 
       // start variant
       return (
-        <span className="text-neutral-300 text-xs font-medium">{children}</span>
+        <span className="flex items-center justify-center w-full">
+          <span className="hidden sm:inline text-neutral-300 text-xs font-medium">{children}</span>
+          <span className="sm:hidden text-neutral-300 flex items-center justify-center">
+             <Play className="w-4 h-4 fill-current" />
+          </span>
+        </span>
       );
     };
 
@@ -137,7 +142,7 @@ export const PulsatingButton = React.forwardRef<
       <button
         ref={ref}
         className={cn(
-          "relative flex cursor-pointer z-[100] items-center justify-center rounded-xl px-5 h-9 text-center transition-all duration-200 border border-white/[0.07] shadow-2xl",
+          "relative flex cursor-pointer z-[100] items-center justify-center rounded-xl px-5 h-[46px] sm:h-9 text-center transition-all duration-200 border border-white/[0.07] shadow-2xl",
           getVariantStyles(),
           className,
         )}
