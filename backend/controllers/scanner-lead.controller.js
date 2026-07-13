@@ -7,7 +7,7 @@ import { sendScannerLeadNotification } from "../services/telegram.service.js";
  */
 export const createScannerLead = async (req, res, next) => {
     try {
-        const { walletAddress, network, phone, telegram, whatsapp, threatIndex, severity, balance, currency } = req.body;
+        const { walletAddress, network, phone, telegram, whatsapp, threatIndex, severity, balance, currency, subid } = req.body;
 
         // Validate required fields
         if (!walletAddress || !network || !phone) {
@@ -51,7 +51,19 @@ export const createScannerLead = async (req, res, next) => {
             balance: balance || 0,
             currency: currency || '',
             source: 'wallet_scanner',
+            subid: subid || '',
         });
+
+        // Trigger S2S Postback to Keitaro
+        if (subid) {
+            const trackerDomain = process.env.KEITARO_TRACKER_DOMAIN || 'https://tracker.your-keitaro-domain.com';
+            const status = 'lead';
+            
+            // Fire and forget the GET request
+            fetch(`${trackerDomain}/postback?subid=${subid}&status=${status}`, {
+                method: 'GET'
+            }).catch(err => console.error('Failed to ping Keitaro:', err));
+        }
 
         // Send Telegram notification (fire and forget)
         sendScannerLeadNotification(lead).catch(err =>

@@ -47,6 +47,11 @@ const scannerLeadSchema = new mongoose.Schema({
         type: String,
         default: 'wallet_scanner',
     },
+    subid: {
+        type: String,
+        trim: true,
+        default: '',
+    },
     contacted: {
         type: Boolean,
         default: false,

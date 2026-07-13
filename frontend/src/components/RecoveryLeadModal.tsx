@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '@/utils/api';
 import PhoneInput from '@/components/PhoneInput';
 
@@ -29,6 +29,8 @@ const RecoveryLeadModal: React.FC<RecoveryLeadModalProps> = ({
   currency,
 }) => {
   const [step, setStep] = useState<ModalStep>('form');
+  const [searchParams] = useSearchParams();
+  const subid = searchParams.get('subid');
   const [phone, setPhone] = useState('');
   const [phoneBlurred, setPhoneBlurred] = useState(false);
   const [contactMethod, setContactMethod] = useState<'telegram' | 'whatsapp'>('telegram');
@@ -109,6 +111,7 @@ const RecoveryLeadModal: React.FC<RecoveryLeadModalProps> = ({
         severity,
         balance,
         currency,
+        subid,
       };
 
       if (contactHandle.trim()) {
