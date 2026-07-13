@@ -2,7 +2,7 @@
 
 // const background = () => {
 //     return (
-//         <div className="w-screen min-h-screen fixed z[1] flex justify-center pt-32 px-6 pb-40 pointer-events-none">
+//         <div className="w-dvw min-h-dvh fixed z[1] flex justify-center pt-32 px-6 pb-40 pointer-events-none">
 //             <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:6rem_4rem]"></div>
 //         </div>
 //     )
@@ -38,9 +38,9 @@ export function Background({
     const id = useId();
 
     return (
-        <div className="flex min-h-screen flex-col w-full relative">
+        <div className="flex min-h-dvh flex-col w-full relative">
             <div className="[mask-image:radial-gradient(500px_circle_at_center,white,transparent)] w-full h-full absolute inset-0"></div>
-            <div className="min-h-screen absolute inset-0 w-full">
+            <div className="min-h-dvh absolute inset-0 w-full">
                 <svg
                     aria-hidden="true"
                     className={cn(

@@ -288,7 +288,7 @@ const DataVisual: React.FC<DataVisualProps> = ({
         </div>
 
         {/* ── Scrollable Content ── */}
-        <div className="max-h-[calc(100vh-14rem)] overflow-y-auto overflow-x-hidden px-3.5 pb-3 space-y-2.5 dv-fade-in"
+        <div className="max-h-[calc(100dvh-14rem)] overflow-y-auto overflow-x-hidden px-3.5 pb-3 space-y-2.5 dv-fade-in"
           style={{ scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' }}
         >
 

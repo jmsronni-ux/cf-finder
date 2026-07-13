@@ -201,7 +201,7 @@ const EdgeDesignPanel: React.FC<EdgeDesignPanelProps> = ({
         </div>
 
         {/* Scrollable content */}
-        <div className="px-4 max-h-[calc(100vh-12rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+        <div className="px-4 max-h-[calc(100dvh-12rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
 
           {/* ─── Shape & Marker ─── */}
           <AccordionSection

@@ -669,7 +669,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
 
             <div className="p-5">
               {/* ─── Content ─── */}
-              <div className="max-h-[calc(100vh-14rem)] overflow-y-auto">
+              <div className="max-h-[calc(100dvh-14rem)] overflow-y-auto">
 
                 {isGroupComplete ? (
                   /* ═══════════════════════════════════════════
@@ -979,7 +979,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
             </div>
 
             {/* Content */}
-            <div className="max-h-[calc(100vh-14rem)] overflow-y-auto">
+            <div className="max-h-[calc(100dvh-14rem)] overflow-y-auto">
               {isUserNode ? (
                 <>
                   {/* User info — simple */}
@@ -1289,7 +1289,7 @@ const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
         </div>
 
         {/* Content */}
-        <div className="space-y-4 relative z-10 max-h-[calc(100vh-16rem)] overflow-y-auto">
+        <div className="space-y-4 relative z-10 max-h-[calc(100dvh-16rem)] overflow-y-auto">
           {isUserNode ? (
             /* User Node Content */
             <>

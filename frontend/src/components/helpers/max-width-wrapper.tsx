@@ -17,7 +17,7 @@ export function cn(...inputs: ClassValue[]) {
 const MaxWidthWrapper = ({ className, children }: Props) => {
     return (
         <section className={cn(
-            "h-full mx-auto w-full max-w-full md:max-w-screen-xl px-4 md:px-12 lg:px-20",
+            "h-full mx-auto w-full max-w-full md:max-w-dvw-xl px-4 md:px-12 lg:px-20",
             className,
         )}>
             {children}

@@ -56,7 +56,7 @@
   position: fixed;
   z-index: 100000;
   width: 360px;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100dvw - 32px);
   background: linear-gradient(
     165deg,
     rgba(15, 15, 15, 0.97) 0%,
@@ -300,7 +300,7 @@
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .onboarding-tooltip {
-    width: calc(100vw - 24px);
+    width: calc(100dvw - 24px);
     padding: 18px;
     border-radius: 12px;
   }

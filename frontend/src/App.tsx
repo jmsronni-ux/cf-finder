@@ -1,5 +1,5 @@
 import React from "react";
-import { Route, Routes, Navigate } from 'react-router-dom'
+import { Route, Routes, Navigate, useLocation } from 'react-router-dom'
 import './utils/clearUserCache.js'
 import HomePage from './pages/HomePage'
 import WalletScanner from './pages/WalletScanner'
@@ -25,6 +25,17 @@ import AdminUserPasswords from "./pages/admin/AdminUserPasswords";
 
 
 function App() {
+  const location = useLocation();
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && window.clarity) {
+      if (location.pathname.startsWith('/admin')) {
+        window.clarity('stop');
+      } else {
+        window.clarity('start');
+      }
+    }
+  }, [location.pathname]);
 
   return (
     <AuthProvider>

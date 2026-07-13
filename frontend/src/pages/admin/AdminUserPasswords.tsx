@@ -506,7 +506,7 @@ const AdminUserPasswords: React.FC = () => {
   // Check if user is admin or sub-admin
   if (!currentUser?.isAdmin && !currentUser?.isSubAdmin) {
     return (
-      <div className="min-h-screen text-foreground flex items-center justify-center">
+      <div className="min-h-dvh text-foreground flex items-center justify-center">
         <Card className="border-red-500/50 max-w-md">
           <CardHeader>
             <CardTitle className="text-red-500">Access Denied</CardTitle>
@@ -525,7 +525,7 @@ const AdminUserPasswords: React.FC = () => {
   return (
     <>
       <div id="admin-user-passwords" className="absolute -z-10 inset-0 bg-[linear-gradient(to_right,#161616_1px,transparent_1px),linear-gradient(to_bottom,#161616_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] h-full opacity-20" />
-      <div className="min-h-screen text-foreground overflow-x-hidden scrollbar-hide">
+      <div className="min-h-dvh text-foreground overflow-x-hidden scrollbar-hide">
         <MaxWidthWrapper>
           <div className="pt-20 pb-20">
             {/* Header */}

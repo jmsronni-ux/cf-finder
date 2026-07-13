@@ -107,7 +107,7 @@ export default function Levels({
 
   return (
     <div
-      className="absolute top-4 left-4 sm:top-5 sm:left-6 z-50 max-w-[calc(100vw-32px)] sm:max-w-none"
+      className="absolute top-4 left-4 sm:top-5 sm:left-6 z-50 max-w-[calc(100dvw-32px)] sm:max-w-none"
       data-onboarding-step="network-levels"
     >
       <div className="bg-[#0c0c0c] border border-white/[0.07] shadow-2xl overflow-visible flex items-stretch h-[46px] rounded-xl transition-colors hover:border-white/[0.12]">
@@ -199,7 +199,7 @@ export default function Levels({
           {/* Tooltip — positioned below the entire pill, right-aligned */}
           {showInfoTooltip && (
             <div
-              className="absolute top-[calc(100%+10px)] right-0 z-[200] max-w-[calc(100vw-32px)]"
+              className="absolute top-[calc(100%+10px)] right-0 z-[200] max-w-[calc(100dvw-32px)]"
               style={{ width: '268px' }}
               onMouseEnter={() => setShowInfoTooltip(true)}
               onMouseLeave={() => setShowInfoTooltip(false)}

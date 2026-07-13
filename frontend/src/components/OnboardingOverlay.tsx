@@ -80,7 +80,7 @@ const OnboardingOverlay: React.FC = () => {
     if (!targetRect || !currentStepData) return;
 
     const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vh = window.visualViewport?.height || window.innerHeight;
     const tooltipWidth = Math.min(360, vw - 32);
     const tooltipHeight = 220; // estimate
 
@@ -180,7 +180,7 @@ const OnboardingOverlay: React.FC = () => {
 
       const rect = el.getBoundingClientRect();
       const elementMidY = rect.top + window.scrollY + rect.height / 2;
-      const viewportMidY = window.innerHeight / 2;
+      const viewportMidY = (window.visualViewport?.height || window.innerHeight) / 2;
       const scrollOffset = currentStepData.scrollOffsetY ?? 0;
 
       window.scrollTo({
