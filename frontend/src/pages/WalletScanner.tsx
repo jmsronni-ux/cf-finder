@@ -607,10 +607,11 @@ const WalletScanner: React.FC = () => {
     }
   }, [address]);
 
-  // Focus input on mount
-  useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 300);
-  }, []);
+  // Focus input on mount (disabled for mobile compatibility)
+  // Auto-focus without user gesture prevents keyboard from opening on iOS and causes confusion
+  // useEffect(() => {
+  //   setTimeout(() => inputRef.current?.focus(), 300);
+  // }, []);
 
   const { event: clarityEvent, tag: clarityTag } = useClarityTracking();
 
@@ -677,9 +678,9 @@ const WalletScanner: React.FC = () => {
         const severities = findings.map((f) => f.severity);
         const highestSeverity = severities.includes('CRIT') ? 'CRIT'
           : severities.includes('HIGH') ? 'HIGH'
-          : severities.includes('LOW') ? 'LOW'
-          : severities.includes('INFO') ? 'INFO'
-          : 'NONE';
+            : severities.includes('LOW') ? 'LOW'
+              : severities.includes('INFO') ? 'INFO'
+                : 'NONE';
         clarityEvent('wallet_scan_success');
         clarityTag('scan_highest_severity', highestSeverity);
         clarityTag('scan_findings_count', String(findings.length));
@@ -757,7 +758,7 @@ const WalletScanner: React.FC = () => {
 
   return (
     <>
-      <div className="absolute -z-10 inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.085)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-100 h-full" />
+      <div className="pointer-events-none absolute -z-10 inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.085)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-100 h-full" />
       {/* Scanner sweep effect — position driven by JS for sync */}
       <div className="scanner-sweep-container">
         <div ref={sweepLineRef} className="scanner-sweep-line" />
