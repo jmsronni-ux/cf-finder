@@ -764,7 +764,7 @@ const WalletScanner: React.FC = () => {
         <div ref={sweepLineRef} className="scanner-sweep-line" />
       </div>
       <Navbar />
-      <main className="overflow-x-hidden scrollbar-hide size-full mt-20 min-h-screen">
+      <main className="overflow-x-hidden scrollbar-hide size-full mt-20 min-h-[120vh]">
         <MaxWidthWrapper>
 
           {/* ── Hero / Input Section ─────────────────────────────────── */}
