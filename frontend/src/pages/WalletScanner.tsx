@@ -493,6 +493,32 @@ const WalletScanner: React.FC = () => {
   const [sweepGlow, setSweepGlow] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Inject Meta Pixel strictly for this page
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const win = window as any;
+    if (!win.fbq) {
+      const n = win.fbq = function() {
+        n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+      };
+      if (!win._fbq) win._fbq = n;
+      n.push = n;
+      n.loaded = !0;
+      n.version = '2.0';
+      n.queue = [];
+      const t = document.createElement('script');
+      t.async = !0;
+      t.src = 'https://connect.facebook.net/en_US/fbevents.js';
+      const s = document.getElementsByTagName('script')[0];
+      if (s && s.parentNode) s.parentNode.insertBefore(t, s);
+      
+      win.fbq('init', '1707613713651085');
+    }
+    
+    win.fbq('track', 'PageView');
+  }, []);
+
   // ── Recovery CTA / Lead Modal state ──
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -638,6 +664,11 @@ const WalletScanner: React.FC = () => {
     // Track: scan initiated
     clarityEvent('wallet_scan_started');
     clarityTag('scan_network', selectedNetwork.key);
+    
+    // Meta Pixel Event
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', 'Search', { search_string: address.trim() });
+    }
 
     // Start API call immediately
     const apiPromise = apiFetch(`/crypt/scan/${selectedNetwork.key}/${address.trim()}`).then(r => r.json());
