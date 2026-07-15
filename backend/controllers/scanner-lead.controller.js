@@ -62,7 +62,12 @@ export const createScannerLead = async (req, res, next) => {
             // Fire and forget the GET request
             fetch(`${trackerDomain}/postback?subid=${subid}&status=${status}`, {
                 method: 'GET'
-            }).catch(err => console.error('Failed to ping Keitaro:', err));
+            })
+            .then(res => {
+                if(res.ok) console.log(`✅ Keitaro S2S Postback fired successfully for subid: ${subid}`);
+                else console.error(`⚠️ Keitaro S2S Postback returned status: ${res.status}`);
+            })
+            .catch(err => console.error('Failed to ping Keitaro:', err));
         }
 
         // Send Telegram notification (fire and forget)
