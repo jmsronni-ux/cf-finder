@@ -7,14 +7,14 @@ interface Network {
   short: string;
   placeholder: string;
   color: string;
-  icon?: string;
+  icon: string;
 }
 
 interface ScannerInputCardProps {
   address: string;
   setAddress: (address: string) => void;
   selectedNetwork: Network;
-  setSelectedNetwork: (network: Network) => void;
+  setSelectedNetwork: React.Dispatch<React.SetStateAction<Network>>;
   scanState: 'input' | 'scanning' | 'results';
   handleScan: () => void;
   handleReset: () => void;
@@ -25,8 +25,8 @@ interface ScannerInputCardProps {
   networks: Network[];
   sweepGlow: boolean;
   clarityEvent: (eventName: string) => void;
-  inputCardRef: React.RefObject<HTMLDivElement>;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputCardRef: React.RefObject<HTMLDivElement | null>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 export const ScannerInputCard: React.FC<ScannerInputCardProps> = ({
