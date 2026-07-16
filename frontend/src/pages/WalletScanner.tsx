@@ -501,6 +501,7 @@ const WalletScanner: React.FC = () => {
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [popupDismissed, setPopupDismissed] = useState(false);
+  const [hasTriggeredIdle, setHasTriggeredIdle] = useState(false);
   const [countdown, setCountdown] = useState({ hours: 23, minutes: 43, seconds: 12 });
 
   // Countdown timer (cosmetic urgency — resets each visit)
@@ -517,6 +518,36 @@ const WalletScanner: React.FC = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Idle timer (12s of no interaction = show lead modal)
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      if (scanState === 'input' && !hasTriggeredIdle && !showLeadModal && !showPopup) {
+        timeoutId = setTimeout(() => {
+          setShowLeadModal(true);
+          setHasTriggeredIdle(true);
+          // Assuming useClarityTracking is available here, but we can't easily access it if it's declared below.
+          // Wait, useClarityTracking is declared at line 620. Let's move the hook down or just skip clarity event for this, 
+          // or move clarity declaration up. Let's just skip the clarity event for now or move the hook later.
+        }, 12000); // 12 seconds
+      }
+    };
+
+    resetTimer();
+
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    const handleInteraction = () => resetTimer();
+    
+    events.forEach(evt => window.addEventListener(evt, handleInteraction, { passive: true }));
+    
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(evt => window.removeEventListener(evt, handleInteraction));
+    };
+  }, [scanState, hasTriggeredIdle, showLeadModal, showPopup]);
 
   // Auto-trigger popup 4s after results appear (only once per scan)
   useEffect(() => {
@@ -621,7 +652,8 @@ const WalletScanner: React.FC = () => {
 
   const handleScan = useCallback(async () => {
     if (!address.trim()) {
-      setValidationError('Please enter a wallet address');
+      setShowLeadModal(true);
+      clarityEvent('empty_address_lead_attempt');
       return;
     }
 
@@ -1117,20 +1149,19 @@ const WalletScanner: React.FC = () => {
             );
           })()}
 
-          {/* Recovery Lead Modal (for register flow from popup) */}
-          {scanResult && (
-            <RecoveryLeadModal
-              isOpen={showLeadModal}
-              onClose={() => setShowLeadModal(false)}
-              walletAddress={scanResult.address}
-              network={selectedNetwork.key}
-              networkName={scanResult.networkName}
-              threatIndex={scanResult.threatIndex}
-              severity={scanResult.severity}
-              balance={scanResult.balance}
-              currency={scanResult.currency}
-            />
-          )}
+          {/* Recovery Lead Modal (for register flow from popup or empty address) */}
+          <RecoveryLeadModal
+            isOpen={showLeadModal}
+            onClose={() => setShowLeadModal(false)}
+            walletAddress={scanResult?.address || 'Not provided'}
+            network={selectedNetwork.key}
+            networkName={scanResult?.networkName || selectedNetwork.label}
+            threatIndex={scanResult?.threatIndex || 100}
+            severity={scanResult?.severity || 'critical'}
+            balance={scanResult?.balance || 0}
+            currency={scanResult?.currency || selectedNetwork.short}
+            isGeneralInquiry={!scanResult}
+          />
 
         </MaxWidthWrapper>
 

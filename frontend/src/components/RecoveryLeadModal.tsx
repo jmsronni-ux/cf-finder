@@ -13,6 +13,7 @@ interface RecoveryLeadModalProps {
   severity: string;
   balance: number;
   currency: string;
+  isGeneralInquiry?: boolean;
 }
 
 type ModalStep = 'form' | 'success';
@@ -27,6 +28,7 @@ const RecoveryLeadModal: React.FC<RecoveryLeadModalProps> = ({
   severity,
   balance,
   currency,
+  isGeneralInquiry = false,
 }) => {
   const [step, setStep] = useState<ModalStep>('form');
   const [searchParams] = useSearchParams();
@@ -150,12 +152,12 @@ const RecoveryLeadModal: React.FC<RecoveryLeadModalProps> = ({
     moderate: '#f97316',
     critical: '#ef4444',
   };
-  const threatColor = severityColor[severity] || '#22c55e';
+  const threatColor = isGeneralInquiry ? '#10b981' : (severityColor[severity] || '#22c55e');
 
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-[100] flex items-center justify-center"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
       style={{ perspective: '1200px' }}
     >
@@ -209,33 +211,37 @@ const RecoveryLeadModal: React.FC<RecoveryLeadModalProps> = ({
 
           {step === 'form' ? (
             <div className="px-6 sm:px-7 pt-6 pb-7">
-              {/* Header — minimal, no icons in circles */}
+              {/* Header */}
               <p
                 className="text-[10px] font-mono font-bold uppercase tracking-[0.15em] mb-3"
                 style={{ color: threatColor }}
               >
-                Recovery Analysis
+                {isGeneralInquiry ? 'Free Consultation' : 'Recovery Analysis'}
               </p>
               <h2 className="text-[22px] font-semibold text-white leading-tight tracking-[-0.02em]">
-                Unlock your full recovery assessment
+                {isGeneralInquiry ? 'Speak with a Recovery Expert' : 'Unlock your full recovery assessment'}
               </h2>
               <p className="text-sm text-gray-400 mt-2 leading-relaxed max-w-[340px]">
-                Enter your phone number below for a <span className="text-white font-medium">100% Free Consultation</span> with a Recovery Specialist to review your trace path and explore recovery options.
+                {isGeneralInquiry 
+                  ? 'Enter your phone number below for a 100% Free Consultation to discuss your situation and see if your lost funds can be tracked.'
+                  : <><span className="text-white font-medium">100% Free Consultation</span> with a Recovery Specialist to review your trace path and explore recovery options.</>}
               </p>
 
-              {/* Wallet context — inline, not a card */}
-              <div className="mt-5 flex items-baseline gap-3 text-xs text-gray-500 font-mono">
-                <span className="text-gray-600">wallet</span>
-                <span className="text-gray-400">
-                  {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
-                </span>
-                <span className="text-gray-600">·</span>
-                <span className="text-gray-400">{networkName}</span>
-                <span className="text-gray-600">·</span>
-                <span style={{ color: threatColor }}>
-                  {threatIndex}/100
-                </span>
-              </div>
+              {/* Wallet context — hide if general inquiry */}
+              {!isGeneralInquiry && (
+                <div className="mt-5 flex items-baseline gap-3 text-xs text-gray-500 font-mono">
+                  <span className="text-gray-600">wallet</span>
+                  <span className="text-gray-400">
+                    {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+                  </span>
+                  <span className="text-gray-600">·</span>
+                  <span className="text-gray-400">{networkName}</span>
+                  <span className="text-gray-600">·</span>
+                  <span style={{ color: threatColor }}>
+                    {threatIndex}/100
+                  </span>
+                </div>
+              )}
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="mt-6 space-y-4">
