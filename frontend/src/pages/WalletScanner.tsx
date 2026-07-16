@@ -10,7 +10,9 @@ import { Shield, AlertTriangle, ChevronDown, ExternalLink, Copy, Check, RotateCc
 import RecoveryLeadModal from '@/components/RecoveryLeadModal';
 import PhoneInput from '@/components/PhoneInput';
 import { useClarityTracking } from '@/hooks/useClarityTracking';
-
+import { ScannerInputCard } from '@/components/ScannerInputCard';
+import { LiveScanningTicker } from '@/components/LiveScanningTicker';
+import { Lock, EyeOff, Star } from 'lucide-react';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface ScanTransaction {
@@ -53,12 +55,12 @@ type ScanState = 'input' | 'scanning' | 'results';
 // ─── Network config ──────────────────────────────────────────────────────────
 
 const NETWORKS = [
-  { key: 'btc', label: 'Bitcoin', short: 'BTC', placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', color: '#f7931a' },
-  { key: 'eth', label: 'Ethereum', short: 'ETH', placeholder: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', color: '#627eea' },
-  { key: 'tron', label: 'Tron', short: 'TRX', placeholder: 'TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH', color: '#eb0029' },
-  { key: 'usdtErc20', label: 'USDT (ERC-20)', short: 'USDT', placeholder: '0xdAC17F958D2ee523a2206206994597C13D831ec7', color: '#26a17b' },
-  { key: 'sol', label: 'Solana', short: 'SOL', placeholder: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', color: '#9945ff' },
-  { key: 'bnb', label: 'BNB (BSC)', short: 'BNB', placeholder: '0x8894E0a0c962CB723c1ef41B18296659F45a328', color: '#f0b90b' },
+  { key: 'btc', label: 'Bitcoin', short: 'BTC', placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', color: '#f7931a', icon: '/assets/crypto-logos/bitcoin-btc-logo.svg' },
+  { key: 'eth', label: 'Ethereum', short: 'ETH', placeholder: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', color: '#627eea', icon: '/assets/crypto-logos/ethereum-eth-logo.svg' },
+  { key: 'tron', label: 'Tron', short: 'TRX', placeholder: 'TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH', color: '#eb0029', icon: '/assets/crypto-logos/tron-trx-logo.svg' },
+  { key: 'usdtErc20', label: 'USDT (ERC-20)', short: 'USDT', placeholder: '0xdAC17F958D2ee523a2206206994597C13D831ec7', color: '#26a17b', icon: '/assets/crypto-logos/tether-usdt-logo.svg' },
+  { key: 'sol', label: 'Solana', short: 'SOL', placeholder: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', color: '#9945ff', icon: '/assets/crypto-logos/solana-sol-logo.svg' },
+  { key: 'bnb', label: 'BNB (BSC)', short: 'BNB', placeholder: '0x8894E0a0c962CB723c1ef41B18296659F45a328', color: '#f0b90b', icon: '/assets/crypto-logos/bnb-bnb-logo.svg' },
 ];
 
 // ─── Scan steps ──────────────────────────────────────────────────────────────
@@ -765,146 +767,64 @@ const WalletScanner: React.FC = () => {
       <div className="scanner-sweep-container">
         <div ref={sweepLineRef} className="scanner-sweep-line" />
       </div>
+      <LiveScanningTicker />
       <Navbar />
-      <main className="overflow-x-hidden scrollbar-hide size-full mt-20 min-h-[120vh]">
+      <main className="overflow-x-hidden scrollbar-hide size-full mt-4 sm:mt-10 min-h-[120vh]">
         <MaxWidthWrapper>
 
           {/* ── Hero / Input Section ─────────────────────────────────── */}
-          <AnimationContainer className="flex flex-col items-center justify-center w-full text-center pt-8 pb-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-black mb-6">
+          <AnimationContainer className="flex flex-col items-center justify-center w-full text-center pt-4 sm:pt-10 pb-4">
+
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-black mb-5 sm:mb-6">
               <Shield className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-xs font-medium text-gray-400 tracking-wide">Wallet Forensics Scanner</span>
+              <span className="text-[11px] sm:text-xs font-medium text-emerald-400/90 tracking-wide">100% Free & Secure Scanner</span>
             </div>
-            <h1 className="text-foreground text-center text-4xl sm:text-5xl md:text-6xl font-medium tracking-normal text-balance !leading-[1.15] font-heading">
-              Scan any wallet.{' '}
-              <span className="text-gray-500">Get the truth.</span>
+            <h1 className="text-foreground text-center text-3xl min-[360px]:text-4xl sm:text-5xl md:text-6xl font-medium tracking-tight sm:tracking-normal text-balance !leading-[1.2] sm:!leading-[1.15] font-heading">
+              Uncover the truth behind<br className="sm:hidden" />{' '}
+              <span className="text-emerald-500/90">any crypto wallet.</span>
             </h1>
-            <p className="mt-4 mb-10 text-base md:text-lg tracking-tight text-muted-foreground max-w-lg text-balance">
-              Real-time forensic analysis across {NETWORKS.length} blockchain networks.
-              Balance, transactions, threat assessment — in seconds.
+            <p className="mt-3 sm:mt-4 mb-6 text-sm md:text-base lg:text-lg tracking-tight text-gray-400 max-w-lg text-balance px-2 sm:px-0">
+              Did you send crypto to a fraudulent platform or scammer?
+              <br className="hidden sm:block"/> Track exactly where your funds went and find out if they are recoverable.
             </p>
+
+            {/* Trust Badges */}
+            <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 mb-8 sm:mb-10 text-[11px] sm:text-xs text-gray-500 font-medium">
+              <div className="flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-gray-400" />
+                256-bit Encrypted
+              </div>
+              <div className="flex items-center gap-1.5">
+                <EyeOff className="w-3.5 h-3.5 text-gray-400" />
+                100% Confidential
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                4.8/5 Avg Rating
+              </div>
+            </div>
           </AnimationContainer>
 
           {/* ── Input Card ─────────────────────────────────────────── */}
           <AnimationContainer delay={0.15} className="w-full max-w-2xl mx-auto mb-10">
-            <div
-              ref={inputCardRef}
-              className={`rounded-2xl border p-5 sm:p-6 transition-all duration-500 ease-out bg-gradient-to-b from-[#1e1e1e] to-[#131313] ${sweepGlow
-                ? 'border-emerald-500/30 shadow-[0_0_40px_-5px_rgba(16,185,129,0.15)]'
-                : 'border-white/[0.14] shadow-[0_8px_32px_-6px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.04)]'
-                }`}
-            >
-
-              {/* Network pills */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {NETWORKS.map(net => {
-                  const isActive = selectedNetwork.key === net.key;
-                  return (
-                    <button
-                      key={net.key}
-                      onClick={() => {
-                        setSelectedNetwork(net);
-                        setValidationError(null);
-                        clarityEvent(`network_selected_${net.key}`);
-                      }}
-                      disabled={scanState === 'scanning'}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-150 disabled:opacity-40
-                        ${isActive
-                          ? 'text-white'
-                          : 'bg-transparent border-white/[0.06] text-gray-500 hover:text-gray-300 hover:border-white/10 hover:bg-white/[0.02]'
-                        }`}
-                      style={isActive ? {
-                        backgroundColor: `${net.color}15`,
-                        borderColor: `${net.color}40`,
-                        color: net.color,
-                      } : undefined}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: isActive ? net.color : 'currentColor', opacity: isActive ? 1 : 0.4 }}
-                        />
-                        {net.short}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Address input row */}
-              <div className="flex gap-2.5">
-                <div className="flex-1 relative group">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={address}
-                    onChange={e => {
-                      setAddress(e.target.value);
-                      setValidationError(null);
-                      setScanError(null);
-                    }}
-                    onKeyDown={e => e.key === 'Enter' && scanState !== 'scanning' && handleScan()}
-                    placeholder={`Paste ${selectedNetwork.label} address…`}
-                    disabled={scanState === 'scanning'}
-                    autoComplete="off"
-                    spellCheck={false}
-                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm font-mono text-white placeholder:text-gray-600 focus:outline-none focus:border-white/20 focus:bg-white/[0.05] transition-all duration-200 disabled:opacity-40"
-                  />
-                  {address.trim() && scanState === 'input' && (
-                    <button
-                      onClick={() => { setAddress(''); setValidationError(null); setScanError(null); inputRef.current?.focus(); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-300 transition-colors p-0.5"
-                      aria-label="Clear address"
-                    >
-                      <span className="text-xs">✕</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Scan / Reset button */}
-                <button
-                  onClick={scanState === 'scanning' ? undefined : (scanState === 'results' ? handleReset : handleScan)}
-                  disabled={scanState === 'scanning'}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-40 flex-shrink-0
-                    ${scanState === 'results'
-                      ? 'bg-white/[0.06] border border-white/10 text-gray-300 hover:bg-white/[0.1] hover:text-white'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.97] shadow-lg shadow-emerald-600/20'
-                    }`}
-                >
-                  {scanState === 'scanning' ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                      Scanning
-                    </>
-                  ) : scanState === 'results' ? (
-                    <>
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      New Scan
-                    </>
-                  ) : (
-                    'Scan Address'
-                  )}
-                </button>
-              </div>
-
-              {/* Validation / API error */}
-              {(validationError || scanError) && (
-                <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-red-500/[0.06] border border-red-500/10">
-                  <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-red-400">{validationError || scanError}</p>
-                    {scanError && (
-                      <button
-                        onClick={handleScan}
-                        className="text-xs text-red-400/70 hover:text-red-300 underline mt-1 transition-colors"
-                      >
-                        Try again
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <ScannerInputCard
+              address={address}
+              setAddress={setAddress}
+              selectedNetwork={selectedNetwork}
+              setSelectedNetwork={setSelectedNetwork}
+              scanState={scanState}
+              handleScan={handleScan}
+              handleReset={handleReset}
+              validationError={validationError}
+              setValidationError={setValidationError}
+              scanError={scanError}
+              setScanError={setScanError}
+              networks={NETWORKS}
+              sweepGlow={sweepGlow}
+              clarityEvent={clarityEvent}
+              inputCardRef={inputCardRef}
+              inputRef={inputRef}
+            />
           </AnimationContainer>
 
           {/* ── Scanning Animation ─────────────────────────────────── */}
@@ -1183,7 +1103,7 @@ const WalletScanner: React.FC = () => {
               <div className={`w-full max-w-3xl mx-auto mt-4 mb-10 transition-all duration-500 ${resultsVisible ? 'opacity-100' : 'opacity-0'}`}>
                 <div className="flex items-center justify-between py-4 border-t border-white/[0.05]">
                   <p className="text-[13px] text-gray-500">
-                    Want a free forensic assessment of this wallet?
+                    Want a Free Recovery Consultation for this wallet?
                   </p>
                   <button
                     onClick={() => { clarityEvent('recovery_cta_clicked'); setPopupDismissed(false); setShowPopup(true); }}

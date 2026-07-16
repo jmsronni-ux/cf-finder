@@ -54,9 +54,9 @@ const Navbar = () => {
             <AnimationContainer reverse delay={0.1} className="size-full">
                 <MaxWidthWrapper className="flex items-center justify-between">
                     <div className="flex items-center space-x-12">
-                        <Link to="/#home" className="flex flex-row gap-4 items-center">
-                            <img src="/logo.png" alt="logo" className="w-6 h-6" />
-                            <span className="text-lg font-bold font-heading !leading-none text-white">
+                        <Link to="/#home" className="flex flex-row gap-3 sm:gap-4 items-center">
+                            <img src="/logo.png" alt="logo" className="w-8 h-8 sm:w-6 sm:h-6" />
+                            <span className="hidden sm:inline-block text-lg font-bold font-heading !leading-none text-white">
                                 CryptoFinders
                             </span>
                         </Link>

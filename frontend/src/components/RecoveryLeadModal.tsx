@@ -217,10 +217,10 @@ const RecoveryLeadModal: React.FC<RecoveryLeadModalProps> = ({
                 Recovery Analysis
               </p>
               <h2 className="text-[22px] font-semibold text-white leading-tight tracking-[-0.02em]">
-                Talk to our forensic team
+                Unlock your full recovery assessment
               </h2>
-              <p className="text-sm text-gray-500 mt-2 leading-relaxed max-w-[340px]">
-                Leave your number and we'll reach out with a recovery assessment for your scanned wallet.
+              <p className="text-sm text-gray-400 mt-2 leading-relaxed max-w-[340px]">
+                Enter your phone number below for a <span className="text-white font-medium">100% Free Consultation</span> with a Recovery Specialist to review your trace path and explore recovery options.
               </p>
 
               {/* Wallet context — inline, not a card */}
@@ -328,7 +328,7 @@ const RecoveryLeadModal: React.FC<RecoveryLeadModalProps> = ({
                       Sending…
                     </span>
                   ) : (
-                    'Request Recovery Analysis →'
+                    'Claim Free Consultation →'
                   )}
                 </button>
               </form>
